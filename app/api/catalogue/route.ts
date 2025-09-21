@@ -1,6 +1,6 @@
 import { fetchLoyaltyCatalogue } from '@/lib/airtable';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60 * 60 * 24; // cache catalogue for 1 day
 
 export async function GET() {
   try {
@@ -10,7 +10,12 @@ export async function GET() {
         items,
         fetchedAt: new Date().toISOString(),
       }),
-      { headers: { 'content-type': 'application/json' } }
+      {
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 's-maxage=86400, stale-while-revalidate=3600',
+        },
+      }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -20,4 +25,3 @@ export async function GET() {
     });
   }
 }
-
