@@ -1,6 +1,6 @@
 import { fetchLoyaltyCatalogue } from '@/lib/airtable';
 
-export const revalidate = 60 * 60 * 24; // cache catalogue for 1 day
+export const revalidate = 86400; // cache catalogue for 1 day
 
 export async function GET() {
   try {
