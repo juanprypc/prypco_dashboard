@@ -1,5 +1,79 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Prypco Loyalty Dashboard
+
+A minimal server-rendered dashboard backed by Airtable `loyalty_points` with:
+
+- Server-only API route: `app/api/loyalty/route.ts`
+- Dashboard UI: `app/dashboard/page.tsx`
+- Airtable client: `lib/airtable.ts`
+
+### Configure
+
+1) Copy env example and fill your Airtable values:
+
+```
+cp .env.local.example .env.local
+# edit .env.local
+```
+
+Required env vars:
+
+- `AIRTABLE_API_KEY`
+- `AIRTABLE_BASE` (base id `appXXXXXXXXXXXX`)
+- `AIRTABLE_TABLE_LOY` (table name, e.g., `loyalty_points`)
+- `AIRTABLE_TABLE_AGENTS` (optional fallback for display name lookups)
+- `AIRTABLE_TABLE_CATALOGUE` (rewards table name, e.g., `loyalty_catalogue`)
+- `AIRTABLE_FIELD_AGENT_CODE` (text/lookup field with the agent code, e.g., `Agents ID`)
+- `AIRTABLE_RATE_LIMIT` (optional, defaults to `5` requests/sec)
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `MIN_TOPUP_AED` (default `500`)
+- `POINTS_PER_AED` (default `2`)
+- `NEXT_PUBLIC_APP_URL`
+
+2) Start dev server:
+
+```
+npm run dev
+```
+
+3) Open the dashboard with an agent record id:
+
+```
+http://localhost:3000/dashboard?agent=recXXXXXXXXXXXX
+```
+
+Use `view=catalogue` to jump to the rewards catalogue tab:
+
+```
+http://localhost:3000/dashboard?agent=recXXXXXXXXXXXX&view=catalogue
+```
+
+If you prefer to reference agents by a custom code/lookup (e.g., `AG1234`), pass `agentCode` instead and make sure the lookup is exposed on `loyalty_points` via `AIRTABLE_FIELD_AGENT_CODE`:
+
+```
+http://localhost:3000/dashboard?agentCode=AG1234
+```
+
+API (server-only) test:
+
+```
+http://localhost:3000/api/loyalty?agent=recXXXXXXXXXXXX
+```
+
+Notes:
+
+- The API filters: `status = posted` and unexpired rows (`expires_at` empty or >= today), and matches the `agent` linked record via `FIND('<agentId>', ARRAYJOIN({agent}))`.
+- In production, replace the `?agent=` dev parameter with auth middleware that injects `agentId`.
+- Stripe Checkout is exposed at `/api/stripe/checkout`. Configure a Stripe webhook (e.g., `checkout.session.completed`) to post directly to your Airtable automation webhook so points can be credited server-side.
+
+### Stripe Top-up Flow
+
+1. Populate Stripe env vars (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `MIN_TOPUP_AED`, `POINTS_PER_AED`, `NEXT_PUBLIC_APP_URL`).
+2. In Stripe (test mode), create a Checkout webhook endpoint targeting your Airtable automation URL and subscribe to `checkout.session.completed` events.
+3. From the dashboard, agents can launch Checkout via the “Buy points” card. Metadata sent to Stripe includes `agentId`, `amountAED`, `pointsPerAED`, and `expectedPoints` so Airtable can post the ledger row when the webhook fires.
+
 ## Getting Started
 
 First, run the development server:
