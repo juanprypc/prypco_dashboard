@@ -7,6 +7,27 @@ import {
   type PublicLoyaltyRow,
 } from '@/lib/airtable';
 
+type CachedBody = {
+  records: PublicLoyaltyRow[];
+  displayName?: string | null;
+};
+
+const DEFAULT_TTL_SECONDS = Number(process.env.LOYALTY_CACHE_TTL ?? 60);
+
+function getCacheStore(): Map<string, { expiresAt: number; value: CachedBody }> {
+  const globalAny = globalThis as typeof globalThis & {
+    __loyaltyCache?: Map<string, { expiresAt: number; value: CachedBody }>;
+  };
+  if (!globalAny.__loyaltyCache) {
+    globalAny.__loyaltyCache = new Map();
+  }
+  return globalAny.__loyaltyCache;
+}
+
+function cacheKeyFor(agentId?: string, agentCode?: string): string {
+  return `loyalty:${agentId ?? ''}:${agentCode ?? ''}`;
+}
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
@@ -16,6 +37,7 @@ export async function GET(req: Request) {
 
   const agentId = rawAgent && rawAgent.startsWith('rec') ? rawAgent : undefined;
   const agentCode = agentCodeParam || (!agentId ? rawAgent : undefined);
+  const forceFresh = searchParams.get('fresh') === '1';
 
   if (!agentId && !agentCode) {
     return new Response(JSON.stringify({ error: 'missing agent or agentCode' }), {
@@ -27,6 +49,19 @@ export async function GET(req: Request) {
   try {
     const debug = searchParams.get('debug') === '1';
     const skipExpiry = searchParams.get('skipExpiry') === '1';
+    const ttlSeconds = Math.max(0, DEFAULT_TTL_SECONDS);
+    const cacheEligible = !debug && !forceFresh && ttlSeconds > 0;
+    const cacheKey = cacheEligible ? cacheKeyFor(agentId, agentCode) : null;
+
+    if (cacheEligible && cacheKey) {
+      const store = getCacheStore();
+      const cached = store.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return new Response(JSON.stringify(cached.value), {
+          headers: { 'content-type': 'application/json', 'x-cache': 'hit' },
+        });
+      }
+    }
     // Try to fetch the agent's display name for text fallback rows if configured
     const agentName = agentId ? await fetchAgentDisplayName(agentId).catch(() => null) : null;
     const rows = await fetchLoyaltyForAgent({ agentId, agentCode, agentName: agentName || undefined });
@@ -99,8 +134,18 @@ export async function GET(req: Request) {
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     }
 
-    return new Response(JSON.stringify({ records, displayName }), {
-      headers: { 'content-type': 'application/json' },
+    const body: CachedBody = { records, displayName };
+
+    if (cacheEligible && cacheKey) {
+      const store = getCacheStore();
+      store.set(cacheKey, {
+        expiresAt: Date.now() + ttlSeconds * 1000,
+        value: body,
+      });
+    }
+
+    return new Response(JSON.stringify(body), {
+      headers: { 'content-type': 'application/json', 'x-cache': 'miss' },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
