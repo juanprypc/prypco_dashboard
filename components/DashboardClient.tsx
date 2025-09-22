@@ -548,6 +548,8 @@ function RedeemDialog({
     ? normaliseAmount(Math.ceil(extraPointsNeeded / pointsPerAed), minAmount)
     : minAmount;
   const suggestedPoints = suggestedAed * pointsPerAed;
+  const maxStripeAed = Number(process.env.NEXT_PUBLIC_STRIPE_MAX_AED || 999999);
+  const exceedsStripeLimit = suggestedAed > maxStripeAed;
 
   async function handleDirectTopup() {
     if (!agentId && !agentCode) {
@@ -555,6 +557,10 @@ function RedeemDialog({
       return;
     }
     setTopupError(null);
+    if (exceedsStripeLimit) {
+      setTopupError(`Amount exceeds Stripe limit of AED ${formatNumber(maxStripeAed)}. Try a smaller top-up.`);
+      return;
+    }
     setTopupBusy(true);
     try {
       const res = await fetch('/api/stripe/checkout', {
@@ -609,7 +615,7 @@ function RedeemDialog({
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 onClick={handleDirectTopup}
-                disabled={topupBusy}
+                disabled={topupBusy || exceedsStripeLimit}
                 className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {topupBusy
@@ -624,6 +630,11 @@ function RedeemDialog({
                 Adjust amount
               </button>
             </div>
+            {exceedsStripeLimit ? (
+              <p className="text-xs text-rose-500">
+                Stripe only supports single payments up to AED {formatNumber(maxStripeAed)}. Use "Adjust amount" to top up in smaller steps.
+              </p>
+            ) : null}
             {topupError ? <p className="text-xs text-rose-500">{topupError}</p> : null}
           </div>
         ) : (

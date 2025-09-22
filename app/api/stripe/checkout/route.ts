@@ -9,6 +9,8 @@ type CheckoutPayload = {
   amountAED?: number;
 };
 
+const STRIPE_MAX_AED = Number(process.env.STRIPE_MAX_AED || 999999);
+
 function requiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing env var: ${name}`);
@@ -33,6 +35,15 @@ export async function POST(request: Request) {
     const multiples = Math.max(1, Math.ceil(requestedAmount / minTopup));
     const normalizedAmount = multiples * minTopup;
     const points = Math.floor(normalizedAmount * pointsPerAed);
+
+    if (normalizedAmount > STRIPE_MAX_AED) {
+      return Response.json(
+        {
+          error: `Amount exceeds Stripe limit of AED ${STRIPE_MAX_AED.toLocaleString()}. Please top up in smaller steps.`,
+        },
+        { status: 400 }
+      );
+    }
 
     const stripe = new Stripe(secretKey, { apiVersion: '2025-08-27.basil' });
 
