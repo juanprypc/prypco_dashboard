@@ -485,16 +485,6 @@ export function DashboardClient({
             setRedeemStatus('idle');
             setRedeemMessage(null);
           }}
-          onGoToTopup={() => {
-            setRedeemItem(null);
-            setRedeemStatus('idle');
-            setRedeemMessage(null);
-            if (activeView === 'catalogue') {
-              router.push(`${ledgerHref}#topup`);
-            } else {
-              setTimeout(() => topupRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
-            }
-          }}
         />
       ) : null}
     </div>
@@ -513,7 +503,6 @@ type RedeemDialogProps = {
   baseQuery?: string;
   onSubmit: () => void;
   onClose: () => void;
-  onGoToTopup: () => void;
 };
 
 function RedeemDialog({
@@ -523,7 +512,6 @@ function RedeemDialog({
   message,
   onSubmit,
   onClose,
-  onGoToTopup,
   minAmount,
   pointsPerAed,
   agentId,
@@ -548,8 +536,6 @@ function RedeemDialog({
     ? normaliseAmount(Math.ceil(extraPointsNeeded / pointsPerAed), minAmount)
     : minAmount;
   const suggestedPoints = suggestedAed * pointsPerAed;
-  const maxStripeAed = Number(process.env.NEXT_PUBLIC_STRIPE_MAX_AED || 999999);
-  const exceedsStripeLimit = suggestedAed > maxStripeAed;
 
   async function handleDirectTopup() {
     if (!agentId && !agentCode) {
@@ -557,10 +543,6 @@ function RedeemDialog({
       return;
     }
     setTopupError(null);
-    if (exceedsStripeLimit) {
-      setTopupError(`Amount exceeds Stripe limit of AED ${formatNumber(maxStripeAed)}. Try a smaller top-up.`);
-      return;
-    }
     setTopupBusy(true);
     try {
       const res = await fetch('/api/stripe/checkout', {
@@ -615,26 +597,14 @@ function RedeemDialog({
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 onClick={handleDirectTopup}
-                disabled={topupBusy || exceedsStripeLimit}
+                disabled={topupBusy}
                 className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {topupBusy
                   ? 'Redirecting…'
                   : `Buy ${formatNumber(suggestedPoints)} pts (AED ${formatNumber(suggestedAed)})`}
               </button>
-              <button
-                onClick={onGoToTopup}
-                disabled={topupBusy}
-                className="w-full rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-[var(--color-outer-space)]/70 transition hover:bg-[var(--color-panel)]/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-              >
-                Adjust amount
-              </button>
             </div>
-            {exceedsStripeLimit ? (
-              <p className="text-xs text-rose-500">
-                Stripe only supports single payments up to AED {formatNumber(maxStripeAed)}. Use &quot;Adjust amount&quot; to top up in smaller steps.
-              </p>
-            ) : null}
             {topupError ? <p className="text-xs text-rose-500">{topupError}</p> : null}
           </div>
         ) : (
