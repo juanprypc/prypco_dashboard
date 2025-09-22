@@ -632,7 +632,7 @@ function RedeemDialog({
             </div>
             {exceedsStripeLimit ? (
               <p className="text-xs text-rose-500">
-                Stripe only supports single payments up to AED {formatNumber(maxStripeAed)}. Use "Adjust amount" to top up in smaller steps.
+                Stripe only supports single payments up to AED {formatNumber(maxStripeAed)}. Use &quot;Adjust amount&quot; to top up in smaller steps.
               </p>
             ) : null}
             {topupError ? <p className="text-xs text-rose-500">{topupError}</p> : null}
