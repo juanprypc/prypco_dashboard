@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
@@ -75,34 +75,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
   });
 }
 
-const LoaderPanel = ({ headline, subline }: { headline: string; subline: string }) => {
-  return (
-    <div className="rounded-[31px] border border-[#d1b7fb] bg-[var(--color-desert-dust)] p-10 text-center text-[var(--color-outer-space)] shadow-[0_30px_100px_-60px_rgba(13,9,59,0.35)]">
-      <div className="flex min-h-[260px] flex-col items-center justify-center gap-5">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-[var(--color-outer-space)]/15">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--color-outer-space)]/40 border-t-[var(--color-outer-space)]" aria-hidden />
-        </div>
-        <p className="text-2xl font-semibold tracking-tight">{headline}</p>
-        <p className="max-w-md text-base text-[var(--color-outer-space)]/70">{subline}</p>
-      </div>
-    </div>
-  );
-};
-
-const LOADER_MESSAGES = [
-  {
-    headline: 'Plotting your skyline…',
-    subline: 'Mapping monthly momentum from every tower you have closed.'
-  },
-  {
-    headline: 'Stacking your wins…',
-    subline: 'Pulling bonuses, streaks, and base points into one storyline.'
-  },
-  {
-    headline: 'Prepping your leaderboard…',
-    subline: 'Giving fresh commissions a final shine before we show the totals.'
-  },
-] as const;
+const ActivitySection = lazy(() => import('./ActivitySection'));
 
 export function DashboardClient({
   agentId,
@@ -123,7 +96,6 @@ export function DashboardClient({
   const [retryDelay, setRetryDelay] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [loaderIndex, setLoaderIndex] = useState(0);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
   const topupRef = useRef<HTMLDivElement | null>(null);
@@ -275,16 +247,6 @@ export function DashboardClient({
     };
   }, [rows]);
 
-  const showLoader = loading || retryDelay !== null;
-
-  useEffect(() => {
-    if (!showLoader) return;
-    const interval = setInterval(() => {
-      setLoaderIndex((index) => (index + 1) % LOADER_MESSAGES.length);
-    }, 2800);
-    return () => clearInterval(interval);
-  }, [showLoader]);
-
   const lastUpdatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
@@ -353,18 +315,13 @@ export function DashboardClient({
 
       {topupStatus ? <TopupBanner status={topupStatus} /> : null}
 
-      {showLoader ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-desert-dust)]/90 backdrop-blur-sm">
-          <LoaderPanel
-            headline={retryDelay ? 'Still loading your skyline…' : LOADER_MESSAGES[loaderIndex].headline}
-            subline={
-              retryDelay
-                ? `Airtable is catching up. Retrying in ${retryDelay.toFixed(0)} second${retryDelay >= 2 ? 's' : ''}…`
-                : LOADER_MESSAGES[loaderIndex].subline
-            }
-          />
+      {retryDelay ? (
+        <div className="mb-4 rounded-2xl border border-[#d1b7fb] bg-white px-4 py-3 text-sm text-[var(--color-outer-space)] shadow-sm">
+          Airtable is catching up. Retrying in {retryDelay.toFixed(0)} second{retryDelay >= 2 ? 's' : ''}…
         </div>
-      ) : error ? (
+      ) : null}
+
+      {error ? (
         <div className="rounded-2xl border border-rose-400/60 bg-rose-50/70 p-6 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
           <p className="text-sm font-semibold">We hit a snag</p>
           <p className="mt-2 text-xs">{error}</p>
@@ -377,7 +334,6 @@ export function DashboardClient({
               setRetryDelay(null);
               setLastUpdated(null);
               setDisplayName(null);
-              // trigger effect by updating baseQuery (trigger by router refresh)
               router.refresh();
             }}
             className="mt-4 rounded-md border border-rose-400 px-4 py-2 text-xs font-semibold uppercase tracking-wide"
@@ -385,12 +341,14 @@ export function DashboardClient({
             Retry now
           </button>
         </div>
-      ) : (
-        activeView === 'loyalty' ? (
-          <>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-8 sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
-              <section className="col-span-3 xl:col-span-6">
-                <h2 className="mb-2 text-lg font-medium">Top earning categories</h2>
+      ) : activeView === 'loyalty' ? (
+        <>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-8 sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
+            <section className="col-span-3 xl:col-span-6">
+              <h2 className="mb-2 text-lg font-medium">Top earning categories</h2>
+              {rows === null ? (
+                <TopEarningSkeleton />
+              ) : (
                 <PointsBreakdown
                   items={metrics.pointsByType.map((item) => ({
                     key: item.key,
@@ -399,11 +357,12 @@ export function DashboardClient({
                     rows: item.rows,
                   }))}
                 />
-              </section>
+              )}
+            </section>
 
-              <section ref={topupRef} id="topup" className="col-span-3 xl:col-span-6">
-                <h2 className="mb-2 text-lg font-medium">Top up balance</h2>
-                <BuyPointsButton
+            <section ref={topupRef} id="topup" className="col-span-3 xl:col-span-6">
+              <h2 className="mb-2 text-lg font-medium">Top up balance</h2>
+              <BuyPointsButton
                   agentId={agentId}
                   agentCode={agentCode}
                   baseQuery={identifierParams.toString()}
@@ -412,33 +371,34 @@ export function DashboardClient({
                 />
               </section>
 
-              <section className="col-span-3 sm:col-span-6 mt-4 xl:col-span-12 xl:mt-0">
-                <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
-                <ActivityTable rows={metrics.last20} />
-              </section>
-            </div>
-          </>
-        ) : (
-          <section className="space-y-8 rounded-[32px] bg-[#F6F3F8] px-4 py-10 sm:rounded-[48px] sm:px-10 sm:py-12">
-            <div className="space-y-4 text-center">
-              <h2 className="text-[34px] font-medium leading-[1.1] text-[var(--color-outer-space)] sm:text-[72px] lg:text-[85px]">
-                Collect Store
-              </h2>
-              <p className="mx-auto max-w-2xl text-sm leading-[1.3] text-[var(--color-outer-space)]/80 sm:text-[26px] lg:text-[31px]">
-                Redeem your points for exclusive rewards from our curated list of items.
-              </p>
-            </div>
+            <section className="col-span-3 sm:col-span-6 mt-4 xl:col-span-12 xl:mt-0">
+              <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
+              <Suspense fallback={<ActivitySkeleton />}>
+                <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
+              </Suspense>
+            </section>
+          </div>
+        </>
+      ) : (
+        <section className="space-y-8 rounded-[32px] bg-[#F6F3F8] px-4 py-10 sm:rounded-[48px] sm:px-10 sm:py-12">
+          <div className="space-y-4 text-center">
+            <h2 className="text-[34px] font-medium leading-[1.1] text-[var(--color-outer-space)] sm:text-[72px] lg:text-[85px]">
+              Collect Store
+            </h2>
+            <p className="mx-auto max-w-2xl text-sm leading-[1.3] text-[var(--color-outer-space)]/80 sm:text-[26px] lg:text-[31px]">
+              Redeem your points for exclusive rewards from our curated list of items.
+            </p>
+          </div>
 
-            <CatalogueGrid
-              items={catalogue ?? []}
-              onRedeem={(item) => {
-                setRedeemItem(item);
-                setRedeemStatus('idle');
-                setRedeemMessage(null);
-              }}
-            />
-          </section>
-        )
+          <CatalogueGrid
+            items={catalogue ?? []}
+            onRedeem={(item) => {
+              setRedeemItem(item);
+              setRedeemStatus('idle');
+              setRedeemMessage(null);
+            }}
+          />
+        </section>
       )}
       {redeemItem ? (
         <RedeemDialog
@@ -644,6 +604,38 @@ function RedeemDialog({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function TopEarningSkeleton() {
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:gap-4 xl:gap-5">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex h-full flex-col justify-between rounded-[20px] border border-[#d1b7fb]/60 bg-white/70 p-3 text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6 animate-pulse"
+        >
+          <div className="h-3 w-28 rounded-full bg-[#d1b7fb]/60" />
+          <div className="mt-6 h-6 w-32 rounded-full bg-[#d1b7fb]/40 sm:h-10" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ActivitySkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between rounded-[20px] border border-[#d1b7fb]/50 bg-white/70 px-4 py-3 shadow-sm animate-pulse"
+        >
+          <div className="h-3 w-28 rounded-full bg-[#d1b7fb]/70" />
+          <div className="h-3 w-16 rounded-full bg-[#d1b7fb]/50" />
+        </div>
+      ))}
     </div>
   );
 }
