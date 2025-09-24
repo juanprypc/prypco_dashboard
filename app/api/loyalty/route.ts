@@ -24,9 +24,8 @@ const kvUrl =
   process.env.KV_KV_URL ||
   process.env.KV_REDIS_URL;
 
-const kvToken = process.env.KV_KV_REST_API_TOKEN;
-
-const kvReadOnlyToken = process.env.KV_KV_REST_API_READ_ONLY_TOKEN;
+const kvToken =
+  process.env.KV_KV_REST_API_TOKEN || process.env.KV_KV_REST_API_READ_ONLY_TOKEN;
 
 if (!kvUrl || !kvToken) {
   throw new Error('KV connection variables missing. Ensure KV_KV_REST_API_URL and KV_KV_REST_API_TOKEN are set.');
@@ -35,7 +34,6 @@ if (!kvUrl || !kvToken) {
 const kv = createClient({
   url: kvUrl,
   token: kvToken,
-  readOnlyToken: kvReadOnlyToken,
 });
 
 export const dynamic = 'force-dynamic';
