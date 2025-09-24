@@ -1,3 +1,4 @@
+import { kv } from '@vercel/kv';
 import {
   extractAgentCodes,
   fetchAgentDisplayName,
@@ -13,16 +14,6 @@ type CachedBody = {
 };
 
 const DEFAULT_TTL_SECONDS = Number(process.env.LOYALTY_CACHE_TTL ?? 60);
-
-function getCacheStore(): Map<string, { expiresAt: number; value: CachedBody }> {
-  const globalAny = globalThis as typeof globalThis & {
-    __loyaltyCache?: Map<string, { expiresAt: number; value: CachedBody }>;
-  };
-  if (!globalAny.__loyaltyCache) {
-    globalAny.__loyaltyCache = new Map();
-  }
-  return globalAny.__loyaltyCache;
-}
 
 function cacheKeyFor(agentId?: string, agentCode?: string): string {
   return `loyalty:${agentId ?? ''}:${agentCode ?? ''}`;
@@ -54,10 +45,9 @@ export async function GET(req: Request) {
     const cacheKey = cacheEligible ? cacheKeyFor(agentId, agentCode) : null;
 
     if (cacheEligible && cacheKey) {
-      const store = getCacheStore();
-      const cached = store.get(cacheKey);
-      if (cached && cached.expiresAt > Date.now()) {
-        return new Response(JSON.stringify(cached.value), {
+      const cached = await kv.get<CachedBody>(cacheKey);
+      if (cached) {
+        return new Response(JSON.stringify(cached), {
           headers: { 'content-type': 'application/json', 'x-cache': 'hit' },
         });
       }
@@ -137,11 +127,7 @@ export async function GET(req: Request) {
     const body: CachedBody = { records, displayName };
 
     if (cacheEligible && cacheKey) {
-      const store = getCacheStore();
-      store.set(cacheKey, {
-        expiresAt: Date.now() + ttlSeconds * 1000,
-        value: body,
-      });
+      await kv.set(cacheKey, body, { ex: ttlSeconds });
     }
 
     return new Response(JSON.stringify(body), {
