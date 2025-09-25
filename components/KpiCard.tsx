@@ -12,7 +12,7 @@ export function KpiCard({ title, value, unit, note }: Props) {
   const formatted = typeof value === 'number' ? formatNumber(value) : value;
 
   return (
-    <div className="flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white shadow-[0_18px_40px_-32px_rgba(13,9,59,0.45)] p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6">
+    <div className="flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/80 shadow-[0_18px_40px_-32px_rgba(13,9,59,0.35)] p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6">
       <p className="text-xs font-normal text-[var(--color-outer-space)]/75 sm:text-xl">{title}</p>
       <div className="mt-2 text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
         {formatted}
