@@ -31,6 +31,18 @@ Required env vars:
 - `MIN_TOPUP_AED` (default `500`)
 - `POINTS_PER_AED` (default `2`)
 - `NEXT_PUBLIC_APP_URL`
+- `KV_KV_REST_API_URL`, `KV_KV_REST_API_TOKEN`, `KV_KV_URL` (Upstash/Vercel KV connection)
+- (Optional) `KV_KV_REST_API_READ_ONLY_TOKEN`
+- (Optional) `LOYALTY_CACHE_TTL` (defaults to `60` seconds)
+
+Redis-backed caching: provision an Upstash Redis database from the Vercel Marketplace, connect it to this project, then run `vercel env pull .env.local` so the KV variables are available locally. The `/api/loyalty` endpoint caches each agent’s payload in Redis to reduce Airtable traffic; the TTL governs how long entries are reused before refreshing.
+
+### Monitoring
+
+- `SENTRY_DSN` for server-side capture (optional `SENTRY_TRACES_SAMPLE_RATE`, defaults to `0.05`).
+- `NEXT_PUBLIC_SENTRY_DSN` for client capture (optional `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`, defaults to `0`).
+
+Sentry initialization lives in `sentry.server.config.ts`, `sentry.client.config.ts`, and `sentry.edge.config.ts`. API routes call `Sentry.captureException(err)` so Airtable/Stripe failures show up immediately in your Sentry project.
 
 2) Start dev server:
 

@@ -1,3 +1,4 @@
+import { Sentry } from '@/lib/sentry';
 import { fetchLoyaltyCatalogue } from '@/lib/airtable';
 
 export const runtime = 'edge';
@@ -19,6 +20,7 @@ export async function GET() {
       }
     );
   } catch (error) {
+    Sentry.captureException(error);
     const message = error instanceof Error ? error.message : String(error);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,

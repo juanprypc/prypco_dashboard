@@ -1,3 +1,4 @@
+import { Sentry } from '@/lib/sentry';
 import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
 
     return Response.json({ url: session.url });
   } catch (error) {
+    Sentry.captureException(error);
     const message = error instanceof Error ? error.message : 'Stripe error';
     return Response.json({ error: message }, { status: 500 });
   }

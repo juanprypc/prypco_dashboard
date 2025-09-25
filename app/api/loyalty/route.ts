@@ -1,3 +1,4 @@
+import { Sentry } from '@/lib/sentry';
 import { createClient } from '@vercel/kv';
 import {
   extractAgentCodes,
@@ -151,6 +152,7 @@ export async function GET(req: Request) {
       headers: { 'content-type': 'application/json', 'x-cache': 'miss' },
     });
   } catch (err) {
+    Sentry.captureException(err);
     const message = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,

@@ -1,3 +1,4 @@
+import { Sentry } from '@/lib/sentry';
 import { NextResponse } from 'next/server';
 
 const webhookUrl = process.env.AIRTABLE_REDEEM_WEBHOOK;
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    Sentry.captureException(error);
     const message = error instanceof Error ? error.message : 'Failed to submit redemption';
     return NextResponse.json({ error: message }, { status: 500 });
   }
