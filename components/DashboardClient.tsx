@@ -257,8 +257,19 @@ export function DashboardClient({
 
   return (
     <div className="space-y-10 text-[var(--color-outer-space)]">
-      <div className="rounded-[31px] border border-transparent bg-[var(--color-hero)] px-4 py-6 sm:px-10 sm:py-12">
-        <div className="flex flex-col gap-8">
+      <div className="relative overflow-hidden rounded-[31px] border border-transparent bg-[var(--color-hero)] px-4 py-6 sm:px-10 sm:py-12">
+        <video
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+        >
+          <source src="/video/collect-loop.webm" type="video/webm" />
+        </video>
+
+        <div className="relative z-10 flex flex-col gap-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Image src="/logo.png" alt="Collect" width={110} height={40} priority className="sm:w-[128px] sm:h-[48px]" />
             <div className="flex gap-2 sm:gap-3">
