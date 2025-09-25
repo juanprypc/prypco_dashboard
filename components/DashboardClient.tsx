@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
 import { formatNumber } from '@/lib/format';
 import { KpiCard } from './KpiCard';
-import { ActivityTable } from './ActivityTable';
 import { PointsBreakdown } from './PointsBreakdown';
 import { CatalogueGrid, type CatalogueDisplayItem } from './CatalogueGrid';
 import { BuyPointsButton } from './BuyPointsButton';
