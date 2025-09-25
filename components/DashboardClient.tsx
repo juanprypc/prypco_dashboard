@@ -271,7 +271,7 @@ export function DashboardClient({
 
         <div className="relative z-10 flex flex-col gap-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <Image src="/logo.png" alt="Collect" width={110} height={40} priority className="sm:w-[128px] sm:h-[48px]" />
+            <Image src="/logo.png" alt="Collect" width={195} height={48} priority />
             <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => router.push(ledgerHref)}
