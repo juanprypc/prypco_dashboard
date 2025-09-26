@@ -254,6 +254,7 @@ export function DashboardClient({
     const currentMonthKey = monthKey(now.toISOString());
     const currentMonth = rows
       .filter((r) => monthKey(r.earned_at ?? r.createdTime) === currentMonthKey)
+      .filter((r) => r.points > 0)
       .reduce((acc, r) => acc + r.points, 0);
 
     const positivePoints = rows.filter((r) => r.points > 0).reduce((acc, r) => acc + r.points, 0);
@@ -348,13 +349,13 @@ export function DashboardClient({
 
           <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
-              <KpiCard title="Collected points" value={metrics.totalPosted} unit="points" />
+              <KpiCard title="Collected points" value={metrics.totalPosted} unit="points" animate />
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
-              <KpiCard title="Due to expire in 30 days" value={metrics.expiringSoon} unit="points" />
+              <KpiCard title="Due to expire in 30 days" value={metrics.expiringSoon} unit="points" animate />
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
-              <KpiCard title={`Collected in ${currentMonthName}`} value={metrics.currentMonth} unit="points" />
+              <KpiCard title={`Collected in ${currentMonthName}`} value={metrics.currentMonth} unit="points" animate />
             </div>
           </div>
 
