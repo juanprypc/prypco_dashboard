@@ -268,6 +268,7 @@ export function DashboardClient({
         >
           <source src="/video/collect-loop.webm" type="video/webm" />
         </video>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_10%,rgba(234,213,254,0.85)_0%,rgba(206,174,255,0.6)_45%,rgba(150,130,255,0.3)_75%,transparent_100%)]" />
 
         <div className="relative z-10 flex flex-col gap-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
