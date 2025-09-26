@@ -316,7 +316,7 @@ export function DashboardClient({
             <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => router.push(ledgerHref)}
-                className={`rounded-full px-4 py-2 text-xs font-medium transition sm:px-6 sm:text-base ${
+                className={`cursor-pointer rounded-full px-4 py-2 text-xs font-medium transition sm:px-6 sm:text-base ${
                   activeView === 'loyalty'
                     ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
                     : 'bg-[var(--color-panel)] text-[var(--color-outer-space)]/70 hover:text-[var(--color-outer-space)]'
@@ -326,7 +326,7 @@ export function DashboardClient({
               </button>
               <button
                 onClick={() => router.push(catalogueHref)}
-                className={`rounded-full px-4 py-2 text-xs font-medium transition sm:px-6 sm:text-base ${
+                className={`cursor-pointer rounded-full px-4 py-2 text-xs font-medium transition sm:px-6 sm:text-base ${
                   activeView === 'catalogue'
                     ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
                     : 'bg-[var(--color-panel)] text-[var(--color-outer-space)]/70 hover:text-[var(--color-outer-space)]'
@@ -588,7 +588,7 @@ function RedeemDialog({
             <h3 className="text-lg font-semibold">Redeem reward</h3>
             <p className="text-sm text-[var(--color-outer-space)]/70">{item.name}</p>
           </div>
-          <button onClick={onClose} className="text-sm text-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]">Close</button>
+          <button onClick={onClose} className="cursor-pointer text-sm text-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]">Close</button>
         </div>
 
         <div className="mt-4 space-y-2 text-sm text-[var(--color-outer-space)]/80">
@@ -609,7 +609,7 @@ function RedeemDialog({
               <button
                 onClick={handleDirectTopup}
                 disabled={topupBusy}
-                className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {topupBusy
                   ? 'Redirecting…'
@@ -634,14 +634,14 @@ function RedeemDialog({
               <button
                 onClick={onSubmit}
                 disabled={busy || status === 'success'}
-                className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {status === 'success' ? 'Request sent' : busy ? 'Submitting…' : 'Confirm redeem'}
               </button>
               <button
                 onClick={onClose}
                 disabled={busy}
-                className="w-full rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-[var(--color-outer-space)]/70 transition hover:bg-[var(--color-panel)]/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="w-full cursor-pointer rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-[var(--color-outer-space)]/70 transition hover:bg-[var(--color-panel)]/80 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 Close
               </button>

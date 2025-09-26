@@ -72,7 +72,7 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
                 key={multiplier}
                 type="button"
                 onClick={() => setAmountAED(price)}
-                className={`rounded-full border px-3 py-[6px] text-[11px] font-semibold transition ${
+                className={`cursor-pointer rounded-full border px-3 py-[6px] text-[11px] font-semibold transition ${
                   active
                     ? 'border-[var(--color-outer-space)] bg-[var(--color-outer-space)] text-white'
                     : 'border-[#d1b7fb] bg-white text-[var(--color-outer-space)] hover:bg-white/80'
@@ -107,7 +107,7 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
         type="button"
         onClick={handleCheckout}
         disabled={busy || (!agentId && !agentCode)}
-        className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-[var(--color-outer-space)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] focus:outline-none focus:ring-2 focus:ring-[var(--color-outer-space)]/30 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-[var(--color-outer-space)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] focus:outline-none focus:ring-2 focus:ring-[var(--color-outer-space)]/30 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy ? 'Redirecting…' : `Buy ${formatNumber(expectedPoints)} pts`}
       </button>

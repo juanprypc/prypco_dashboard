@@ -65,7 +65,7 @@ export function CatalogueGrid({ items, onRedeem }: Props) {
                 type="button"
                 onClick={() => onRedeem?.(item)}
                 disabled={!onRedeem}
-                className="mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border border-[var(--color-outer-space)] bg-white/80 text-[11px] font-medium text-[var(--color-outer-space)] transition hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white disabled:cursor-not-allowed disabled:border-[var(--color-outer-space)]/30 disabled:text-[var(--color-outer-space)]/40 sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px]"
+                className="mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border border-[var(--color-outer-space)] bg-white/80 text-[11px] font-medium text-[var(--color-outer-space)] transition hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white cursor-pointer disabled:cursor-not-allowed disabled:border-[var(--color-outer-space)]/30 disabled:text-[var(--color-outer-space)]/40 sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px]"
               >
                 Redeem
               </button>
