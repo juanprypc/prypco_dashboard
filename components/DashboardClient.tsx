@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
@@ -99,10 +99,13 @@ export function DashboardClient({
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
   const topupRef = useRef<HTMLDivElement | null>(null);
+  const cataloguePrefetchedRef = useRef(false);
+  const catalogueFetchPromiseRef = useRef<Promise<void> | null>(null);
   const [redeemItem, setRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [redeemStatus, setRedeemStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
+  const isMountedRef = useRef(true);
 
   const identifierParams = useMemo(() => {
     const params = new URLSearchParams(baseQuery);
@@ -116,8 +119,49 @@ export function DashboardClient({
 
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
+  }, []);
+
+  const loadCatalogue = useCallback(async () => {
+    if (cataloguePrefetchedRef.current) return;
+    if (catalogueFetchPromiseRef.current) {
+      try {
+        await catalogueFetchPromiseRef.current;
+      } catch {
+        /* no-op: downstream fetch can retry */
+      }
+      return;
+    }
+
+    const promise = (async () => {
+      try {
+        const response = await fetch('/api/catalogue', { cache: 'no-store' });
+        const body = (await response.json().catch(() => ({}))) as CatalogueResponse;
+        if (!response.ok) {
+          const message = typeof body === 'object' && body && 'error' in body ? (body as { error?: string }).error : null;
+          throw new Error(message || 'Failed to load catalogue');
+        }
+        if (!isMountedRef.current) return;
+        cataloguePrefetchedRef.current = true;
+        setCatalogue(buildCatalogue(body.items ?? []));
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        cataloguePrefetchedRef.current = false;
+        throw err;
+      }
+    })();
+
+    catalogueFetchPromiseRef.current = promise;
+
+    try {
+      await promise;
+    } finally {
+      if (catalogueFetchPromiseRef.current === promise) {
+        catalogueFetchPromiseRef.current = null;
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -132,11 +176,7 @@ export function DashboardClient({
       try {
         const params = new URLSearchParams(identifierParams);
         const loyaltyUrl = `/api/loyalty?${params.toString()}`;
-
-        const [ledgerRes, catalogueRes] = await Promise.all([
-          fetch(loyaltyUrl, { cache: 'no-store' }),
-          activeView === 'catalogue' ? fetch('/api/catalogue', { cache: 'no-store' }) : Promise.resolve(null),
-        ]);
+        const ledgerRes = await fetch(loyaltyUrl, { cache: 'no-store' });
 
         if (ledgerRes.status === 429) {
           throw { retryable: true, message: 'Airtable is busy' };
@@ -149,18 +189,6 @@ export function DashboardClient({
         if (cancelled) return;
         setRows(ledgerJson.records);
         setDisplayName(ledgerJson.displayName ?? null);
-
-        if (catalogueRes) {
-          if (catalogueRes.status === 429) throw { retryable: true, message: 'Catalogue busy' };
-          if (!catalogueRes.ok) {
-            throw new Error((await catalogueRes.json().catch(() => ({}))).error || 'Failed to load catalogue');
-          }
-          const catJson = (await catalogueRes.json()) as CatalogueResponse & { fetchedAt?: string };
-          if (cancelled) return;
-          setCatalogue(buildCatalogue(catJson.items));
-        } else {
-          setCatalogue(null);
-        }
 
         setLastUpdated(new Date());
         setLoading(false);
@@ -185,7 +213,17 @@ export function DashboardClient({
       cancelled = true;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [identifierParams, activeView]);
+  }, [identifierParams]);
+
+  useEffect(() => {
+    loadCatalogue().catch(() => {});
+  }, [loadCatalogue]);
+
+  useEffect(() => {
+    if (activeView !== 'catalogue') return;
+    if (cataloguePrefetchedRef.current) return;
+    loadCatalogue().catch(() => {});
+  }, [activeView, loadCatalogue]);
 
   const metrics = useMemo(() => {
     if (!rows?.length) {
