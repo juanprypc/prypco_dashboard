@@ -393,8 +393,7 @@ export function DashboardClient({
           </button>
         </div>
       ) : activeView === 'loyalty' ? (
-        <>
-          <div className="grid grid-cols-3 gap-x-3 gap-y-8 sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
+        <div className="view-transition grid grid-cols-3 gap-x-3 gap-y-8 sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
             <section className="col-span-3 xl:col-span-6">
               <h2 className="mb-2 text-lg font-medium">Top earning categories</h2>
               {rows === null ? (
@@ -420,7 +419,7 @@ export function DashboardClient({
                   minAmount={minTopup}
                   pointsPerAed={pointsPerAed}
                 />
-              </section>
+            </section>
 
             <section className="col-span-3 sm:col-span-6 mt-4 xl:col-span-12 xl:mt-0">
               <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
@@ -428,10 +427,9 @@ export function DashboardClient({
                 <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
               </Suspense>
             </section>
-          </div>
-        </>
+        </div>
       ) : (
-        <section className="space-y-8 rounded-[32px] bg-[#F6F3F8] px-4 py-10 sm:rounded-[48px] sm:px-10 sm:py-12">
+        <section className="view-transition space-y-8 rounded-[32px] bg-[#F6F3F8] px-4 py-10 sm:rounded-[48px] sm:px-10 sm:py-12">
           <div className="space-y-4 text-center">
             <h2 className="text-[34px] font-medium leading-[1.1] text-[var(--color-outer-space)] sm:text-[72px] lg:text-[85px]">
               Collect Store
