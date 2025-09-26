@@ -10,6 +10,7 @@ import { PointsBreakdown } from './PointsBreakdown';
 import { CatalogueGrid, type CatalogueDisplayItem } from './CatalogueGrid';
 import { BuyPointsButton } from './BuyPointsButton';
 import { TopupBanner } from './TopupBanner';
+import { LoadingOverlay } from './LoadingOverlay';
 
 type Props = {
   agentId?: string;
@@ -257,6 +258,7 @@ export function DashboardClient({
 
   return (
     <div className="space-y-10 text-[var(--color-outer-space)]">
+      <LoadingOverlay visible={loading && !rows && !error} />
       <div className="relative overflow-hidden rounded-[31px] border border-transparent bg-[var(--color-hero)] px-4 py-6 sm:px-10 sm:py-12">
         <video
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60"
