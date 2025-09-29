@@ -105,7 +105,7 @@ export function KpiCard({
   }, [animatedValue, numericTarget, value]);
 
   const floatingAccessory = Boolean(headerAccessory) && headerAccessoryVariant === 'floating';
-  const headerPadding = floatingAccessory ? 'pr-16 sm:pr-8' : '';
+  const headerPadding = floatingAccessory ? 'sm:pr-16' : '';
   const rootClass = `relative flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6 ${
     className ? className : ''
   }`;
@@ -119,10 +119,15 @@ export function KpiCard({
         ) : null}
       </div>
       {floatingAccessory ? (
-        <div className="absolute right-3 top-3 sm:right-5 sm:top-5">
-          {headerAccessory}
-        </div>
+        <>
+          <div className="mt-2 w-full sm:hidden">{headerAccessory}</div>
+          <div className="absolute right-3 top-3 hidden sm:block sm:right-5 sm:top-5">
+            {headerAccessory}
+          </div>
+        </>
       ) : null}
+
+
       <div className="mt-2 w-full text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
         {formatted}
         {unit ? (
