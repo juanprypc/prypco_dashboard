@@ -464,7 +464,7 @@ export function DashboardClient({
 
       {topupMounted ? (
         <div
-          className={`fixed inset-0 z-[90] flex items-end justify-center px-3 py-5 sm:items-center sm:px-6 sm:py-6 ${
+          className={`fixed inset-0 z-[90] flex items-center justify-center px-3 py-5 sm:px-6 sm:py-6 ${
             topupVisible ? 'pointer-events-auto' : 'pointer-events-none'
           }`}
         >
@@ -478,11 +478,11 @@ export function DashboardClient({
             role="dialog"
             aria-modal="true"
             aria-labelledby="topup-heading"
-            className={`relative z-10 w-full origin-bottom rounded-t-[32px] border border-[#d1b7fb]/70 bg-white/95 p-5 text-[var(--color-outer-space)] shadow-[0_45px_120px_-60px_rgba(13,9,59,0.7)] transition duration-200 ease-out ${
+            className={`relative z-10 w-full max-w-md origin-top rounded-[28px] border border-[#d1b7fb]/70 bg-white/95 p-5 text-[var(--color-outer-space)] shadow-[0_45px_100px_-55px_rgba(13,9,59,0.65)] transition duration-200 ease-out ${
               topupVisible
                 ? 'translate-y-0 scale-100 opacity-100'
-                : 'translate-y-6 scale-[0.98] opacity-0'
-            } sm:max-w-md sm:origin-top sm:rounded-[28px] sm:p-6`}
+                : 'translate-y-5 scale-[0.97] opacity-0'
+            } sm:p-6`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
