@@ -101,7 +101,6 @@ export function DashboardClient({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
-  const topupRef = useRef<HTMLDivElement | null>(null);
   const cataloguePrefetchedRef = useRef(false);
   const catalogueFetchPromiseRef = useRef<Promise<void> | null>(null);
   const [redeemItem, setRedeemItem] = useState<CatalogueDisplayItem | null>(null);
@@ -110,6 +109,36 @@ export function DashboardClient({
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
   const isMountedRef = useRef(true);
   const currentTab: 'dashboard' | 'store' = activeView === 'catalogue' ? 'store' : 'dashboard';
+  const [topupMounted, setTopupMounted] = useState(false);
+  const [topupVisible, setTopupVisible] = useState(false);
+  const topupHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const topupTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const topupCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const openTopup = useCallback(() => {
+    if (topupHideTimerRef.current) {
+      clearTimeout(topupHideTimerRef.current);
+      topupHideTimerRef.current = null;
+    }
+    setTopupMounted(true);
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => setTopupVisible(true));
+    } else {
+      setTopupVisible(true);
+    }
+  }, []);
+
+  const closeTopup = useCallback(() => {
+    setTopupVisible(false);
+  }, []);
+
+  const toggleTopup = useCallback(() => {
+    if (topupMounted && topupVisible) {
+      closeTopup();
+    } else {
+      openTopup();
+    }
+  }, [closeTopup, openTopup, topupMounted, topupVisible]);
 
   const identifierParams = useMemo(() => {
     const params = new URLSearchParams(baseQuery);
@@ -120,6 +149,67 @@ export function DashboardClient({
     else params.delete('agentCode');
     return params;
   }, [agentId, agentCode, baseQuery]);
+
+  useEffect(() => {
+    if (!topupVisible && topupMounted) {
+      topupHideTimerRef.current = setTimeout(() => {
+        setTopupMounted(false);
+        topupTriggerRef.current?.focus();
+        topupHideTimerRef.current = null;
+      }, 200);
+      return () => {
+        if (topupHideTimerRef.current) {
+          clearTimeout(topupHideTimerRef.current);
+          topupHideTimerRef.current = null;
+        }
+      };
+    }
+  }, [topupVisible, topupMounted]);
+
+  useEffect(() => {
+    if (!topupMounted) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeTopup();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [topupMounted, closeTopup]);
+
+  useEffect(() => {
+    if (!topupMounted) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [topupMounted]);
+
+  useEffect(() => {
+    if (!topupMounted || !topupVisible) return;
+    const timeout = setTimeout(() => {
+      topupCloseButtonRef.current?.focus();
+    }, 180);
+    return () => clearTimeout(timeout);
+  }, [topupMounted, topupVisible]);
+
+  useEffect(() => {
+    if (topupStatus) {
+      closeTopup();
+    }
+  }, [topupStatus, closeTopup]);
+
+  useEffect(() => {
+    return () => {
+      if (topupHideTimerRef.current) {
+        clearTimeout(topupHideTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -337,7 +427,24 @@ export function DashboardClient({
 
           <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
-              <KpiCard title="Collected points" value={metrics.totalPosted} unit="points" animate />
+              <KpiCard
+                title="Collected points"
+                value={metrics.totalPosted}
+                unit="points"
+                animate
+                headerAccessory={
+                  <button
+                    ref={topupTriggerRef}
+                    type="button"
+                    onClick={toggleTopup}
+                    aria-expanded={topupMounted && topupVisible}
+                    className="inline-flex items-center gap-1 rounded-full border border-transparent px-3 py-1 text-[11px] font-semibold text-[var(--color-outer-space)]/80 transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 hover:text-[var(--color-outer-space)] sm:text-sm"
+                  >
+                    <span className="text-base leading-none sm:text-lg">+</span>
+                    Top up
+                  </button>
+                }
+              />
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
               <KpiCard title="Due to expire in 30 days" value={metrics.expiringSoon} unit="points" animate />
@@ -352,6 +459,59 @@ export function DashboardClient({
           ) : null}
         </div>
       </div>
+
+      {topupMounted ? (
+        <div
+          className={`fixed inset-0 z-[90] flex items-center justify-center px-4 py-6 sm:px-6 ${
+            topupVisible ? 'pointer-events-auto' : 'pointer-events-none'
+          }`}
+        >
+          <div
+            className={`absolute inset-0 bg-[var(--color-desert-dust)]/70 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${
+              topupVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={closeTopup}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="topup-heading"
+            className={`relative z-10 w-full max-w-md origin-top rounded-[28px] border border-[#d1b7fb] bg-white/95 p-6 text-[var(--color-outer-space)] shadow-[0_45px_120px_-50px_rgba(13,9,59,0.7)] transition duration-200 ease-out ${
+              topupVisible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-4 scale-95 opacity-0'
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="topup-heading" className="text-lg font-semibold">
+                  Top up balance
+                </h2>
+                <p className="mt-1 text-sm text-[var(--color-outer-space)]/70">
+                  Add more points instantly. We’ll launch Stripe Checkout when you confirm.
+                </p>
+              </div>
+              <button
+                ref={topupCloseButtonRef}
+                type="button"
+                onClick={closeTopup}
+                className="rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1 text-sm font-medium text-[var(--color-outer-space)]/60 transition hover:border-[var(--color-outer-space)]/20 hover:bg-white hover:text-[var(--color-outer-space)]"
+              >
+                Close
+              </button>
+            </div>
+            <div className="mt-6 rounded-[24px] border border-[#d1b7fb]/60 bg-white/90 p-4 shadow-[0_28px_70px_-60px_rgba(13,9,59,0.45)]">
+              <BuyPointsButton
+                agentId={agentId}
+                agentCode={agentCode}
+                baseQuery={identifierParams.toString()}
+                minAmount={minTopup}
+                pointsPerAed={pointsPerAed}
+                className="border-none bg-transparent p-0 shadow-none"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {topupStatus ? <TopupBanner status={topupStatus} /> : null}
 
@@ -397,17 +557,6 @@ export function DashboardClient({
                   }))}
                 />
               )}
-            </section>
-
-            <section ref={topupRef} id="topup" className="col-span-3 xl:col-span-6">
-              <h2 className="mb-2 text-lg font-medium">Top up balance</h2>
-              <BuyPointsButton
-                  agentId={agentId}
-                  agentCode={agentCode}
-                  baseQuery={identifierParams.toString()}
-                  minAmount={minTopup}
-                  pointsPerAed={pointsPerAed}
-                />
             </section>
 
             <section className="col-span-3 sm:col-span-6 mt-4 xl:col-span-12 xl:mt-0">
