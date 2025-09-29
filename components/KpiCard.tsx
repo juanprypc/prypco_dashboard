@@ -10,9 +10,6 @@ type Props = {
   note?: string;
   animate?: boolean;
   durationMs?: number;
-  headerAccessory?: React.ReactNode;
-  expanded?: boolean;
-  children?: React.ReactNode;
 };
 
 function usePrefersReducedMotion() {
@@ -80,17 +77,7 @@ function useAnimatedNumber(target: number | null, options: { durationMs?: number
   return target === null ? null : value;
 }
 
-export function KpiCard({
-  title,
-  value,
-  unit,
-  note,
-  animate = false,
-  durationMs,
-  headerAccessory,
-  expanded = true,
-  children,
-}: Props) {
+export function KpiCard({ title, value, unit, note, animate = false, durationMs }: Props) {
   const numericTarget = useMemo(() => (typeof value === 'number' ? value : null), [value]);
   const animatedValue = useAnimatedNumber(numericTarget, { durationMs, enabled: animate });
   const formatted = useMemo(() => {
@@ -102,11 +89,8 @@ export function KpiCard({
 
   return (
     <div className="flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6">
-      <div className="flex w-full items-start justify-between gap-3">
-        <p className="text-xs font-normal text-[var(--color-outer-space)]/75 sm:text-xl">{title}</p>
-        {headerAccessory ? <div className="flex shrink-0 items-center">{headerAccessory}</div> : null}
-      </div>
-      <div className="mt-2 w-full text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
+      <p className="text-xs font-normal text-[var(--color-outer-space)]/75 sm:text-xl">{title}</p>
+      <div className="mt-2 text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
         {formatted}
         {unit ? (
           <span className="mt-1 block text-[12px] font-bold text-[var(--color-outer-space)] sm:mt-2 sm:text-[24px]">
@@ -114,17 +98,6 @@ export function KpiCard({
           </span>
         ) : null}
       </div>
-      {children ? (
-        <div
-          className={`w-full overflow-hidden transition-all duration-300 ease-out ${
-            expanded
-              ? 'mt-3 sm:mt-6 max-h-[620px] opacity-100'
-              : 'mt-0 max-h-0 opacity-0 pointer-events-none'
-          }`}
-        >
-          {children}
-        </div>
-      ) : null}
       {note ? (
         <p className="mt-2 text-[10px] text-[var(--color-outer-space)]/60 sm:mt-4 sm:text-sm">{note}</p>
       ) : null}
