@@ -451,7 +451,7 @@ export function DashboardClient({
                     type="button"
                     onClick={toggleTopup}
                     aria-expanded={topupMounted && topupVisible}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/70 bg-white px-3 py-1 text-xs font-semibold text-[var(--color-outer-space)] shadow-[0_18px_30px_-22px_rgba(13,9,59,0.4)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_30px_-18px_rgba(13,9,59,0.45)]"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-outer-space)] drop-shadow-[0_8px_18px_-12px_rgba(13,9,59,0.55)] transition hover:-translate-y-[1px]"
                   >
                     <span className="text-sm leading-none">+</span>
                     <span>Top up</span>
