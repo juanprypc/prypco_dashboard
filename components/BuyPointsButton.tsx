@@ -9,6 +9,7 @@ type Props = {
   baseQuery?: string;
   minAmount: number;
   pointsPerAed: number;
+  className?: string;
 };
 
 const quickMultipliers = [1, 2, 4];
@@ -19,7 +20,7 @@ function normaliseAmount(value: number, min: number) {
   return multiples * min;
 }
 
-export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, pointsPerAed }: Props) {
+export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, pointsPerAed, className }: Props) {
   const [amountAED, setAmountAED] = useState(() => normaliseAmount(minAmount, minAmount));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,7 +55,11 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
   }
 
   return (
-    <div className="flex h-full w-full flex-col items-start justify-between rounded-[22px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] p-4 text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6">
+    <div
+      className={`flex h-full w-full flex-col items-start justify-between rounded-[22px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] p-4 text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6 ${
+        className ? className : ''
+      }`}
+    >
       <div className="space-y-4 w-full">
         <div className="space-y-1">
           <p className="text-xs font-semibold text-[var(--color-outer-space)]/70 sm:text-sm">Top up points</p>
