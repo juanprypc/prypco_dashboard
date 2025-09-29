@@ -12,11 +12,11 @@ type Props = {
 };
 
 const baseClass =
-  'inline-flex items-center justify-center text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-electric-purple)] sm:text-base';
+  'inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-medium transition sm:px-6 sm:text-base';
 const activeClass =
-  'rounded-full bg-white px-4 py-2 text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)] sm:px-6';
+  'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]';
 const inactiveClass =
-  'px-1 py-2 text-[var(--color-outer-space)]/65 hover:text-[var(--color-outer-space)] hover:underline hover:underline-offset-4 sm:px-2';
+  'bg-[var(--color-panel)] text-[var(--color-outer-space)]/70 hover:text-[var(--color-outer-space)]';
 
 export function NavigationTabs({ activeTab, dashboardHref, storeHref, learnHref }: Props) {
   const tabs: Array<{ key: Tab; label: string; href: string }> = [

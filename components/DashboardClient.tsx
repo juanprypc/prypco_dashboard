@@ -462,7 +462,7 @@ export function DashboardClient({
 
       {topupMounted ? (
         <div
-          className={`fixed inset-0 z-[90] flex items-end justify-center px-3 py-5 sm:items-center sm:px-6 sm:py-6 ${
+          className={`fixed inset-0 z-[90] flex items-center justify-center px-4 py-6 sm:px-6 ${
             topupVisible ? 'pointer-events-auto' : 'pointer-events-none'
           }`}
         >
@@ -476,19 +476,17 @@ export function DashboardClient({
             role="dialog"
             aria-modal="true"
             aria-labelledby="topup-heading"
-            className={`relative z-10 w-full origin-bottom rounded-t-[32px] border border-[#d1b7fb]/70 bg-white/95 p-5 text-[var(--color-outer-space)] shadow-[0_45px_120px_-60px_rgba(13,9,59,0.7)] transition duration-200 ease-out ${
-              topupVisible
-                ? 'translate-y-0 scale-100 opacity-100'
-                : 'translate-y-6 scale-[0.98] opacity-0'
-            } sm:max-w-md sm:origin-top sm:rounded-[28px] sm:p-6`}
+            className={`relative z-10 w-full max-w-md origin-top rounded-[28px] border border-[#d1b7fb] bg-white/95 p-6 text-[var(--color-outer-space)] shadow-[0_45px_120px_-50px_rgba(13,9,59,0.7)] transition duration-200 ease-out ${
+              topupVisible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-4 scale-95 opacity-0'
+            }`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 id="topup-heading" className="text-base font-semibold sm:text-lg">
+                <h2 id="topup-heading" className="text-lg font-semibold">
                   Top up balance
                 </h2>
-                <p className="mt-1 text-xs text-[var(--color-outer-space)]/70 sm:text-sm">
+                <p className="mt-1 text-sm text-[var(--color-outer-space)]/70">
                   Add more points instantly. We’ll launch Stripe Checkout when you confirm.
                 </p>
               </div>
@@ -496,19 +494,19 @@ export function DashboardClient({
                 ref={topupCloseButtonRef}
                 type="button"
                 onClick={closeTopup}
-                className="rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1 text-xs font-medium text-[var(--color-outer-space)]/60 transition hover:border-[var(--color-outer-space)]/20 hover:bg-white hover:text-[var(--color-outer-space)] sm:text-sm"
+                className="rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1 text-sm font-medium text-[var(--color-outer-space)]/60 transition hover:border-[var(--color-outer-space)]/20 hover:bg-white hover:text-[var(--color-outer-space)]"
               >
                 Close
               </button>
             </div>
-            <div className="mt-5 max-h-[65vh] overflow-y-auto rounded-[24px] border border-[#d1b7fb]/60 bg-white/95 p-4 shadow-[0_28px_70px_-60px_rgba(13,9,59,0.45)] sm:mt-6">
+            <div className="mt-6 rounded-[24px] border border-[#d1b7fb]/60 bg-white/90 p-4 shadow-[0_28px_70px_-60px_rgba(13,9,59,0.45)]">
               <BuyPointsButton
                 agentId={agentId}
                 agentCode={agentCode}
                 baseQuery={identifierParams.toString()}
                 minAmount={minTopup}
                 pointsPerAed={pointsPerAed}
-                className="border-none bg-transparent p-0 shadow-none h-auto"
+                className="border-none bg-transparent p-0 shadow-none"
               />
             </div>
           </div>
