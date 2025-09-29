@@ -425,7 +425,7 @@ export function DashboardClient({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
               <KpiCard
                 title="Collected points"
@@ -438,7 +438,7 @@ export function DashboardClient({
                     type="button"
                     onClick={toggleTopup}
                     aria-expanded={topupMounted && topupVisible}
-                    className="mt-1 inline-flex items-center gap-1 rounded-full border border-transparent px-3 py-1 text-[11px] font-semibold text-[var(--color-outer-space)]/80 transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 hover:text-[var(--color-outer-space)] sm:mt-0 sm:text-sm"
+                    className="inline-flex items-center gap-1 rounded-full border border-transparent px-3 py-1 text-[11px] font-semibold text-[var(--color-outer-space)]/80 transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 hover:text-[var(--color-outer-space)] sm:text-sm"
                   >
                     <span className="text-base leading-none sm:text-lg">+</span>
                     Top up
