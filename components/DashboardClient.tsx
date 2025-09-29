@@ -11,6 +11,7 @@ import { CatalogueGrid, type CatalogueDisplayItem } from './CatalogueGrid';
 import { BuyPointsButton } from './BuyPointsButton';
 import { TopupBanner } from './TopupBanner';
 import { LoadingOverlay } from './LoadingOverlay';
+import { NavigationTabs } from './NavigationTabs';
 
 type Props = {
   agentId?: string;
@@ -22,6 +23,7 @@ type Props = {
   pointsPerAed: number;
   ledgerHref: string;
   catalogueHref: string;
+  learnHref: string;
   baseQuery: string;
 };
 
@@ -87,6 +89,7 @@ export function DashboardClient({
   pointsPerAed,
   ledgerHref,
   catalogueHref,
+  learnHref,
   baseQuery,
 }: Props) {
   const [rows, setRows] = useState<PublicLoyaltyRow[] | null>(null);
@@ -106,6 +109,7 @@ export function DashboardClient({
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
   const isMountedRef = useRef(true);
+  const currentTab: 'dashboard' | 'store' = activeView === 'catalogue' ? 'store' : 'dashboard';
 
   const identifierParams = useMemo(() => {
     const params = new URLSearchParams(baseQuery);
@@ -314,28 +318,12 @@ export function DashboardClient({
         <div className="relative z-10 flex flex-col gap-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Image src="/logo.png" alt="Collect" width={195} height={48} priority />
-            <div className="flex gap-2 sm:gap-3">
-              <button
-                onClick={() => router.push(ledgerHref)}
-                className={`cursor-pointer rounded-full px-4 py-2 text-xs font-medium transition sm:px-6 sm:text-base ${
-                  activeView === 'loyalty'
-                    ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
-                    : 'bg-[var(--color-panel)] text-[var(--color-outer-space)]/70 hover:text-[var(--color-outer-space)]'
-                }`}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => router.push(catalogueHref)}
-                className={`cursor-pointer rounded-full px-4 py-2 text-xs font-medium transition sm:px-6 sm:text-base ${
-                  activeView === 'catalogue'
-                    ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
-                    : 'bg-[var(--color-panel)] text-[var(--color-outer-space)]/70 hover:text-[var(--color-outer-space)]'
-                }`}
-              >
-                Store
-              </button>
-            </div>
+            <NavigationTabs
+              activeTab={currentTab}
+              dashboardHref={ledgerHref}
+              storeHref={catalogueHref}
+              learnHref={learnHref}
+            />
           </div>
 
           <div className="space-y-4 text-center">

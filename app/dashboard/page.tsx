@@ -62,6 +62,13 @@ export default async function Dashboard({
     return `/dashboard?${params.toString()}`;
   })();
 
+  const learnHref = (() => {
+    const params = new URLSearchParams(baseParams);
+    params.delete('view');
+    const qs = params.toString();
+    return qs ? `/learn-more?${qs}` : '/learn-more';
+  })();
+
   const identifierLabel = agentId || agentCode || '—';
 
   return (
@@ -76,6 +83,7 @@ export default async function Dashboard({
         pointsPerAed={pointsPerAed}
         ledgerHref={ledgerHref}
         catalogueHref={catalogueHref}
+        learnHref={learnHref}
         baseQuery={baseQuery}
       />
     </div>
