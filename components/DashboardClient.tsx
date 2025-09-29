@@ -427,26 +427,37 @@ export function DashboardClient({
 
           <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
-              <KpiCard
-                title="Collected points"
-                value={metrics.totalPosted}
-                unit="points"
-                animate
-                headerAccessoryVariant="floating"
-                headerAccessory={
+              <div className="relative">
+                <KpiCard
+                  title="Collected points"
+                  value={metrics.totalPosted}
+                  unit="points"
+                  animate
+                  headerAccessory={
+                    <button
+                      ref={topupTriggerRef}
+                      type="button"
+                      onClick={toggleTopup}
+                      aria-expanded={topupMounted && topupVisible}
+                      className="hidden items-center gap-1 rounded-full border border-transparent px-3 py-1 text-sm font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 sm:inline-flex"
+                    >
+                      <span className="text-lg leading-none">+</span>
+                      <span>Top up</span>
+                    </button>
+                  }
+                />
+                <div className="absolute right-2 top-0 flex -translate-y-1/2 sm:hidden">
                   <button
-                    ref={topupTriggerRef}
                     type="button"
                     onClick={toggleTopup}
                     aria-expanded={topupMounted && topupVisible}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/70 bg-white px-3 py-1 text-[11px] font-semibold text-[var(--color-outer-space)] shadow-[0_18px_30px_-22px_rgba(13,9,59,0.4)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_30px_-18px_rgba(13,9,59,0.45)] sm:px-4 sm:py-1.5 sm:text-sm"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/70 bg-white px-3 py-1 text-xs font-semibold text-[var(--color-outer-space)] shadow-[0_18px_30px_-22px_rgba(13,9,59,0.4)] transition hover:-translate-y-[1px] hover:shadow-[0_18px_30px_-18px_rgba(13,9,59,0.45)]"
                   >
-                    <span className="text-sm leading-none sm:text-lg">+</span>
-                    <span className="text-xs uppercase tracking-wide sm:hidden">Top up</span>
-                    <span className="hidden sm:inline">Top up</span>
+                    <span className="text-sm leading-none">+</span>
+                    <span>Top up</span>
                   </button>
-                }
-              />
+                </div>
+              </div>
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
               <KpiCard title="Due to expire in 30 days" value={metrics.expiringSoon} unit="points" animate />
