@@ -13,6 +13,8 @@ type Props = {
   headerAccessory?: React.ReactNode;
   expanded?: boolean;
   children?: React.ReactNode;
+  className?: string;
+  headerAccessoryVariant?: 'inline' | 'floating';
 };
 
 function usePrefersReducedMotion() {
@@ -90,6 +92,8 @@ export function KpiCard({
   headerAccessory,
   expanded = true,
   children,
+  className,
+  headerAccessoryVariant = 'inline',
 }: Props) {
   const numericTarget = useMemo(() => (typeof value === 'number' ? value : null), [value]);
   const animatedValue = useAnimatedNumber(numericTarget, { durationMs, enabled: animate });
@@ -100,12 +104,25 @@ export function KpiCard({
     return formatNumber(Math.round(animatedValue));
   }, [animatedValue, numericTarget, value]);
 
+  const floatingAccessory = Boolean(headerAccessory) && headerAccessoryVariant === 'floating';
+  const headerPadding = floatingAccessory ? 'pr-16 sm:pr-8' : '';
+  const rootClass = `relative flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6 ${
+    className ? className : ''
+  }`;
+
   return (
-    <div className="flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6">
-      <div className="flex w-full items-start justify-between gap-3">
+    <div className={rootClass}>
+      <div className={`flex w-full items-start justify-between gap-3 ${headerPadding}`}>
         <p className="text-xs font-normal text-[var(--color-outer-space)]/75 sm:text-xl">{title}</p>
-        {headerAccessory ? <div className="flex shrink-0 items-center">{headerAccessory}</div> : null}
+        {headerAccessory && !floatingAccessory ? (
+          <div className="flex shrink-0 items-center">{headerAccessory}</div>
+        ) : null}
       </div>
+      {floatingAccessory ? (
+        <div className="absolute right-3 top-3 sm:right-5 sm:top-5">
+          {headerAccessory}
+        </div>
+      ) : null}
       <div className="mt-2 w-full text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
         {formatted}
         {unit ? (

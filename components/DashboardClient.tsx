@@ -432,13 +432,14 @@ export function DashboardClient({
                 value={metrics.totalPosted}
                 unit="points"
                 animate
+                headerAccessoryVariant="floating"
                 headerAccessory={
                   <button
                     ref={topupTriggerRef}
                     type="button"
                     onClick={toggleTopup}
                     aria-expanded={topupMounted && topupVisible}
-                    className="inline-flex items-center gap-1 rounded-full border border-transparent px-3 py-1 text-[11px] font-semibold text-[var(--color-outer-space)]/80 transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 hover:text-[var(--color-outer-space)] sm:text-sm"
+                    className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-[var(--color-outer-space)] shadow-[0_18px_30px_-20px_rgba(13,9,59,0.45)] transition hover:bg-white hover:text-[var(--color-outer-space)] sm:px-4 sm:py-1.5 sm:text-sm"
                   >
                     <span className="text-base leading-none sm:text-lg">+</span>
                     Top up
