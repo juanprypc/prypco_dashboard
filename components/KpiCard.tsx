@@ -102,9 +102,11 @@ export function KpiCard({
 
   return (
     <div className="flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6">
-      <div className="flex w-full items-start justify-between gap-3">
+      <div className="flex w-full flex-wrap items-start gap-2 sm:flex-nowrap sm:items-center sm:justify-between">
         <p className="text-xs font-normal text-[var(--color-outer-space)]/75 sm:text-xl">{title}</p>
-        {headerAccessory ? <div className="flex shrink-0 items-center">{headerAccessory}</div> : null}
+        {headerAccessory ? (
+          <div className="flex w-full justify-start sm:w-auto sm:justify-end">{headerAccessory}</div>
+        ) : null}
       </div>
       <div className="mt-2 w-full text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
         {formatted}
