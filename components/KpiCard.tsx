@@ -105,29 +105,30 @@ export function KpiCard({
   }, [animatedValue, numericTarget, value]);
 
   const floatingAccessory = Boolean(headerAccessory) && headerAccessoryVariant === 'floating';
-  const headerPadding = floatingAccessory ? 'sm:pr-16' : '';
-  const rootClass = `relative flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6 ${
-    className ? className : ''
-  }`;
+  const topPadding = floatingAccessory ? 'pt-7 sm:pt-10' : '';
+  const rootClass = [
+    'relative flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 sm:p-6 text-left text-[var(--color-outer-space)]',
+    topPadding,
+    className ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className={rootClass}>
-      <div className={`flex w-full items-start justify-between gap-3 ${headerPadding}`}>
+      {floatingAccessory ? (
+        <div className="pointer-events-none">
+          <div className="pointer-events-auto absolute right-2 top-0 -translate-y-1/2 sm:right-4 sm:-translate-y-1/3">
+            {headerAccessory}
+          </div>
+        </div>
+      ) : null}
+      <div className="flex w-full items-start justify-between gap-3">
         <p className="text-xs font-normal text-[var(--color-outer-space)]/75 sm:text-xl">{title}</p>
         {headerAccessory && !floatingAccessory ? (
           <div className="flex shrink-0 items-center">{headerAccessory}</div>
         ) : null}
       </div>
-      {floatingAccessory ? (
-        <>
-          <div className="mt-2 w-full sm:hidden">{headerAccessory}</div>
-          <div className="absolute right-3 top-3 hidden sm:block sm:right-5 sm:top-5">
-            {headerAccessory}
-          </div>
-        </>
-      ) : null}
-
-
       <div className="mt-2 w-full text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
         {formatted}
         {unit ? (
