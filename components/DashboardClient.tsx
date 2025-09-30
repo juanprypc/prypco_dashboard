@@ -539,7 +539,7 @@ export function DashboardClient({
               />
             </aside>
 
-            <section id="topup" className="col-span-1 xl:col-span-7">
+            <section ref={topupRef} id="topup" className="col-span-1 xl:col-span-7">
               <h2 className="mb-2 text-lg font-medium">Top up balance</h2>
               <BuyPointsButton
                 agentId={agentId}
