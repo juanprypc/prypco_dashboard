@@ -9,7 +9,7 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[28px] border border-[#d1b7fb] bg-[var(--color-panel-soft)]">
+    <div className="overflow-hidden rounded-[28px] bg-[var(--color-panel-soft)]">
       <div className="hidden sm:block">
         <table className="min-w-full text-sm">
           <thead className="bg-[rgba(234,213,254,0.5)] text-left text-xs font-semibold text-[var(--color-outer-space)]/70">
