@@ -12,6 +12,7 @@ import { BuyPointsButton } from './BuyPointsButton';
 import { TopupBanner } from './TopupBanner';
 import { LoadingOverlay } from './LoadingOverlay';
 import { NavigationTabs } from './NavigationTabs';
+import { ReferralCard } from './ReferralCard';
 
 type Props = {
   agentId?: string;
@@ -149,6 +150,39 @@ export function DashboardClient({
     else params.delete('agentCode');
     return params;
   }, [agentId, agentCode, baseQuery]);
+
+  const copyToClipboard = useCallback(async (value: string) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+    } catch (error) {
+      // fallback below
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }, []);
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://collect.prypco.com';
+  const agentReferralLink = `${appUrl}/refer/agent`;
+  const investorPromoCode = 'COLLECT2025';
+  const investorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent(
+    'Hi! I would like to chat about the Prypco investor programme.'
+  )}`;
+
+  const openWhatsapp = useCallback((href: string) => {
+    if (typeof window !== 'undefined') {
+      window.open(href, '_blank', 'noopener');
+    }
+  }, []);
 
   useEffect(() => {
     if (!topupVisible && topupMounted) {
@@ -555,8 +589,9 @@ export function DashboardClient({
           </button>
         </div>
       ) : activeView === 'loyalty' ? (
-        <div className="view-transition grid grid-cols-3 gap-x-3 gap-y-8 sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
-            <section className="col-span-3 xl:col-span-6">
+        <div className="view-transition space-y-6">
+          <div className="grid gap-6 sm:gap-4 xl:grid-cols-12">
+            <section className="col-span-1 text-left xl:col-span-7">
               <h2 className="mb-2 text-lg font-medium">Top earning categories</h2>
               {rows === null ? (
                 <TopEarningSkeleton />
@@ -572,12 +607,49 @@ export function DashboardClient({
               )}
             </section>
 
-            <section className="col-span-3 sm:col-span-6 mt-4 xl:col-span-12 xl:mt-0">
-              <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
-              <Suspense fallback={<ActivitySkeleton />}>
-                <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
-              </Suspense>
-            </section>
+            <aside className="col-span-1 flex flex-col gap-4 xl:col-span-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-medium">Refer and earn</h2>
+              </div>
+              <ReferralCard
+                icon="✈️"
+                title="Refer an Agent"
+                description="Invite a colleague to Prypco One and earn XYD Collect."
+                primaryLabel="Copy link"
+                primarySuccessLabel="Link copied!"
+                onPrimaryClick={() => copyToClipboard(agentReferralLink)}
+              />
+              <ReferralCard
+                icon="🎁"
+                title="Refer an Investor"
+                description="Share Prypco Blocks or Mint with investors and earn rewards."
+                primaryLabel="Chat on WhatsApp"
+                primarySuccessLabel=""
+                onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
+                secondaryLabel="Copy promo code"
+                secondarySuccessLabel="Code copied!"
+                onSecondaryClick={() => copyToClipboard(investorPromoCode)}
+              />
+            </aside>
+          </div>
+
+          <section id="topup" className="rounded-[26px] border border-[#d1b7fb]/60 bg-white/80 p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
+            <h2 className="mb-2 text-lg font-medium">Top up balance</h2>
+            <BuyPointsButton
+              agentId={agentId}
+              agentCode={agentCode}
+              baseQuery={identifierParams.toString()}
+              minAmount={minTopup}
+              pointsPerAed={pointsPerAed}
+            />
+          </section>
+
+          <section className="rounded-[26px] border border-[#d1b7fb]/60 bg-white/80 p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
+            <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
+            <Suspense fallback={<ActivitySkeleton />}>
+              <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
+            </Suspense>
+          </section>
         </div>
       ) : (
         <section className="view-transition space-y-8 rounded-[32px] bg-[#F6F3F8] px-4 py-10 sm:rounded-[48px] sm:px-10 sm:py-12">
