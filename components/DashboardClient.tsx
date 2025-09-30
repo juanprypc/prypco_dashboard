@@ -12,7 +12,6 @@ import { BuyPointsButton } from './BuyPointsButton';
 import { TopupBanner } from './TopupBanner';
 import { LoadingOverlay } from './LoadingOverlay';
 import { NavigationTabs } from './NavigationTabs';
-import { ReferralCard } from './ReferralCard';
 
 type Props = {
   agentId?: string;
@@ -150,37 +149,6 @@ export function DashboardClient({
     else params.delete('agentCode');
     return params;
   }, [agentId, agentCode, baseQuery]);
-
-  const copyToClipboard = useCallback(async (value: string) => {
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(value);
-        return;
-      }
-    } catch (error) {
-      // fall back to manual copy below
-    }
-    const textarea = document.createElement('textarea');
-    textarea.value = value;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'absolute';
-    textarea.style.left = '-9999px';
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-  }, []);
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://collect.prypco.com';
-  const agentReferralLink = `${appUrl}/refer/agent`;
-  const investorPromoCode = 'COLLECT2025';
-  const investorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent('Hi! I would like to chat about the Prypco investor programme.')}`;
-
-  const openWhatsapp = useCallback((href: string) => {
-    if (typeof window !== 'undefined') {
-      window.open(href, '_blank', 'noopener');
-    }
-  }, []);
 
   useEffect(() => {
     if (!topupVisible && topupMounted) {
@@ -457,37 +425,37 @@ export function DashboardClient({
             </p>
           </div>
 
-                    <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
-              <KpiCard
-                title="Collected points"
-                value={metrics.totalPosted}
-                unit="points"
-                animate
-                footerAccessory={
-                  <button
-                    type="button"
-                    onClick={toggleTopup}
-                    aria-expanded={topupMounted && topupVisible}
-                    className="inline-flex items-center gap-[2px] text-[8px] font-semibold text-[var(--color-outer-space)] sm:hidden"
-                  >
-                    <span className="text-[10px] leading-none">+</span>
-                    <span>Top up</span>
-                  </button>
-                }
-                headerAccessory={
-                  <button
-                    ref={topupTriggerRef}
-                    type="button"
-                    onClick={toggleTopup}
-                    aria-expanded={topupMounted && topupVisible}
-                    className="hidden items-center gap-1 rounded-full border border-transparent px-3 py-1 text-sm font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 sm:inline-flex"
-                  >
-                    <span className="text-lg leading-none">+</span>
-                    <span>Top up</span>
-                  </button>
-                }
-              />
+              <div className="relative">
+                <KpiCard
+                  title="Collected points"
+                  value={metrics.totalPosted}
+                  unit="points"
+                  animate
+                  headerAccessory={
+                    <button
+                      ref={topupTriggerRef}
+                      type="button"
+                      onClick={toggleTopup}
+                      aria-expanded={topupMounted && topupVisible}
+                      className="hidden items-center gap-1 rounded-full border border-transparent px-3 py-1 text-sm font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 sm:inline-flex"
+                    >
+                      <span className="text-lg leading-none">+</span>
+                      <span>Top up</span>
+                    </button>
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={toggleTopup}
+                  aria-expanded={topupMounted && topupVisible}
+                  className="absolute bottom-2 right-2 inline-flex items-center gap-[2px] text-[8px] font-semibold text-[var(--color-outer-space)] sm:hidden"
+                >
+                  <span className="text-[10px] leading-none">+</span>
+                  <span>Top up</span>
+                </button>
+              </div>
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
               <KpiCard title="Due to expire in 30 days" value={metrics.expiringSoon} unit="points" animate />
@@ -497,66 +465,6 @@ export function DashboardClient({
             </div>
           </div>
 
-          <div className="view-transition grid gap-6 sm:gap-4 xl:grid-cols-12">
-            <section className="col-span-1 xl:col-span-7 text-left">
-              <h2 className="mb-2 text-lg font-medium">Top earning categories</h2>
-              {rows === null ? (
-                <TopEarningSkeleton />
-              ) : (
-                <PointsBreakdown
-                  items={metrics.pointsByType.map((item) => ({
-                    key: item.key,
-                    label: item.label,
-                    points: item.points,
-                    rows: item.rows,
-                  }))}
-                />
-              )}
-            </section>
-
-            <aside className="col-span-1 flex flex-col gap-4 xl:col-span-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium">Refer and earn</h2>
-              </div>
-              <ReferralCard
-                icon="✈️"
-                title="Refer an Agent"
-                description="Invite a colleague to Prypco One and earn XYD Collect."
-                primaryLabel="Copy link"
-                primarySuccessLabel="Link copied!"
-                onPrimaryClick={() => copyToClipboard(agentReferralLink)}
-              />
-              <ReferralCard
-                icon="🎁"
-                title="Refer an Investor"
-                description="Share Prypco Blocks or Mint with investors and earn rewards."
-                primaryLabel="Chat on WhatsApp"
-                primarySuccessLabel=""
-                onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
-                secondaryLabel="Copy promo code"
-                secondarySuccessLabel="Code copied!"
-                onSecondaryClick={() => copyToClipboard(investorPromoCode)}
-              />
-            </aside>
-
-            <section ref={topupRef} id="topup" className="col-span-1 xl:col-span-7">
-              <h2 className="mb-2 text-lg font-medium">Top up balance</h2>
-              <BuyPointsButton
-                agentId={agentId}
-                agentCode={agentCode}
-                baseQuery={identifierParams.toString()}
-                minAmount={minTopup}
-                pointsPerAed={pointsPerAed}
-              />
-            </section>
-
-            <section className="col-span-1 xl:col-span-12">
-              <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
-              <Suspense fallback={<ActivitySkeleton />}>
-                <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
-              </Suspense>
-            </section>
-          </div>
           {lastUpdatedLabel ? (
             <p className="text-right text-sm text-[var(--color-outer-space)]/60">Last updated {lastUpdatedLabel}</p>
           ) : null}
