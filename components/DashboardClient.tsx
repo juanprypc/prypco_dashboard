@@ -446,12 +446,12 @@ export function DashboardClient({
                     </button>
                   }
                 />
-                <div className="absolute right-2 top-0 flex -translate-y-1/2 sm:hidden">
+                <div className="absolute inset-x-0 bottom-3 flex justify-center sm:hidden">
                   <button
                     type="button"
                     onClick={toggleTopup}
                     aria-expanded={topupMounted && topupVisible}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-outer-space)] drop-shadow-[0_8px_18px_-12px_rgba(13,9,59,0.55)] transition hover:-translate-y-[1px]"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/70 bg-white/95 px-2.5 py-0.5 text-[10px] font-semibold text-[var(--color-outer-space)] shadow-[0_10px_26px_-18px_rgba(13,9,59,0.55)] transition hover:-translate-y-[1px]"
                   >
                     <span className="text-sm leading-none">+</span>
                     <span>Top up</span>
