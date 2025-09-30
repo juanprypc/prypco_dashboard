@@ -44,33 +44,44 @@ export function ReferralCard({
     setTimeout(() => setSecondaryCopied(false), 1500);
   }, [onSecondaryClick, secondarySuccessLabel]);
 
-  return (
-    <div className="w-full rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] px-4 py-4 text-left text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] backdrop-blur-[2px] sm:flex sm:h-full sm:min-h-[200px] sm:flex-col sm:justify-between sm:px-5 sm:py-5 xl:max-w-[280px]">
-      <div className="flex items-start gap-3">
-        <span aria-hidden className="text-xl sm:text-2xl">{icon}</span>
-        <div>
-          <p className="text-sm font-semibold sm:text-base">{title}</p>
-          <p className="mt-1 text-xs text-[var(--color-outer-space)]/70 sm:text-sm">{description}</p>
-        </div>
-      </div>
+  const showSecondary = Boolean(secondaryLabel);
+  const rowClasses = showSecondary
+    ? 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'
+    : 'flex items-start justify-between gap-3';
+  const buttonsClasses = showSecondary
+    ? 'flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3'
+    : 'flex items-center justify-end';
 
-      <div className="mt-3 flex flex-col gap-2 sm:mt-auto sm:flex-row sm:items-center sm:gap-3">
-        <button
-          type="button"
-          onClick={handlePrimary}
-          className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-[var(--color-outer-space)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] sm:text-sm"
-        >
-          {primaryCopied ? primarySuccessLabel : primaryLabel}
-        </button>
-        {secondaryLabel ? (
-          <button
-            type="button"
-            onClick={handleSecondary}
-            className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/20 hover:bg-[rgba(246,243,248,0.85)] sm:text-sm"
-          >
-            {secondaryCopied ? secondarySuccessLabel : secondaryLabel}
-          </button>
-        ) : null}
+  return (
+    <div className="w-full rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] px-4 py-4 text-left text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] backdrop-blur-[2px]">
+      <div className="grid grid-cols-[auto,1fr] items-start gap-3">
+        <span aria-hidden className="text-xl sm:text-2xl">{icon}</span>
+        <div className="flex w-full flex-col gap-3 sm:gap-4">
+          <div className={rowClasses}>
+            <div>
+              <p className="text-sm font-semibold sm:text-base">{title}</p>
+              <p className="mt-1 text-xs text-[var(--color-outer-space)]/70 sm:text-sm">{description}</p>
+            </div>
+            <div className={buttonsClasses}>
+              <button
+                type="button"
+                onClick={handlePrimary}
+                className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-[var(--color-outer-space)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] sm:text-sm"
+              >
+                {primaryCopied ? primarySuccessLabel : primaryLabel}
+              </button>
+              {secondaryLabel ? (
+                <button
+                  type="button"
+                  onClick={handleSecondary}
+                  className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/20 hover:bg-[rgba(246,243,248,0.85)] sm:text-sm"
+                >
+                  {secondaryCopied ? secondarySuccessLabel : secondaryLabel}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
