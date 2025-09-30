@@ -612,7 +612,7 @@ export function DashboardClient({
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Refer and earn</h2>
               </div>
-              <div className="mt-2 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 sm:gap-4 sm:justify-items-start xl:grid-cols-2 xl:justify-items-center">
+              <div className="mt-2 grid grid-cols-1 items-stretch justify-items-center gap-3 sm:grid-cols-2 sm:gap-4 sm:justify-items-center xl:grid-cols-2 xl:justify-items-center">
                 <ReferralCard
                   icon="✈️"
                   title="Refer an Agent"

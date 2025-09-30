@@ -45,7 +45,7 @@ export function ReferralCard({
   }, [onSecondaryClick, secondarySuccessLabel]);
 
   return (
-    <div className="flex h-full min-h-[180px] w-full flex-col justify-between rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] p-4 text-left text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] backdrop-blur-[2px] sm:min-h-[200px] sm:max-w-[280px] sm:p-5">
+    <div className="flex h-full min-h-[200px] w-full max-w-[280px] flex-col justify-between rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] p-4 text-left text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] backdrop-blur-[2px] sm:p-5">
       <div className="flex items-start gap-3">
         <span aria-hidden className="text-xl sm:text-2xl">{icon}</span>
         <div>
