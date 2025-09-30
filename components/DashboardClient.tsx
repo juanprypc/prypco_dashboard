@@ -591,7 +591,7 @@ export function DashboardClient({
         </div>
       ) : activeView === 'loyalty' ? (
         <div className="view-transition space-y-6">
-          <div className="grid grid-cols-1 gap-6 sm:gap-4 xl:grid-cols-12">
+          <div className="grid grid-cols-1 gap-6 sm:gap-4 xl:grid-cols-12 xl:items-start">
             <section className="col-span-12 text-left xl:col-span-7">
               <h2 className="mb-2 text-lg font-medium">Top earning categories</h2>
               {rows === null ? (
@@ -612,7 +612,7 @@ export function DashboardClient({
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Refer and earn</h2>
               </div>
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 items-stretch justify-center gap-3 sm:grid-cols-2 sm:justify-start sm:justify-items-start xl:grid-cols-2 xl:justify-items-center">
                 <ReferralCard
                   icon="✈️"
                   title="Refer an Agent"
