@@ -45,27 +45,26 @@ export function ReferralCard({
   }, [onSecondaryClick, secondarySuccessLabel]);
 
   const showSecondary = Boolean(secondaryLabel);
-  const primaryButtonClasses = showSecondary
-    ? 'inline-flex w-full min-h-[36px] flex-1 items-center justify-center rounded-full border border-[var(--color-outer-space)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] min-[520px]:px-4 min-[520px]:py-2 min-[520px]:text-sm'
-    : 'inline-flex w-full min-h-[36px] items-center justify-center rounded-full border border-[var(--color-outer-space)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] min-[360px]:w-auto min-[520px]:px-4 min-[520px]:py-2 min-[520px]:text-sm';
-  const secondaryButtonClasses =
-    'inline-flex w-full min-h-[36px] flex-1 items-center justify-center rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/20 hover:bg-[rgba(246,243,248,0.85)] min-[520px]:px-4 min-[520px]:py-2 min-[520px]:text-sm';
+  const baseButtonClasses =
+    'inline-flex w-full min-h-[36px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold transition min-[360px]:w-auto min-[480px]:px-4 min-[480px]:py-2 min-[480px]:text-sm';
+  const primaryButtonClasses = `${baseButtonClasses} border border-[var(--color-outer-space)] text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]`;
+  const secondaryButtonClasses = `${baseButtonClasses} border border-transparent bg-[var(--color-panel)] text-[var(--color-outer-space)] hover:border-[var(--color-outer-space)]/20 hover:bg-[rgba(246,243,248,0.85)]`;
 
   return (
     <div className="flex h-full w-full flex-col gap-5 rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] px-4 py-5 text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] backdrop-blur-[2px]">
-      <div className="flex flex-col items-center gap-3 text-center min-[500px]:flex-row min-[500px]:items-start min-[500px]:gap-4 min-[500px]:text-left">
-        <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d1b7fb]/60 bg-white text-lg min-[500px]:h-12 min-[500px]:w-12 min-[500px]:text-xl">
+      <div className="flex flex-col items-center gap-3 text-center min-[360px]:flex-row min-[360px]:items-start min-[360px]:gap-4 min-[360px]:text-left">
+        <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d1b7fb]/60 bg-white text-lg min-[360px]:h-11 min-[360px]:w-11 min-[480px]:h-12 min-[480px]:w-12 min-[480px]:text-xl">
           {icon}
         </span>
         <div className="space-y-1">
-          <p className="text-sm font-semibold leading-tight min-[500px]:text-base">{title}</p>
-          <p className="text-xs leading-snug text-[var(--color-outer-space)]/70 min-[500px]:text-sm">{description}</p>
+          <p className="text-sm font-semibold leading-tight min-[360px]:text-base">{title}</p>
+          <p className="text-xs leading-snug text-[var(--color-outer-space)]/70 min-[360px]:text-sm">{description}</p>
         </div>
       </div>
       <div
         className={`mt-auto flex w-full flex-col gap-2 ${
           showSecondary
-            ? 'min-[360px]:flex-row min-[360px]:flex-wrap min-[360px]:gap-2 min-[360px]:justify-between min-[600px]:justify-end'
+            ? 'min-[360px]:flex-row min-[360px]:flex-wrap min-[360px]:gap-2 min-[360px]:justify-end'
             : 'min-[360px]:flex-row min-[360px]:justify-end'
         }`}
       >

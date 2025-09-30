@@ -72,7 +72,7 @@ export default async function Dashboard({
   const identifierLabel = agentId || agentCode || '—';
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] space-y-8 px-4 pb-12 pt-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1200px] space-y-8 px-3 pb-12 pt-6 sm:px-6">
       <DashboardClient
         agentId={agentId}
         agentCode={agentCode}
