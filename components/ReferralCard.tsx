@@ -45,7 +45,7 @@ export function ReferralCard({
   }, [onSecondaryClick, secondarySuccessLabel]);
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-[26px] border border-[#d1b7fb] bg-white/85 p-4 text-left text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] sm:p-5">
+    <div className="flex h-full flex-col justify-between rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] p-4 text-left text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] backdrop-blur-[2px] sm:p-5">
       <div className="flex items-start gap-3">
         <span aria-hidden className="text-xl sm:text-2xl">{icon}</span>
         <div>
@@ -58,7 +58,7 @@ export function ReferralCard({
         <button
           type="button"
           onClick={handlePrimary}
-          className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-[var(--color-outer-space)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)]/80 sm:text-sm"
+          className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-[var(--color-outer-space)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] sm:text-sm"
         >
           {primaryCopied ? primarySuccessLabel : primaryLabel}
         </button>
@@ -66,7 +66,7 @@ export function ReferralCard({
           <button
             type="button"
             onClick={handleSecondary}
-            className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/20 hover:bg-white/90 sm:text-sm"
+            className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/20 hover:bg-[rgba(246,243,248,0.85)] sm:text-sm"
           >
             {secondaryCopied ? secondarySuccessLabel : secondaryLabel}
           </button>

@@ -17,7 +17,7 @@ export default function ActivitySection({
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
-            className="flex items-center justify-between rounded-[20px] border border-[#d1b7fb]/50 bg-white/70 px-4 py-3 shadow-sm animate-pulse"
+            className="flex items-center justify-between rounded-[20px] border border-[#d1b7fb]/50 bg-[var(--color-panel-soft)] px-4 py-3 shadow-sm animate-pulse"
           >
             <div className="h-3 w-24 rounded-full bg-[#d1b7fb]/70" />
             <div className="h-3 w-16 rounded-full bg-[#d1b7fb]/50" />

@@ -31,11 +31,11 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
                     .join(' ');
               const descriptionLabel = r.description_display_name?.trim() || '—';
               const positive = r.points >= 0;
-              const rowBg = index % 2 === 0 ? 'bg-white/60' : 'bg-white/20';
+              const rowBg = index % 2 === 0 ? 'bg-[rgba(246,243,248,0.9)]' : 'bg-[rgba(246,243,248,0.7)]';
               return (
                 <tr
                   key={r.id}
-                  className={`${rowBg} transition hover:bg-white/80`}
+                  className={`${rowBg} transition hover:bg-[rgba(234,213,254,0.35)]`}
                 >
                   <td className="whitespace-nowrap px-5 py-4 text-sm text-[var(--color-outer-space)]/70">{dateLabel}</td>
                   <td className="px-5 py-4 text-base font-semibold text-[var(--color-outer-space)]">{typeLabel}</td>
