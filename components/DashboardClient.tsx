@@ -874,11 +874,11 @@ function RedeemDialog({
 
 function TopEarningSkeleton() {
   return (
-    <div className="grid grid-cols-3 gap-2 sm:gap-4 xl:gap-5">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:gap-5">
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={index}
-          className="flex h-full flex-col justify-between rounded-[20px] border border-[#d1b7fb]/60 bg-white/70 p-3 text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6 animate-pulse"
+          className="flex w-full flex-col rounded-[20px] border border-[#d1b7fb]/60 bg-white/70 p-3 text-[var(--color-outer-space)] sm:h-full sm:justify-between sm:rounded-[28px] sm:p-6 animate-pulse"
         >
           <div className="h-3 w-28 rounded-full bg-[#d1b7fb]/60" />
           <div className="mt-6 h-6 w-32 rounded-full bg-[#d1b7fb]/40 sm:h-10" />
