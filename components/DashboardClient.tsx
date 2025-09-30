@@ -612,7 +612,7 @@ export function DashboardClient({
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Refer and earn</h2>
               </div>
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-2 xl:justify-items-center">
+              <div className="mt-2 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 min-[360px]:gap-4 xl:grid-cols-2 xl:justify-items-center">
                 <ReferralCard
                   icon="✈️"
                   title="Refer an Agent"
@@ -874,7 +874,7 @@ function RedeemDialog({
 
 function TopEarningSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-2 sm:auto-rows-fr sm:grid-cols-2 sm:gap-4 xl:auto-rows-fr xl:grid-cols-3 xl:gap-5">
+    <div className="grid grid-cols-1 gap-2 min-[360px]:auto-rows-fr min-[360px]:grid-cols-2 min-[360px]:gap-4 xl:auto-rows-fr xl:grid-cols-3 xl:gap-5">
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={index}

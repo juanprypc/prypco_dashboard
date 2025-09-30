@@ -46,10 +46,10 @@ export function ReferralCard({
 
   const showSecondary = Boolean(secondaryLabel);
   const rowClasses = showSecondary
-    ? 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'
+    ? 'flex flex-col gap-3 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between'
     : 'flex items-start justify-between gap-3';
   const buttonsClasses = showSecondary
-    ? 'flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3'
+    ? 'flex flex-col items-stretch gap-2 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-end min-[360px]:gap-3'
     : 'flex items-center justify-end';
 
   return (
