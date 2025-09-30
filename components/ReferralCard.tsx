@@ -1,0 +1,81 @@
+'use client';
+
+import { useCallback, useState } from 'react';
+
+type Props = {
+  title: string;
+  description: string;
+  icon?: string;
+  primaryLabel: string;
+  onPrimaryClick?: () => Promise<void> | void;
+  secondaryLabel?: string;
+  onSecondaryClick?: () => Promise<void> | void;
+  primarySuccessLabel?: string;
+  secondarySuccessLabel?: string;
+};
+
+export function ReferralCard({
+  title,
+  description,
+  icon = '✨',
+  primaryLabel,
+  onPrimaryClick,
+  secondaryLabel,
+  onSecondaryClick,
+  primarySuccessLabel = 'Copied!',
+  secondarySuccessLabel = 'Copied!',
+}: Props) {
+  const [primaryCopied, setPrimaryCopied] = useState(false);
+  const [secondaryCopied, setSecondaryCopied] = useState(false);
+
+  const handlePrimary = useCallback(async () => {
+    if (onPrimaryClick) {
+      await onPrimaryClick();
+      if (primarySuccessLabel) {
+        setPrimaryCopied(true);
+        setTimeout(() => setPrimaryCopied(false), 1600);
+      }
+    }
+  }, [onPrimaryClick, primarySuccessLabel]);
+
+  const handleSecondary = useCallback(async () => {
+    if (onSecondaryClick) {
+      await onSecondaryClick();
+      if (secondarySuccessLabel) {
+        setSecondaryCopied(true);
+        setTimeout(() => setSecondaryCopied(false), 1600);
+      }
+    }
+  }, [onSecondaryClick, secondarySuccessLabel]);
+
+  return (
+    <div className="flex h-full flex-col justify-between rounded-[26px] border border-[#d1b7fb] bg-white/80 p-4 text-left text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] sm:p-5">
+      <div className="flex items-start gap-3">
+        <span aria-hidden className="text-xl sm:text-2xl">{icon}</span>
+        <div>
+          <p className="text-sm font-semibold sm:text-base">{title}</p>
+          <p className="mt-1 text-xs text-[var(--color-outer-space)]/70 sm:text-sm">{description}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          onClick={handlePrimary}
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-outer-space)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)]/80 sm:text-sm"
+        >
+          {primaryCopied ? primarySuccessLabel : primaryLabel}
+        </button>
+        {secondaryLabel ? (
+          <button
+            type="button"
+            onClick={handleSecondary}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/20 hover:bg-white/80 sm:text-sm"
+          >
+            {secondaryCopied ? secondarySuccessLabel : secondaryLabel}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
