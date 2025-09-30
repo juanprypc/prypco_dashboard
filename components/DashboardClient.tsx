@@ -433,17 +433,6 @@ export function DashboardClient({
                   value={metrics.totalPosted}
                   unit="points"
                   animate
-                  footerAccessory={
-                    <button
-                      type="button"
-                      onClick={toggleTopup}
-                      aria-expanded={topupMounted && topupVisible}
-                      className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-outer-space)] sm:hidden"
-                    >
-                      <span className="text-xs leading-none">+</span>
-                      <span>Top up</span>
-                    </button>
-                  }
                   headerAccessory={
                     <button
                       ref={topupTriggerRef}
@@ -457,6 +446,15 @@ export function DashboardClient({
                     </button>
                   }
                 />
+                <button
+                  type="button"
+                  onClick={toggleTopup}
+                  aria-expanded={topupMounted && topupVisible}
+                  className="absolute bottom-2 right-2 inline-flex items-center gap-[2px] text-[8px] font-semibold text-[var(--color-outer-space)] sm:hidden"
+                >
+                  <span className="text-[10px] leading-none">+</span>
+                  <span>Top up</span>
+                </button>
               </div>
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
