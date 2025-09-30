@@ -636,7 +636,7 @@ export function DashboardClient({
             </section>
           </div>
 
-          <section className="rounded-[26px] bg-[var(--color-panel-soft)] p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
+          <section className="rounded-[26px] bg-[var(--color-panel)] p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
             <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
             <Suspense fallback={<ActivitySkeleton />}>
               <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />

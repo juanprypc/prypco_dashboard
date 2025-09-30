@@ -9,7 +9,7 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[28px] bg-[var(--color-panel-soft)]">
+    <div className="overflow-hidden rounded-[28px] border border-[#d1b7fb] bg-[var(--color-panel)]">
       <div className="hidden sm:block">
         <table className="min-w-full text-sm">
           <thead className="bg-[rgba(234,213,254,0.5)] text-left text-xs font-semibold text-[var(--color-outer-space)]/70">
@@ -21,7 +21,7 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, index) => {
+            {rows.map((r) => {
               const dateLabel = formatDate(r.earned_at ?? r.createdTime);
               const typeLabel = r.type_display_name
                 ? r.type_display_name
@@ -31,11 +31,10 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
                     .join(' ');
               const descriptionLabel = r.description_display_name?.trim() || '—';
               const positive = r.points >= 0;
-              const rowBg = index % 2 === 0 ? 'bg-[rgba(246,243,248,0.9)]' : 'bg-[rgba(246,243,248,0.7)]';
               return (
                 <tr
                   key={r.id}
-                  className={`${rowBg} transition hover:bg-[rgba(234,213,254,0.35)]`}
+                  className="bg-[var(--color-panel)] transition hover:bg-[rgba(234,213,254,0.35)]"
                 >
                   <td className="whitespace-nowrap px-5 py-4 text-sm text-[var(--color-outer-space)]/70">{dateLabel}</td>
                   <td className="px-5 py-4 text-base font-semibold text-[var(--color-outer-space)]">{typeLabel}</td>
@@ -54,7 +53,7 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
         </table>
       </div>
 
-      <div className="divide-y divide-[#d1b7fb]/40 sm:hidden">
+      <div className="divide-y divide-[#d1b7fb]/40 bg-[var(--color-panel)] sm:hidden">
         {rows.map((r) => {
           const dateLabel = formatDate(r.earned_at ?? r.createdTime);
           const typeLabel = r.type_display_name
