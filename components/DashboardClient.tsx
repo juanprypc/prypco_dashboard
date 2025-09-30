@@ -606,13 +606,14 @@ export function DashboardClient({
                   }))}
                 />
               )}
-            </section>
+              </div>
+          </section>
 
-            <section className="col-span-12 flex flex-col xl:col-span-5">
+            <section className="col-span-1 text-left xl:col-span-5">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium">Refer and earn</h2>
               </div>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
                 <ReferralCard
                   icon="✈️"
                   title="Refer an Agent"
@@ -636,8 +637,30 @@ export function DashboardClient({
             </section>
           </div>
 
-          <section className="rounded-[26px] border border-[#d1b7fb]/60 bg-white/80 p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
+          <section id="topup" className="mb-6 rounded-[26px] border border-[#d1b7fb]/60 bg-[var(--color-panel-soft)] p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
+            <h2 className="mb-2 text-lg font-medium">Top up balance</h2>
+            <BuyPointsButton
+              agentId={agentId}
+              agentCode={agentCode}
+              baseQuery={identifierParams.toString()}
+              minAmount={minTopup}
+              pointsPerAed={pointsPerAed}
+            />
+          </section>
+
+          <section className="rounded-[26px] border border-[#d1b7fb]/60 bg-[var(--color-panel-soft)] p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
             <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
+            <Suspense fallback={<ActivitySkeleton />}>
+              <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
+            </Suspense>
+          </section>
+        </div>
+/section>
+          </div>
+
+          <section>
+            <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
+            <div className="rounded-[26px] border border-[#d1b7fb]/60 bg-[var(--color-panel-soft)] p-4 shadow-[0_25px_60px_-50px_rgba(13,9,59,0.35)] sm:p-6">
             <Suspense fallback={<ActivitySkeleton />}>
               <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
             </Suspense>
