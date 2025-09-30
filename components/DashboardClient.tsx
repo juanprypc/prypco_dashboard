@@ -438,9 +438,9 @@ export function DashboardClient({
                       type="button"
                       onClick={toggleTopup}
                       aria-expanded={topupMounted && topupVisible}
-                      className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--color-outer-space)] sm:hidden"
+                      className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-outer-space)] sm:hidden"
                     >
-                      <span className="text-sm leading-none">+</span>
+                      <span className="text-xs leading-none">+</span>
                       <span>Top up</span>
                     </button>
                   }
