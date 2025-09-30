@@ -14,7 +14,7 @@ type Props = {
   expanded?: boolean;
   children?: React.ReactNode;
   className?: string;
-  headerAccessoryVariant?: 'inline' | 'floating';
+  footerAccessory?: React.ReactNode;
 };
 
 function usePrefersReducedMotion() {
@@ -93,7 +93,7 @@ export function KpiCard({
   expanded = true,
   children,
   className,
-  headerAccessoryVariant = 'inline',
+  footerAccessory,
 }: Props) {
   const numericTarget = useMemo(() => (typeof value === 'number' ? value : null), [value]);
   const animatedValue = useAnimatedNumber(numericTarget, { durationMs, enabled: animate });
@@ -104,30 +104,14 @@ export function KpiCard({
     return formatNumber(Math.round(animatedValue));
   }, [animatedValue, numericTarget, value]);
 
-  const floatingAccessory = Boolean(headerAccessory) && headerAccessoryVariant === 'floating';
-  const topPadding = floatingAccessory ? 'pt-7 sm:pt-10' : '';
-  const rootClass = [
-    'relative flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 sm:p-6 text-left text-[var(--color-outer-space)]',
-    topPadding,
-    className ?? '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const baseClass = 'relative flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6';
+  const rootClass = className ? `${baseClass} ${className}` : baseClass;
 
   return (
     <div className={rootClass}>
-      {floatingAccessory ? (
-        <div className="pointer-events-none">
-          <div className="pointer-events-auto absolute right-2 top-0 -translate-y-1/2 sm:right-4 sm:-translate-y-1/3">
-            {headerAccessory}
-          </div>
-        </div>
-      ) : null}
       <div className="flex w-full items-start justify-between gap-3">
         <p className="text-xs font-normal text-[var(--color-outer-space)]/75 sm:text-xl">{title}</p>
-        {headerAccessory && !floatingAccessory ? (
-          <div className="flex shrink-0 items-center">{headerAccessory}</div>
-        ) : null}
+        {headerAccessory ? <div className="flex shrink-0 items-center">{headerAccessory}</div> : null}
       </div>
       <div className="mt-2 w-full text-left text-[20px] font-bold leading-[1.08] tracking-tight sm:mt-6 sm:text-[48px]">
         {formatted}
@@ -135,6 +119,9 @@ export function KpiCard({
           <span className="mt-1 block text-[12px] font-bold text-[var(--color-outer-space)] sm:mt-2 sm:text-[24px]">
             {unit}
           </span>
+        ) : null}
+        {footerAccessory ? (
+          <div className="mt-1 flex justify-end sm:hidden">{footerAccessory}</div>
         ) : null}
       </div>
       {children ? (
