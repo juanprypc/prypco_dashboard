@@ -878,10 +878,12 @@ function TopEarningSkeleton() {
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={index}
-          className="flex w-full flex-col gap-3 rounded-[20px] border border-[#d1b7fb]/60 bg-white/70 p-3 text-[var(--color-outer-space)] sm:h-full sm:gap-4 sm:rounded-[28px] sm:p-6 animate-pulse"
+          className="w-full rounded-[20px] border border-[#d1b7fb]/60 bg-white/70 px-3 py-3 text-[var(--color-outer-space)] sm:flex sm:h-full sm:flex-col sm:justify-between sm:rounded-[28px] sm:px-6 sm:py-6 animate-pulse"
         >
-          <div className="h-3 w-28 rounded-full bg-[#d1b7fb]/60" />
-          <div className="h-6 w-32 rounded-full bg-[#d1b7fb]/40 sm:mt-auto sm:h-10" />
+          <div>
+            <div className="h-3 w-28 rounded-full bg-[#d1b7fb]/60" />
+          </div>
+          <div className="h-6 w-32 rounded-full bg-[#d1b7fb]/40 sm:h-10" />
         </div>
       ))}
     </div>

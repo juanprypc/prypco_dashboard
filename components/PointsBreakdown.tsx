@@ -15,14 +15,16 @@ export function PointsBreakdown({ items }: { items: Breakdown[] }) {
       {items.map((item) => (
         <div
           key={item.key}
-          className="flex w-full flex-col gap-3 rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] p-4 text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] sm:h-full sm:min-h-[200px] sm:gap-4 sm:p-6 xl:max-w-[280px]"
+          className="w-full rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] px-4 py-3 text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] sm:flex sm:h-full sm:flex-col sm:justify-between sm:px-6 sm:py-6 xl:max-w-[280px]"
         >
-          <p className="text-sm font-semibold text-[var(--color-outer-space)]/70 sm:text-base">
-            {item.label}
-          </p>
-          <p className="text-2xl font-semibold text-[var(--color-outer-space)] sm:mt-auto sm:text-[32px]">
-            {formatPoints(item.points)} pts
-          </p>
+          <div>
+            <p className="text-sm font-semibold text-[var(--color-outer-space)]/70 sm:text-base">
+              {item.label}
+            </p>
+            <p className="pt-3 text-2xl font-semibold text-[var(--color-outer-space)] sm:pt-4 sm:text-[32px]">
+              {formatPoints(item.points)} pts
+            </p>
+          </div>
         </div>
       ))}
     </div>
