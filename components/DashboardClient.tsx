@@ -416,85 +416,59 @@ export function DashboardClient({
 
   const topHighlightItems = useMemo(() => metrics.pointsByType.slice(0, 3), [metrics.pointsByType]);
 
-  const highlightCards = (() => {
-    const elements: ReactNode[] = [];
-
+  const topEarningCards = useMemo(() => {
     if (rows === null) {
-      for (let i = 0; i < 3; i += 1) {
-        elements.push(
-          <div
-            key={`top-skeleton-${i}`}
-            className={`${REFERRAL_CARD_BASE_CLASS} animate-pulse bg-white/70 text-transparent`}
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-11 w-11 rounded-full bg-white/80" />
-              <div className="h-3 w-3/4 rounded-full bg-white/75" />
-              <div className="h-3 w-2/3 rounded-full bg-white/60" />
-            </div>
-          </div>,
-        );
-      }
-    } else {
-      const items = topHighlightItems;
-      items.forEach((item) => {
-        elements.push(
-          <TopHighlightCard key={`top-${item.key}`} label={item.label} points={item.points} rows={item.rows} />,
-        );
-      });
-
-      if (!items.length) {
-        elements.push(
-          <div
-            key="top-empty"
-            className={`${REFERRAL_CARD_BASE_CLASS} text-xs text-[var(--color-outer-space)]/70`}
-          >
-            <p className="text-sm font-semibold">No earnings yet</p>
-            <p>Your activity will appear here soon.</p>
-          </div>,
-        );
-      }
-
-      while (elements.length < 3) {
-        elements.push(
-          <div
-            key={`top-placeholder-${elements.length}`}
-            className={`${REFERRAL_CARD_BASE_CLASS} border-dashed border-[#d1b7fb]/70 text-xs text-[var(--color-outer-space)]/60`}
-          >
-            <p>More categories coming soon</p>
-          </div>,
-        );
-      }
+      return Array.from({ length: 3 }, (_, i) => (
+        <div
+          key={`top-skeleton-${i}`}
+          className={`${REFERRAL_CARD_BASE_CLASS} animate-pulse bg-white/70 text-transparent`}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-11 w-11 rounded-full bg-white/80" />
+            <div className="h-3 w-3/4 rounded-full bg-white/75" />
+            <div className="h-3 w-2/3 rounded-full bg-white/60" />
+          </div>
+        </div>
+      ));
     }
 
-    elements.push(
-      <ReferralCard
-        key="ref-agent"
-        icon="✈️"
-        title="Refer an Agent"
-        description="Invite a colleague to Prypco One and earn XYD Collect."
-        primaryLabel="Copy link"
-        primarySuccessLabel="Link copied!"
-        onPrimaryClick={() => copyToClipboard(agentReferralLink)}
-      />,
-    );
+    if (!topHighlightItems.length) {
+      return [
+        <div key="top-empty" className={`${REFERRAL_CARD_BASE_CLASS} text-xs text-[var(--color-outer-space)]/70`}>
+          <p className="text-sm font-semibold">No earnings yet</p>
+          <p>Your activity will appear here soon.</p>
+        </div>,
+      ];
+    }
 
-    elements.push(
-      <ReferralCard
-        key="ref-investor"
-        icon="🎁"
-        title="Refer an Investor"
-        description="Share Prypco Blocks or Mint with investors and earn rewards."
-        primaryLabel="Chat on WhatsApp"
-        primarySuccessLabel=""
-        onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
-        secondaryLabel="Copy promo code"
-        secondarySuccessLabel="Code copied!"
-        onSecondaryClick={() => copyToClipboard(investorPromoCode)}
-      />,
-    );
+    return topHighlightItems.map((item) => (
+      <TopHighlightCard key={`top-${item.key}`} label={item.label} points={item.points} rows={item.rows} />
+    ));
+  }, [rows, topHighlightItems]);
 
-    return elements;
-  })();
+  const referralCards: ReactNode[] = [
+    <ReferralCard
+      key="ref-agent"
+      icon="✈️"
+      title="Refer an Agent"
+      description="Invite a colleague to Prypco One and earn XYD Collect."
+      primaryLabel="Copy link"
+      primarySuccessLabel="Link copied!"
+      onPrimaryClick={() => copyToClipboard(agentReferralLink)}
+    />,
+    <ReferralCard
+      key="ref-investor"
+      icon="🎁"
+      title="Refer an Investor"
+      description="Share Prypco Blocks or Mint with investors and earn rewards."
+      primaryLabel="Chat on WhatsApp"
+      primarySuccessLabel=""
+      onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
+      secondaryLabel="Copy promo code"
+      secondarySuccessLabel="Code copied!"
+      onSecondaryClick={() => copyToClipboard(investorPromoCode)}
+    />,
+  ];
 
   const lastUpdatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -673,9 +647,16 @@ export function DashboardClient({
       ) : activeView === 'loyalty' ? (
         <div className="view-transition space-y-6">
           <section className="space-y-3">
-            <h2 className="text-lg font-medium">Top earning & referrals</h2>
-            <div className="grid grid-cols-2 gap-3 justify-items-stretch min-[480px]:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:gap-5">
-              {highlightCards}
+            <h2 className="text-lg font-medium">Top earning categories</h2>
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5">
+              {topEarningCards}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-medium">Refer and earn</h2>
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-2 lg:gap-4 xl:gap-5">
+              {referralCards}
             </div>
           </section>
 
