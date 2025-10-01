@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { aeonik } from "./fonts";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body className={`${aeonik.variable} antialiased`} suppressHydrationWarning>
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
