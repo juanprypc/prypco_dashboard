@@ -14,8 +14,8 @@ export function TopupBanner({ status }: Props) {
     >
       <span
         aria-hidden
-        className={`inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-semibold ${
-          isSuccess ? 'text-emerald-600' : 'text-amber-600'
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-current text-sm font-semibold ${
+          isSuccess ? 'text-emerald-600/80' : 'text-amber-600/80'
         }`}
       >
         {isSuccess ? '✓' : '!'}
@@ -26,7 +26,7 @@ export function TopupBanner({ status }: Props) {
         </p>
         <p className="text-xs leading-snug text-[var(--color-outer-space)]/70">
           {isSuccess
-            ? 'Points refresh automatically every 60 seconds. Expect your new balance to show up within the next minute.'
+            ? 'Expect your new balance to show up within the next minute.'
             : 'No points were added and your card was not charged. Feel free to try again when you’re ready.'}
         </p>
       </div>
