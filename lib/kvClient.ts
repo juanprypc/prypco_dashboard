@@ -1,8 +1,8 @@
-import { createClient, type Redis } from '@vercel/kv';
+import { createClient } from '@vercel/kv';
 
-let client: Redis | null = null;
+let client: ReturnType<typeof createClient> | null = null;
 
-export function getKvClient(): Redis {
+export function getKvClient(): ReturnType<typeof createClient> {
   if (client) return client;
 
   const url =
