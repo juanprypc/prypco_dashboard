@@ -11,8 +11,9 @@ export async function GET(request: Request) {
   const vercelSignature = request.headers.get('x-vercel-cron-signature');
   if (secret && !vercelSignature) {
     const authHeader = request.headers.get('authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-    if (token !== secret) {
+    const headerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    const urlToken = new URL(request.url).searchParams.get('token') || undefined;
+    if (headerToken !== secret && urlToken !== secret) {
       return new Response('Unauthorized', { status: 401 });
     }
   }
