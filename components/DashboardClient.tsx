@@ -1,18 +1,17 @@
 'use client';
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
-import { formatNumber } from '@/lib/format';
+import { formatNumber, formatPoints } from '@/lib/format';
 import { KpiCard } from './KpiCard';
-import { PointsBreakdown } from './PointsBreakdown';
 import { CatalogueGrid, type CatalogueDisplayItem } from './CatalogueGrid';
 import { BuyPointsButton } from './BuyPointsButton';
 import { TopupBanner } from './TopupBanner';
 import { LoadingOverlay } from './LoadingOverlay';
 import { NavigationTabs } from './NavigationTabs';
-import { ReferralCard } from './ReferralCard';
+import { ReferralCard, REFERRAL_CARD_BASE_CLASS } from './ReferralCard';
 
 type Props = {
   agentId?: string;
@@ -415,6 +414,88 @@ export function DashboardClient({
     };
   }, [rows]);
 
+  const topHighlightItems = useMemo(() => metrics.pointsByType.slice(0, 3), [metrics.pointsByType]);
+
+  const highlightCards = (() => {
+    const elements: ReactNode[] = [];
+
+    if (rows === null) {
+      for (let i = 0; i < 3; i += 1) {
+        elements.push(
+          <div
+            key={`top-skeleton-${i}`}
+            className={`${REFERRAL_CARD_BASE_CLASS} animate-pulse bg-white/70 text-transparent`}
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-11 w-11 rounded-full bg-white/80" />
+              <div className="h-3 w-3/4 rounded-full bg-white/75" />
+              <div className="h-3 w-2/3 rounded-full bg-white/60" />
+            </div>
+          </div>,
+        );
+      }
+    } else {
+      const items = topHighlightItems;
+      items.forEach((item) => {
+        elements.push(
+          <TopHighlightCard key={`top-${item.key}`} label={item.label} points={item.points} rows={item.rows} />,
+        );
+      });
+
+      if (!items.length) {
+        elements.push(
+          <div
+            key="top-empty"
+            className={`${REFERRAL_CARD_BASE_CLASS} text-xs text-[var(--color-outer-space)]/70`}
+          >
+            <p className="text-sm font-semibold">No earnings yet</p>
+            <p>Your activity will appear here soon.</p>
+          </div>,
+        );
+      }
+
+      while (elements.length < 3) {
+        elements.push(
+          <div
+            key={`top-placeholder-${elements.length}`}
+            className={`${REFERRAL_CARD_BASE_CLASS} border-dashed border-[#d1b7fb]/70 text-xs text-[var(--color-outer-space)]/60`}
+          >
+            <p>More categories coming soon</p>
+          </div>,
+        );
+      }
+    }
+
+    elements.push(
+      <ReferralCard
+        key="ref-agent"
+        icon="✈️"
+        title="Refer an Agent"
+        description="Invite a colleague to Prypco One and earn XYD Collect."
+        primaryLabel="Copy link"
+        primarySuccessLabel="Link copied!"
+        onPrimaryClick={() => copyToClipboard(agentReferralLink)}
+      />,
+    );
+
+    elements.push(
+      <ReferralCard
+        key="ref-investor"
+        icon="🎁"
+        title="Refer an Investor"
+        description="Share Prypco Blocks or Mint with investors and earn rewards."
+        primaryLabel="Chat on WhatsApp"
+        primarySuccessLabel=""
+        onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
+        secondaryLabel="Copy promo code"
+        secondarySuccessLabel="Code copied!"
+        onSecondaryClick={() => copyToClipboard(investorPromoCode)}
+      />,
+    );
+
+    return elements;
+  })();
+
   const lastUpdatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
@@ -591,50 +672,12 @@ export function DashboardClient({
         </div>
       ) : activeView === 'loyalty' ? (
         <div className="view-transition space-y-6">
-          <div className="grid grid-cols-1 gap-6 sm:gap-4 xl:grid-cols-12 xl:items-start">
-            <section className="col-span-12 text-left xl:col-span-7">
-              <h2 className="mb-2 text-lg font-medium">Top earning categories</h2>
-              {rows === null ? (
-                <TopEarningSkeleton />
-              ) : (
-                <PointsBreakdown
-                  items={metrics.pointsByType.map((item) => ({
-                    key: item.key,
-                    label: item.label,
-                    points: item.points,
-                    rows: item.rows,
-                  }))}
-                />
-              )}
-            </section>
-
-            <section className="col-span-1 text-left xl:col-span-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium">Refer and earn</h2>
-              </div>
-              <div className="mt-2 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-2 xl:justify-items-center">
-                <ReferralCard
-                  icon="✈️"
-                  title="Refer an Agent"
-                  description="Invite a colleague to Prypco One and earn XYD Collect."
-                  primaryLabel="Copy link"
-                  primarySuccessLabel="Link copied!"
-                  onPrimaryClick={() => copyToClipboard(agentReferralLink)}
-                />
-                <ReferralCard
-                  icon="🎁"
-                  title="Refer an Investor"
-                  description="Share Prypco Blocks or Mint with investors and earn rewards."
-                  primaryLabel="Chat on WhatsApp"
-                  primarySuccessLabel=""
-                  onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
-                  secondaryLabel="Copy promo code"
-                  secondarySuccessLabel="Code copied!"
-                  onSecondaryClick={() => copyToClipboard(investorPromoCode)}
-                />
-              </div>
-            </section>
-          </div>
+          <section className="space-y-3">
+            <h2 className="text-lg font-medium">Top earning & referrals</h2>
+            <div className="grid grid-cols-2 gap-3 justify-items-stretch min-[480px]:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:gap-5">
+              {highlightCards}
+            </div>
+          </section>
 
           <section className="rounded-[26px] bg-[var(--color-background)] p-4 sm:p-6">
             <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
@@ -872,20 +915,31 @@ function RedeemDialog({
   );
 }
 
-function TopEarningSkeleton() {
+function TopHighlightCard({
+  label,
+  points,
+  rows,
+}: {
+  label: string;
+  points: number;
+  rows: number;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-2 sm:auto-rows-fr sm:grid-cols-2 sm:gap-4 xl:auto-rows-fr xl:grid-cols-3 xl:gap-5">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div
-          key={index}
-          className="w-full rounded-[20px] border border-[#d1b7fb]/60 bg-white/70 px-3 py-3 text-[var(--color-outer-space)] sm:flex sm:h-full sm:flex-col sm:justify-between sm:rounded-[28px] sm:px-6 sm:py-6 animate-pulse"
-        >
-          <div>
-            <div className="h-3 w-28 rounded-full bg-[#d1b7fb]/60" />
-          </div>
-          <div className="h-6 w-32 rounded-full bg-[#d1b7fb]/40 sm:h-10" />
-        </div>
-      ))}
+    <div className={REFERRAL_CARD_BASE_CLASS}>
+      <div className="flex w-full flex-col items-center gap-2 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-outer-space)]/60">Top category</p>
+        <p className="text-sm font-semibold leading-snug text-[var(--color-outer-space)] min-[420px]:text-base">
+          {label}
+        </p>
+      </div>
+      <div className="mt-auto flex flex-col items-center gap-1">
+        <p className="text-2xl font-semibold text-[var(--color-outer-space)] min-[420px]:text-[28px]">
+          {formatPoints(points)} pts
+        </p>
+        <p className="text-[11px] text-[var(--color-outer-space)]/60">
+          {rows === 1 ? '1 transaction' : `${rows} transactions`}
+        </p>
+      </div>
     </div>
   );
 }
