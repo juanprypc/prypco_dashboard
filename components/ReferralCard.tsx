@@ -3,7 +3,6 @@
 import { useCallback, useState } from 'react';
 
 type Props = {
-  icon?: string;
   title: string;
   description: string;
   primaryLabel: string;
@@ -16,10 +15,9 @@ type Props = {
 };
 
 export const REFERRAL_CARD_BASE_CLASS =
-  'flex h-full w-full flex-col items-center justify-between gap-3 rounded-[26px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] px-4 py-5 text-center text-[var(--color-outer-space)] shadow-[0_25px_60px_-45px_rgba(13,9,59,0.35)] backdrop-blur-[2px]';
+  'flex h-full w-full flex-col items-center justify-between gap-3 rounded-[20px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] px-3 py-4 text-center text-[var(--color-outer-space)] shadow-[0_18px_45px_-35px_rgba(13,9,59,0.35)] backdrop-blur-[2px]';
 
 export function ReferralCard({
-  icon = '✨',
   title,
   description,
   primaryLabel,
@@ -51,7 +49,7 @@ export function ReferralCard({
 
   const showSecondary = Boolean(secondaryLabel);
   const baseButtonClasses =
-    'inline-flex w-full min-h-[36px] items-center justify-center rounded-full px-3 py-2 text-xs font-semibold transition min-[360px]:w-auto min-[420px]:px-4 min-[420px]:py-2.5 min-[420px]:text-sm';
+    'inline-flex w-full min-h-[34px] items-center justify-center rounded-full px-3 py-2 text-xs font-semibold transition min-[360px]:w-auto min-[420px]:px-3.5 min-[420px]:py-2.5 min-[420px]:text-sm';
   const primaryButtonClasses = `${baseButtonClasses} border border-[var(--color-outer-space)] text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]`;
   const secondaryButtonClasses = `${baseButtonClasses} border border-transparent bg-[var(--color-panel)] text-[var(--color-outer-space)] hover:border-[var(--color-outer-space)]/20 hover:bg-[rgba(246,243,248,0.85)]`;
 
@@ -60,9 +58,6 @@ export function ReferralCard({
   return (
     <div className={cardClass}>
       <div className="flex flex-col items-center gap-2 text-center">
-        <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d1b7fb]/60 bg-white text-lg min-[420px]:h-12 min-[420px]:w-12 min-[420px]:text-xl">
-          {icon}
-        </span>
         <div className="space-y-1">
           <p className="text-sm font-semibold leading-tight min-[420px]:text-base">{title}</p>
           <p className="text-xs leading-snug text-[var(--color-outer-space)]/70 min-[420px]:text-sm">{description}</p>

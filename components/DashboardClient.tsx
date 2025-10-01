@@ -449,7 +449,6 @@ export function DashboardClient({
   const referralCards: ReactNode[] = [
     <ReferralCard
       key="ref-agent"
-      icon="✈️"
       title="Refer an Agent"
       description="Invite a colleague to Prypco One and earn XYD Collect."
       primaryLabel="Copy link"
@@ -458,7 +457,6 @@ export function DashboardClient({
     />,
     <ReferralCard
       key="ref-investor"
-      icon="🎁"
       title="Refer an Investor"
       description="Share Prypco Blocks or Mint with investors and earn rewards."
       primaryLabel="Chat on WhatsApp"
