@@ -8,7 +8,8 @@ export const runtime = 'edge';
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
+  const vercelSignature = request.headers.get('x-vercel-cron-signature');
+  if (secret && !vercelSignature) {
     const authHeader = request.headers.get('authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
     if (token !== secret) {
