@@ -207,38 +207,68 @@ export async function fetchLoyaltyForAgent(
   return fetchRecordsByFormula(formula);
 }
 
-export async function fetchAgentDisplayName(agentId: string): Promise<string | null> {
+export type AgentProfile = {
+  displayName: string | null;
+  investorPromoCode: string | null;
+  investorWhatsappLink: string | null;
+};
+
+export async function fetchAgentProfile(agentId: string): Promise<AgentProfile> {
   const apiKey = env('AIRTABLE_API_KEY');
   const baseId = env('AIRTABLE_BASE');
   const agentsTable = process.env.AIRTABLE_TABLE_AGENTS;
-  if (!agentsTable) return null;
+  if (!agentsTable)
+    return { displayName: null, investorPromoCode: null, investorWhatsappLink: null };
 
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(agentsTable)}/${agentId}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${apiKey}` },
     cache: 'no-store',
   });
-  if (!res.ok) return null;
+  if (!res.ok)
+    return { displayName: null, investorPromoCode: null, investorWhatsappLink: null };
   const json = (await res.json()) as { id: string; fields: Record<string, unknown> };
   const fields = json.fields || {};
 
   const firstNameCandidates = ['First Name', 'first_name', 'FirstName', 'firstName'];
+  let displayName: string | null = null;
   for (const key of firstNameCandidates) {
     const maybe = toMaybeString(fields[key]);
-    if (maybe) return maybe;
+    if (maybe) {
+      displayName = maybe;
+      break;
+    }
   }
 
-  // Heuristics: try common name fields, else first string field
-  const candidates = ['Name', 'Full Name', 'Agent', 'Agent Name', 'Display Name'];
-  for (const key of candidates) {
-    const maybe = toMaybeString(fields[key]);
-    if (maybe) return maybe;
+  if (!displayName) {
+    const candidates = ['Name', 'Full Name', 'Agent', 'Agent Name', 'Display Name'];
+    for (const key of candidates) {
+      const maybe = toMaybeString(fields[key]);
+      if (maybe) {
+        displayName = maybe;
+        break;
+      }
+    }
   }
-  for (const value of Object.values(fields)) {
-    const maybe = toMaybeString(value);
-    if (maybe) return maybe;
+
+  if (!displayName) {
+    for (const value of Object.values(fields)) {
+      const maybe = toMaybeString(value);
+      if (maybe) {
+        displayName = maybe;
+        break;
+      }
+    }
   }
-  return null;
+
+  const investorPromoCode = toMaybeString(fields.promocode_mint_string) ?? null;
+  const investorWhatsappLink = toMaybeString(fields.WhatsApp_Promo_Link) ?? null;
+
+  return {
+    displayName: displayName ?? null,
+    investorPromoCode,
+    investorWhatsappLink,
+  };
 }
 
 export type PublicLoyaltyRow = {

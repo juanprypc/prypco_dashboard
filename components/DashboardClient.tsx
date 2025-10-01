@@ -31,6 +31,8 @@ type Props = {
 type LedgerResponse = {
   records: PublicLoyaltyRow[];
   displayName?: string | null;
+  investorPromoCode?: string | null;
+  investorWhatsappLink?: string | null;
 };
 
 type CatalogueResponse = {
@@ -96,6 +98,8 @@ export function DashboardClient({
   const [rows, setRows] = useState<PublicLoyaltyRow[] | null>(null);
   const [catalogue, setCatalogue] = useState<CatalogueDisplayItem[] | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [investorPromoCodeState, setInvestorPromoCodeState] = useState<string | null>(null);
+  const [investorWhatsappLinkState, setInvestorWhatsappLinkState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryDelay, setRetryDelay] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -175,10 +179,12 @@ export function DashboardClient({
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://collect.prypco.com';
   const agentReferralLink = `${appUrl}/refer/agent`;
-  const investorPromoCode = 'COLLECT2025';
-  const investorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent(
+  const fallbackInvestorPromoCode = 'COLLECT2025';
+  const fallbackInvestorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent(
     'Hi! I would like to chat about the Prypco investor programme.'
   )}`;
+  const investorPromoCode = investorPromoCodeState ?? fallbackInvestorPromoCode;
+  const investorWhatsappHref = investorWhatsappLinkState ?? fallbackInvestorWhatsappHref;
 
   const openWhatsapp = useCallback((href: string) => {
     if (typeof window !== 'undefined') {
@@ -319,6 +325,8 @@ export function DashboardClient({
         if (cancelled) return;
         setRows(ledgerJson.records);
         setDisplayName(ledgerJson.displayName ?? null);
+        setInvestorPromoCodeState(ledgerJson.investorPromoCode ?? null);
+        setInvestorWhatsappLinkState(ledgerJson.investorWhatsappLink ?? null);
 
         setLastUpdated(new Date());
         setLoading(false);
@@ -675,6 +683,8 @@ export function DashboardClient({
               setRetryDelay(null);
               setLastUpdated(null);
               setDisplayName(null);
+              setInvestorPromoCodeState(null);
+              setInvestorWhatsappLinkState(null);
               router.refresh();
             }}
             className="mt-4 rounded-md border border-rose-400 px-4 py-2 text-xs font-semibold uppercase tracking-wide"

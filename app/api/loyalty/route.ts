@@ -2,7 +2,7 @@ import { Sentry } from '@/lib/sentry';
 import { getKvClient } from '@/lib/kvClient';
 import {
   extractAgentCodes,
-  fetchAgentDisplayName,
+  fetchAgentProfile,
   fetchLoyaltyForAgent,
   fetchPostedUnexpiredRecords,
   toPublicRow,
@@ -12,6 +12,8 @@ import {
 type CachedBody = {
   records: PublicLoyaltyRow[];
   displayName?: string | null;
+  investorPromoCode?: string | null;
+  investorWhatsappLink?: string | null;
 };
 
 const DEFAULT_TTL_SECONDS = Number(process.env.LOYALTY_CACHE_TTL ?? 60);
@@ -56,9 +58,16 @@ export async function GET(req: Request) {
       }
     }
     // Try to fetch the agent's display name for text fallback rows if configured
-    const agentName = agentId ? await fetchAgentDisplayName(agentId).catch(() => null) : null;
-    const rows = await fetchLoyaltyForAgent({ agentId, agentCode, agentName: agentName || undefined });
-    let displayName = agentName;
+    const agentProfile = agentId ? await fetchAgentProfile(agentId).catch(() => null) : null;
+    const inferredName = agentProfile?.displayName ?? null;
+    const rows = await fetchLoyaltyForAgent({
+      agentId,
+      agentCode,
+      agentName: inferredName || undefined,
+    });
+    let displayName = inferredName;
+    let investorPromoCode = agentProfile?.investorPromoCode ?? null;
+    let investorWhatsappLink = agentProfile?.investorWhatsappLink ?? null;
     if (!displayName) {
       const firstWithAgent = rows.find((row) => {
         const value = row.fields?.agent as unknown;
@@ -72,7 +81,10 @@ export async function GET(req: Request) {
         if (Array.isArray(raw)) candidate = raw[0];
         else if (typeof raw === 'string') candidate = raw;
         if (candidate?.startsWith('rec')) {
-          displayName = await fetchAgentDisplayName(candidate).catch(() => null) ?? displayName;
+          const fallbackProfile = await fetchAgentProfile(candidate).catch(() => null);
+          displayName = fallbackProfile?.displayName ?? displayName;
+          investorPromoCode = investorPromoCode ?? fallbackProfile?.investorPromoCode ?? null;
+          investorWhatsappLink = investorWhatsappLink ?? fallbackProfile?.investorWhatsappLink ?? null;
         }
       }
     }
@@ -86,11 +98,11 @@ export async function GET(req: Request) {
       const byId = agentId
         ? all.filter((r) => Array.isArray(r.fields?.agent) && (r.fields!.agent as string[]).includes(agentId))
         : [];
-      const byName = agentName
+      const byName = inferredName
         ? all.filter((r) => {
             const a = r.fields?.agent as unknown;
-            if (Array.isArray(a)) return a.includes(agentName);
-            if (typeof a === 'string') return a.trim() === agentName;
+            if (Array.isArray(a)) return a.includes(inferredName);
+            if (typeof a === 'string') return a.trim() === inferredName;
             return false;
           })
         : [];
@@ -115,6 +127,8 @@ export async function GET(req: Request) {
         };
         all?: PublicLoyaltyRow[];
         displayName?: string | null;
+        investorPromoCode?: string | null;
+        investorWhatsappLink?: string | null;
       } = {
         records,
         debug: {
@@ -122,12 +136,14 @@ export async function GET(req: Request) {
           ids,
         },
         displayName,
+        investorPromoCode,
+        investorWhatsappLink,
       };
       if (process.env.NODE_ENV !== 'production') body.all = allPub;
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     }
 
-    const body: CachedBody = { records, displayName };
+    const body: CachedBody = { records, displayName, investorPromoCode, investorWhatsappLink };
 
     if (cacheEligible && cacheKey) {
       await kv.set(cacheKey, body, { ex: ttlSeconds });
