@@ -416,7 +416,7 @@ export function DashboardClient({
 
   const topHighlightItems = useMemo(() => metrics.pointsByType.slice(0, 3), [metrics.pointsByType]);
 
-  const topEarningCards = useMemo(() => {
+  const topEarningCards = useMemo<ReactNode[]>(() => {
     if (rows === null) {
       return Array.from({ length: 3 }, (_, i) => (
         <div
@@ -646,19 +646,21 @@ export function DashboardClient({
         </div>
       ) : activeView === 'loyalty' ? (
         <div className="view-transition space-y-6">
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Top earning categories</h2>
-            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5">
-              {topEarningCards}
-            </div>
-          </section>
+          <div className="grid gap-3 min-[480px]:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:gap-5">
+            <section className="col-span-full space-y-3 lg:col-span-3">
+              <h2 className="text-lg font-medium">Top earning categories</h2>
+              <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 lg:grid-cols-3">
+                {topEarningCards}
+              </div>
+            </section>
 
-          <section className="space-y-3">
-            <h2 className="text-lg font-medium">Refer and earn</h2>
-            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-2 lg:gap-4 xl:gap-5">
-              {referralCards}
-            </div>
-          </section>
+            <section className="col-span-full space-y-3 lg:col-span-2">
+              <h2 className="text-lg font-medium">Refer and earn</h2>
+              <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-2">
+                {referralCards}
+              </div>
+            </section>
+          </div>
 
           <section className="rounded-[26px] bg-[var(--color-background)] p-4 sm:p-6">
             <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
@@ -908,7 +910,6 @@ function TopHighlightCard({
   return (
     <div className={REFERRAL_CARD_BASE_CLASS}>
       <div className="flex w-full flex-col items-center gap-2 text-center">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-outer-space)]/60">Top category</p>
         <p className="text-sm font-semibold leading-snug text-[var(--color-outer-space)] min-[420px]:text-base">
           {label}
         </p>
