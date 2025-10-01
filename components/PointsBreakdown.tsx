@@ -11,7 +11,7 @@ type Breakdown = {
 export function PointsBreakdown({ items }: { items: Breakdown[] }) {
   if (!items.length) return null;
   return (
-    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))] xl:[grid-template-columns:repeat(3,minmax(0,1fr))] xl:gap-5">
+    <div className="grid grid-cols-1 gap-3 sm:auto-rows-fr sm:grid-cols-2 sm:gap-4 xl:auto-rows-fr xl:grid-cols-3 xl:gap-5">
       {items.map((item) => (
         <div
           key={item.key}
