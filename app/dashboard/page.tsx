@@ -22,7 +22,7 @@ export default async function Dashboard({
 
   const viewParam = sp?.view;
   const view = Array.isArray(viewParam) ? viewParam[0] : viewParam;
-  const activeView = view === 'catalogue' ? 'catalogue' : 'loyalty';
+  const activeView = view === 'catalogue' ? 'catalogue' : view === 'learn' ? 'learn' : 'loyalty';
 
   const minTopup = Number(process.env.MIN_TOPUP_AED || 500);
   const pointsPerAed = Number(process.env.POINTS_PER_AED || 2);
@@ -64,9 +64,8 @@ export default async function Dashboard({
 
   const learnHref = (() => {
     const params = new URLSearchParams(baseParams);
-    params.delete('view');
-    const qs = params.toString();
-    return qs ? `/learn-more?${qs}` : '/learn-more';
+    params.set('view', 'learn');
+    return `/dashboard?${params.toString()}`;
   })();
 
   const identifierLabel = agentId || agentCode || '—';

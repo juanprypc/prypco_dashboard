@@ -12,12 +12,13 @@ import { TopupBanner } from './TopupBanner';
 import { LoadingOverlay } from './LoadingOverlay';
 import { NavigationTabs } from './NavigationTabs';
 import { ReferralCard, REFERRAL_CARD_BASE_CLASS } from './ReferralCard';
+import LearnMoreGraphic from '@/image_assets/Frame 1.png';
 
 type Props = {
   agentId?: string;
   agentCode?: string;
   identifierLabel: string;
-  activeView: 'loyalty' | 'catalogue';
+  activeView: 'loyalty' | 'catalogue' | 'learn';
   topupStatus: 'success' | 'cancel' | null;
   minTopup: number;
   pointsPerAed: number;
@@ -108,7 +109,8 @@ export function DashboardClient({
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
   const isMountedRef = useRef(true);
-  const currentTab: 'dashboard' | 'store' = activeView === 'catalogue' ? 'store' : 'dashboard';
+  const currentTab: 'dashboard' | 'store' | 'learn' =
+    activeView === 'catalogue' ? 'store' : activeView === 'learn' ? 'learn' : 'dashboard';
   const [topupMounted, setTopupMounted] = useState(false);
   const [topupVisible, setTopupVisible] = useState(false);
   const topupHideTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -476,6 +478,44 @@ export function DashboardClient({
     : identifierLabel && identifierLabel !== '—'
       ? identifierLabel
       : 'there';
+
+  if (activeView === 'learn') {
+    return (
+      <div className="space-y-8 text-[var(--color-outer-space)]">
+        <div className="relative overflow-hidden rounded-[31px] border border-transparent bg-[var(--color-hero)] px-4 py-6 sm:px-10 sm:py-12">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <Image src="/logo.png" alt="Collect" width={195} height={48} priority />
+            <NavigationTabs
+              activeTab="learn"
+              dashboardHref={ledgerHref}
+              storeHref={catalogueHref}
+              learnHref={learnHref}
+            />
+          </div>
+
+          <div className="mt-8 space-y-4 text-center">
+            <h1 className="text-[26px] font-semibold leading-tight sm:text-[56px] lg:text-[64px]">Learn more</h1>
+            <p className="mx-auto max-w-2xl text-sm leading-snug text-[var(--color-outer-space)]/75 sm:text-xl">
+              Know your Collect points at a glance.
+            </p>
+          </div>
+        </div>
+
+        <section className="view-transition">
+          <div className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[32px] border border-[#d1b7fb]/70 bg-white shadow-[0_18px_45px_-40px_rgba(13,9,59,0.35)]">
+            <Image
+              src={LearnMoreGraphic}
+              alt="Collect points reference graphic"
+              className="h-auto w-full"
+              placeholder="blur"
+              sizes="(max-width: 768px) 90vw, (max-width: 1200px) 80vw, 1024px"
+              priority
+            />
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 text-[var(--color-outer-space)]">
