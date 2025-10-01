@@ -646,17 +646,17 @@ export function DashboardClient({
         </div>
       ) : activeView === 'loyalty' ? (
         <div className="view-transition space-y-6">
-          <div className="grid gap-3 min-[480px]:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:gap-5">
-            <section className="col-span-full space-y-3 lg:col-span-3">
+          <div className="grid gap-3 min-[360px]:grid-cols-2 min-[600px]:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:gap-5">
+            <section className="col-span-full space-y-3 min-[600px]:col-span-2 lg:col-span-3">
               <h2 className="text-lg font-medium">Top earning categories</h2>
-              <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 min-[600px]:grid-cols-3">
                 {topEarningCards}
               </div>
             </section>
 
-            <section className="col-span-full space-y-3 lg:col-span-2">
+            <section className="col-span-full space-y-3 min-[360px]:col-span-2 lg:col-span-2">
               <h2 className="text-lg font-medium">Refer and earn</h2>
-              <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
                 {referralCards}
               </div>
             </section>

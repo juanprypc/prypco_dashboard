@@ -51,7 +51,7 @@ export function ReferralCard({
 
   const showSecondary = Boolean(secondaryLabel);
   const baseButtonClasses =
-    'inline-flex w-full min-h-[36px] items-center justify-center rounded-full px-3 py-2 text-xs font-semibold transition min-[420px]:px-4 min-[420px]:py-2.5 min-[420px]:text-sm sm:w-auto';
+    'inline-flex w-full min-h-[36px] items-center justify-center rounded-full px-3 py-2 text-xs font-semibold transition min-[360px]:w-auto min-[420px]:px-4 min-[420px]:py-2.5 min-[420px]:text-sm';
   const primaryButtonClasses = `${baseButtonClasses} border border-[var(--color-outer-space)] text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]`;
   const secondaryButtonClasses = `${baseButtonClasses} border border-transparent bg-[var(--color-panel)] text-[var(--color-outer-space)] hover:border-[var(--color-outer-space)]/20 hover:bg-[rgba(246,243,248,0.85)]`;
 
@@ -71,8 +71,8 @@ export function ReferralCard({
       <div
         className={`mt-auto flex w-full flex-col gap-2 ${
           showSecondary
-            ? 'min-[420px]:flex-row min-[420px]:flex-wrap min-[420px]:justify-center min-[420px]:gap-2'
-            : 'min-[420px]:flex-row min-[420px]:justify-center'
+            ? 'min-[360px]:flex-row min-[360px]:flex-wrap min-[360px]:justify-center min-[360px]:gap-2'
+            : 'min-[360px]:flex-row min-[360px]:justify-center'
         }`}
       >
         <button type="button" onClick={handlePrimary} className={primaryButtonClasses}>
