@@ -1,5 +1,5 @@
 import { Sentry } from '@/lib/sentry';
-import { createClient } from '@vercel/kv';
+import { getKvClient } from '@/lib/kvClient';
 import {
   extractAgentCodes,
   fetchAgentDisplayName,
@@ -20,22 +20,7 @@ function cacheKeyFor(agentId?: string, agentCode?: string): string {
   return `loyalty:${agentId ?? ''}:${agentCode ?? ''}`;
 }
 
-const kvUrl =
-  process.env.KV_KV_REST_API_URL ||
-  process.env.KV_KV_URL ||
-  process.env.KV_REDIS_URL;
-
-const kvToken =
-  process.env.KV_KV_REST_API_TOKEN || process.env.KV_KV_REST_API_READ_ONLY_TOKEN;
-
-if (!kvUrl || !kvToken) {
-  throw new Error('KV connection variables missing. Ensure KV_KV_REST_API_URL and KV_KV_REST_API_TOKEN are set.');
-}
-
-const kv = createClient({
-  url: kvUrl,
-  token: kvToken,
-});
+const kv = getKvClient();
 
 export const dynamic = 'force-dynamic';
 
