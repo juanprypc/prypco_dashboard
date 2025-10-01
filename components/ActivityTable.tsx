@@ -20,7 +20,7 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
               <th className="px-5 py-4 text-right">Points</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="stagger-fade">
             {rows.map((r) => {
               const dateLabel = formatDate(r.earned_at ?? r.createdTime);
               const typeLabel = r.type_display_name
@@ -50,7 +50,7 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
         </table>
       </div>
 
-      <div className="divide-y divide-[#d1b7fb]/40 bg-[var(--color-background)] sm:hidden">
+      <div className="divide-y divide-[#d1b7fb]/40 bg-[var(--color-background)] sm:hidden stagger-fade">
         {rows.map((r) => {
           const dateLabel = formatDate(r.earned_at ?? r.createdTime);
           const typeLabel = r.type_display_name

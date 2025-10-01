@@ -13,7 +13,7 @@ export default function ActivitySection({
 }) {
   if (loading && (!rows || rows.length === 0)) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 stagger-fade">
         {Array.from({ length: 5 }).map((_, index) => (
           <div
             key={index}
