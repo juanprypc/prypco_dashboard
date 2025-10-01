@@ -809,6 +809,8 @@ function RedeemDialog({
   const requiredPoints = typeof item.points === 'number' ? item.points : 0;
   const insufficient = requiredPoints > availablePoints;
   const busy = status === 'submitting';
+  const showSuccess = status === 'success';
+  const showError = status === 'error';
   const [topupBusy, setTopupBusy] = useState(false);
   const [topupError, setTopupError] = useState<string | null>(null);
 
@@ -873,13 +875,51 @@ function RedeemDialog({
             <span>Required points</span>
             <strong>{requiredPoints ? formatNumber(requiredPoints) : '—'} pts</strong>
           </div>
-        <div className="flex items-center justify-between">
-          <span>Your balance</span>
-          <strong>{formatNumber(availablePoints)} pts</strong>
-        </div>
+          <div className="flex items-center justify-between">
+            <span>Your balance</span>
+            <strong>{formatNumber(availablePoints)} pts</strong>
+          </div>
         </div>
 
-        {insufficient ? (
+        {showSuccess ? (
+          <div className="mt-8 flex flex-col items-center gap-6 text-center">
+            <div className="animate-[redeemPop_320ms_ease-out]">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50/40 text-emerald-600">
+                <svg
+                  viewBox="0 0 52 52"
+                  className="h-9 w-9 text-current"
+                  aria-hidden
+                >
+                  <circle cx="26" cy="26" r="23" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.2" />
+                  <path
+                    d="M16 27.5 23.5 34l12.5-15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="stroke-[4] [stroke-dasharray:48] [stroke-dashoffset:48] animate-[redeemCheck_420ms_ease-out_forwards]"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm text-[var(--color-outer-space)]/80">
+              <p className="text-base font-semibold text-[var(--color-outer-space)]">Request sent!</p>
+              <p className="text-xs leading-snug text-[var(--color-outer-space)]/70">
+                Expect your new balance to show up within the next minute.
+              </p>
+              <p className="text-[11px] leading-snug text-[var(--color-outer-space)]/60">
+                We’ll email you once the fulfilment team approves this redemption. Feel free to continue browsing rewards.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] sm:w-auto"
+            >
+              Back to rewards
+            </button>
+          </div>
+        ) : insufficient ? (
           <div className="mt-6 space-y-4 text-sm">
             <p>You need {formatNumber(requiredPoints - availablePoints)} more points to redeem this reward.</p>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
@@ -897,9 +937,7 @@ function RedeemDialog({
           </div>
         ) : (
           <div className="mt-6 space-y-4">
-            {status === 'success' ? (
-              <p className="text-sm text-[var(--color-outer-space)]/70">{message ?? 'Redemption submitted successfully.'}</p>
-            ) : status === 'error' ? (
+            {showError ? (
               <p className="text-sm text-rose-500">{message}</p>
             ) : (
               <p className="text-sm text-[var(--color-outer-space)]/70">
@@ -910,10 +948,10 @@ function RedeemDialog({
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 onClick={onSubmit}
-                disabled={busy || status === 'success'}
+                disabled={busy}
                 className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
-                {status === 'success' ? 'Request sent' : busy ? 'Submitting…' : 'Confirm redeem'}
+                {busy ? 'Submitting…' : 'Confirm redeem'}
               </button>
               <button
                 onClick={onClose}
@@ -923,12 +961,6 @@ function RedeemDialog({
                 Close
               </button>
             </div>
-
-            {status === 'success' && (
-              <p className="text-xs text-[var(--color-outer-space)]/50">
-                We’ll email you once the fulfilment team approves this redemption.
-              </p>
-            )}
           </div>
         )}
       </div>
