@@ -456,6 +456,8 @@ export function DashboardClient({
     ));
   }, [rows, topHighlightItems]);
 
+  const hasInvestorPromo = Boolean(investorPromoCode);
+
   const referralCards: ReactNode[] = [
     <ReferralCard
       key="ref-agent"
@@ -472,9 +474,9 @@ export function DashboardClient({
       primaryLabel="Share on WhatsApp"
       primarySuccessLabel=""
       onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
-      secondaryLabel={investorPromoCode ? `Copy PROMOCODE (${investorPromoCode})` : 'Copy promo code'}
-      secondarySuccessLabel="Code copied!"
-      onSecondaryClick={() => copyToClipboard(investorPromoCode)}
+      secondaryLabel={hasInvestorPromo ? 'Copy PROMOCODE' : undefined}
+      secondarySuccessLabel="Promo code copied!"
+      onSecondaryClick={hasInvestorPromo ? () => copyToClipboard(investorPromoCode ?? '') : undefined}
     />,
   ];
 
