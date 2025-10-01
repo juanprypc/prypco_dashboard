@@ -469,10 +469,10 @@ export function DashboardClient({
       key="ref-investor"
       title="Refer an Investor"
       description="Share Prypco Blocks or Mint with investors and earn rewards."
-      primaryLabel="Chat on WhatsApp"
+      primaryLabel="Share on WhatsApp"
       primarySuccessLabel=""
       onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
-      secondaryLabel={investorPromoCode ? `Copy ${investorPromoCode}` : 'Copy promo code'}
+      secondaryLabel={investorPromoCode ? `Copy PROMOCODE (${investorPromoCode})` : 'Copy promo code'}
       secondarySuccessLabel="Code copied!"
       onSecondaryClick={() => copyToClipboard(investorPromoCode)}
     />,
