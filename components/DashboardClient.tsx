@@ -456,6 +456,20 @@ export function DashboardClient({
     ));
   }, [rows, topHighlightItems]);
 
+  const investorShareOptions = [
+    {
+      key: 'whatsapp',
+      label: 'Share on WhatsApp',
+      onSelect: () => openWhatsapp(investorWhatsappHref),
+    },
+    {
+      key: 'promo',
+      label: 'Copy promo code',
+      successLabel: 'Promo code copied!',
+      onSelect: () => copyToClipboard(investorPromoCode ?? ''),
+    },
+  ];
+
   const referralCards: ReactNode[] = [
     <ReferralCard
       key="ref-agent"
@@ -469,12 +483,8 @@ export function DashboardClient({
       key="ref-investor"
       title="Refer an Investor"
       description="Share Prypco Blocks or Mint with investors and earn rewards."
-      primaryLabel="Share on WhatsApp"
-      primarySuccessLabel=""
-      onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
-      secondaryLabel={investorPromoCode ? `Copy PROMOCODE (${investorPromoCode})` : 'Copy promo code'}
-      secondarySuccessLabel="Code copied!"
-      onSecondaryClick={() => copyToClipboard(investorPromoCode)}
+      primaryLabel="Share"
+      options={investorShareOptions}
     />,
   ];
 
