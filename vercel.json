@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/warm-catalogue",
-      "schedule": "0 */12 * * *",
+      "schedule": "0 3 * * *",
       "headers": {
         "Authorization": "Bearer ${CRON_SECRET}"
       }
