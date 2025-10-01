@@ -6,22 +6,30 @@ type Props = {
 
 export function TopupBanner({ status }: Props) {
   const isSuccess = status === 'success';
-  const tone = isSuccess
-    ? 'border-emerald-300/70 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200'
-    : 'border-amber-300/70 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200';
 
   return (
-    <div className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${tone}`}>
-      <span className="text-lg" aria-hidden>{isSuccess ? '✨' : '⚠️'}</span>
-      <div>
-        <p className="font-semibold">{isSuccess ? 'Top-up successful!' : 'Top-up cancelled'}</p>
-        <p className="text-xs opacity-80">
+    <div
+      role="status"
+      className="flex items-start gap-3 rounded-[24px] border border-[#d1b7fb] bg-[var(--color-panel-soft)] px-4 py-4 text-sm text-[var(--color-outer-space)] shadow-[0_18px_45px_-40px_rgba(13,9,59,0.35)]"
+    >
+      <span
+        aria-hidden
+        className={`inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-semibold ${
+          isSuccess ? 'text-emerald-600' : 'text-amber-600'
+        }`}
+      >
+        {isSuccess ? '✓' : '!'}
+      </span>
+      <div className="space-y-1">
+        <p className="text-sm font-semibold">
+          {isSuccess ? 'Top-up confirmed' : 'Top-up cancelled'}
+        </p>
+        <p className="text-xs leading-snug text-[var(--color-outer-space)]/70">
           {isSuccess
-            ? 'Stripe confirmed the payment. Airtable will receive the webhook and post the points shortly.'
-            : 'No charge was made. You can try again whenever you are ready.'}
+            ? 'Points refresh automatically every 60 seconds. Expect your new balance to show up within the next minute.'
+            : 'No points were added and your card was not charged. Feel free to try again when you’re ready.'}
         </p>
       </div>
     </div>
   );
 }
-
