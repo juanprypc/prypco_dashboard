@@ -585,12 +585,12 @@ export function DashboardClient({
       return Array.from({ length: 3 }, (_, i) => (
         <div
           key={`top-skeleton-${i}`}
-          className={`${REFERRAL_CARD_BASE_CLASS} animate-pulse bg-white/70 text-transparent`}
+          className={`${REFERRAL_CARD_BASE_CLASS} animate-pulse bg-[var(--color-background)]/80 text-transparent`}
         >
           <div className="flex flex-col items-center gap-3">
-            <div className="h-11 w-11 rounded-full bg-white/80" />
-            <div className="h-3 w-3/4 rounded-full bg-white/75" />
-            <div className="h-3 w-2/3 rounded-full bg-white/60" />
+            <div className="h-11 w-11 rounded-full bg-[var(--color-background)]/70" />
+            <div className="h-3 w-3/4 rounded-full bg-[var(--color-background)]/60" />
+            <div className="h-3 w-2/3 rounded-full bg-[var(--color-background)]/40" />
           </div>
         </div>
       ));

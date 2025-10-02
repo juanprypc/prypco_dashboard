@@ -16,7 +16,7 @@ type Props = {
 };
 
 export const REFERRAL_CARD_BASE_CLASS =
-  'flex h-full w-full flex-col items-center gap-3 rounded-[18px] border border-[rgba(120,62,255,0.32)] bg-white/90 px-4 py-4 text-center text-[var(--color-outer-space)] shadow-[0_12px_35px_-30px_rgba(13,9,59,0.35)] backdrop-blur-[1px] sm:gap-4 sm:px-5 sm:py-5';
+  'flex h-full w-full flex-col items-center gap-3 rounded-[18px] border border-[rgba(120,62,255,0.32)] bg-[var(--color-background)] px-4 py-4 text-center text-[var(--color-outer-space)] shadow-[0_8px_28px_-26px_rgba(13,9,59,0.35)] backdrop-blur-[1px] sm:gap-4 sm:px-5 sm:py-5';
 
 export function ReferralCard({
   title,
