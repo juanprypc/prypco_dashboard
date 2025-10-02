@@ -16,7 +16,7 @@ type Props = {
 };
 
 export const REFERRAL_CARD_BASE_CLASS =
-  'flex h-full w-full flex-col items-center gap-3 rounded-[16px] border border-[rgba(120,62,255,0.25)] bg-white/80 px-4 py-5 text-center text-[var(--color-outer-space)] shadow-[0_12px_35px_-30px_rgba(13,9,59,0.35)] backdrop-blur-[1px]';
+  'flex h-full w-full flex-col items-center gap-3 rounded-[16px] border border-[rgba(120,62,255,0.25)] bg-white/80 px-3.5 py-4 text-center text-[var(--color-outer-space)] shadow-[0_12px_35px_-30px_rgba(13,9,59,0.35)] backdrop-blur-[1px] sm:px-4 sm:py-5';
 
 export function ReferralCard({
   title,
@@ -50,11 +50,11 @@ export function ReferralCard({
   }, [onCodeCopy, codeCopySuccessLabel]);
 
   const baseButtonClasses =
-    'inline-flex min-h-[34px] items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition';
+    'inline-flex min-h-[34px] items-center justify-center rounded-full px-4 py-2 text-xs font-semibold transition min-[420px]:px-5 min-[420px]:py-2.5 min-[420px]:text-sm';
   const primaryButtonClasses = `${baseButtonClasses} w-full border border-[var(--color-outer-space)] text-[var(--color-outer-space)] hover:bg-[var(--color-panel)] min-[420px]:w-auto`;
 
   const codeButtonClasses =
-    'inline-flex items-center gap-1 rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[var(--color-electric-purple)] transition hover:bg-[var(--color-electric-purple)]/10';
+    'inline-flex items-center gap-1 rounded-full border border-transparent px-2 py-0.5 text-[11px] font-semibold text-[var(--color-electric-purple)] transition hover:bg-[var(--color-electric-purple)]/10 min-[420px]:px-2.5 min-[420px]:py-1 min-[420px]:text-xs';
 
   const cardClass = className ? `${REFERRAL_CARD_BASE_CLASS} ${className}` : REFERRAL_CARD_BASE_CLASS;
 
@@ -68,11 +68,11 @@ export function ReferralCard({
         {primaryCopied ? primarySuccessLabel : primaryLabel}
       </button>
       {codeValue ? (
-        <div className="flex items-center gap-2 rounded-full border border-[rgba(120,62,255,0.18)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--color-outer-space)]">
-          <span className="font-mono tracking-wide">{codeValue}</span>
+        <div className="flex items-center gap-1.5 rounded-full border border-[rgba(120,62,255,0.18)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--color-outer-space)] min-[420px]:gap-2 min-[420px]:px-3 min-[420px]:py-1.5 min-[420px]:text-xs">
+          <span className="font-mono text-[11px] tracking-wide min-[420px]:text-xs">{codeValue}</span>
           {onCodeCopy ? (
             <button type="button" onClick={handleCodeCopy} className={codeButtonClasses}>
-              <CopyIcon className="h-3.5 w-3.5" />
+              <CopyIcon className="h-3 w-3 min-[420px]:h-3.5 min-[420px]:w-3.5" />
               <span>{codeCopied ? codeCopySuccessLabel : codeCopyLabel}</span>
             </button>
           ) : null}
