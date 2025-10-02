@@ -44,6 +44,7 @@ type CatalogueResponse = {
 };
 
 const MAX_RETRIES = 3;
+const TERMS_ACCEPTANCE_STORAGE_KEY = 'collect:terms-acceptance';
 
 function monthKey(dateIso: string): string {
   const d = new Date(dateIso);
@@ -53,6 +54,15 @@ function monthKey(dateIso: string): string {
 }
 
 function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem[] {
+  const toBoolean = (value: unknown): boolean => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalised = value.trim().toLowerCase();
+      return normalised === 'true' || normalised === 'checked' || normalised === '1' || normalised === 'yes';
+    }
+    return false;
+  };
+
   return items.map((item) => {
     const imagesRaw = item.fields?.image as
       | Array<{ url?: string; thumbnails?: { large?: { url?: string } } }>
@@ -67,6 +77,17 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
 
     const rawName = item.fields?.name;
     const name = typeof rawName === 'string' && rawName.trim() ? rawName : 'Reward';
+    const tcRaw = item.fields?.['T&C'];
+    const tcText = typeof tcRaw === 'string' && tcRaw.trim() ? tcRaw.trim() : null;
+    const tcActiveRaw = item.fields?.['T&C_active'];
+    const tcActive = !!tcText && toBoolean(tcActiveRaw);
+    const tcVersionRaw = item.fields?.['T&C_version'];
+    const tcVersion = typeof tcVersionRaw === 'string' && tcVersionRaw.trim() ? tcVersionRaw.trim() : null;
+    const tcUrlRaw = item.fields?.['T&C_url'];
+    const tcUrl = typeof tcUrlRaw === 'string' && tcUrlRaw.trim() ? tcUrlRaw.trim() : null;
+    const tcSignature = tcActive
+      ? tcVersion || `${tcText.length}:${tcText.slice(0, 64)}`
+      : null;
 
     return {
       id: item.id,
@@ -76,6 +97,11 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       points: typeof item.fields?.points === 'number' ? item.fields?.points : null,
       link: typeof item.fields?.Link === 'string' && item.fields?.Link.trim() ? item.fields?.Link.trim() : null,
       imageUrl: typeof image?.thumbnails?.large?.url === 'string' ? image.thumbnails.large.url : image?.url || null,
+      termsActive: tcActive,
+      termsText: tcText,
+      termsVersion: tcVersion,
+      termsUrl: tcUrl,
+      termsSignature: tcSignature,
     };
   });
 }
@@ -111,7 +137,108 @@ export function DashboardClient({
   const [redeemItem, setRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [redeemStatus, setRedeemStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
+  const [pendingRedeemItem, setPendingRedeemItem] = useState<CatalogueDisplayItem | null>(null);
+  const [termsDialogItem, setTermsDialogItem] = useState<CatalogueDisplayItem | null>(null);
+  const [termsDialogMode, setTermsDialogMode] = useState<'view' | 'redeem'>('view');
+  const [acceptedTerms, setAcceptedTerms] = useState<Record<string, string>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem(TERMS_ACCEPTANCE_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        return Object.entries(parsed as Record<string, unknown>).reduce(
+          (acc, [key, value]) => {
+            if (typeof value === 'string') acc[key] = value;
+            return acc;
+          },
+          {} as Record<string, string>,
+        );
+      }
+    } catch {
+      /* ignore malformed storage */
+    }
+    return {};
+  });
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
+
+  const hasAcceptedTerms = useCallback(
+    (item: CatalogueDisplayItem | null) => {
+      if (!item || !item.termsActive) return true;
+      const signature = item.termsSignature ?? item.termsText ?? '';
+      if (!signature) return false;
+      return acceptedTerms[item.id] === signature;
+    },
+    [acceptedTerms],
+  );
+
+  const rememberTermsAcceptance = useCallback((item: CatalogueDisplayItem) => {
+    if (!item.termsActive) return;
+    const signature = item.termsSignature ?? item.termsText ?? '';
+    if (!signature) return;
+    setAcceptedTerms((prev) => {
+      if (prev[item.id] === signature) return prev;
+      return { ...prev, [item.id]: signature };
+    });
+  }, [setAcceptedTerms]);
+
+  const beginRedeem = useCallback((item: CatalogueDisplayItem) => {
+    setRedeemItem(item);
+    setRedeemStatus('idle');
+    setRedeemMessage(null);
+  }, []);
+
+  const handleRequestRedeem = useCallback(
+    (item: CatalogueDisplayItem) => {
+      if (item.termsActive && !hasAcceptedTerms(item)) {
+        setPendingRedeemItem(item);
+        setTermsDialogItem(item);
+        setTermsDialogMode('redeem');
+        return;
+      }
+      beginRedeem(item);
+    },
+    [beginRedeem, hasAcceptedTerms],
+  );
+
+  const handleShowTerms = useCallback((item: CatalogueDisplayItem) => {
+    setPendingRedeemItem(null);
+    setTermsDialogItem(item);
+    setTermsDialogMode('view');
+  }, []);
+
+  const handleTermsAccept = useCallback(
+    (item: CatalogueDisplayItem) => {
+      rememberTermsAcceptance(item);
+      if (termsDialogMode === 'redeem') {
+        const target = pendingRedeemItem ?? item;
+        setTermsDialogItem(null);
+        setTermsDialogMode('view');
+        setPendingRedeemItem(null);
+        if (target) beginRedeem(target);
+      } else {
+        setTermsDialogItem(null);
+        setTermsDialogMode('view');
+        setPendingRedeemItem(null);
+      }
+    },
+    [rememberTermsAcceptance, termsDialogMode, pendingRedeemItem, beginRedeem],
+  );
+
+  const handleTermsClose = useCallback(() => {
+    setTermsDialogItem(null);
+    setTermsDialogMode('view');
+    setPendingRedeemItem(null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(TERMS_ACCEPTANCE_STORAGE_KEY, JSON.stringify(acceptedTerms));
+    } catch {
+      /* storage might be unavailable */
+    }
+  }, [acceptedTerms]);
   const isMountedRef = useRef(true);
   const currentTab: 'dashboard' | 'store' | 'learn' =
     activeView === 'catalogue' ? 'store' : activeView === 'learn' ? 'learn' : 'dashboard';
@@ -758,15 +885,22 @@ export function DashboardClient({
 
           <CatalogueGrid
             items={catalogue ?? []}
-            onRedeem={(item) => {
-              setRedeemItem(item);
-              setRedeemStatus('idle');
-              setRedeemMessage(null);
-            }}
+            onRedeem={handleRequestRedeem}
+            onShowTerms={handleShowTerms}
             onImageError={handleCatalogueImageError}
           />
         </section>
       )}
+      {termsDialogItem ? (
+        <TermsDialog
+          item={termsDialogItem}
+          mode={termsDialogMode}
+          accepted={hasAcceptedTerms(termsDialogItem)}
+          onAccept={handleTermsAccept}
+          onClose={handleTermsClose}
+        />
+      ) : null}
+
       {redeemItem ? (
         <RedeemDialog
           item={redeemItem}
@@ -778,6 +912,8 @@ export function DashboardClient({
           agentId={agentId}
           agentCode={agentCode}
           baseQuery={baseQuery}
+          termsAccepted={hasAcceptedTerms(redeemItem)}
+          onShowTerms={handleShowTerms}
           onSubmit={async () => {
             if (!redeemItem) return;
             setRedeemStatus('submitting');
@@ -818,6 +954,142 @@ export function DashboardClient({
   );
 }
 
+type TermsDialogProps = {
+  item: CatalogueDisplayItem;
+  mode: 'view' | 'redeem';
+  accepted: boolean;
+  onAccept: (item: CatalogueDisplayItem) => void;
+  onClose: () => void;
+};
+
+function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogProps) {
+  const requireAcceptance = item.termsActive && !accepted;
+  const [checked, setChecked] = useState(accepted);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = `reward-terms-${item.id}`;
+
+  useEffect(() => {
+    setChecked(accepted);
+  }, [accepted, item.id]);
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (requireAcceptance) {
+      confirmRef.current?.focus();
+    } else {
+      closeRef.current?.focus();
+    }
+  }, [requireAcceptance]);
+
+  const paragraphs = item.termsText
+    ? item.termsText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : [];
+
+  const handleAccept = () => {
+    if (requireAcceptance && !checked) return;
+    onAccept(item);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 px-4 py-6 sm:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-lg rounded-t-3xl bg-white px-4 pb-5 pt-4 text-[var(--color-outer-space)] shadow-xl sm:rounded-3xl sm:px-6 sm:py-6"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex justify-center sm:hidden">
+          <span className="h-1.5 w-12 rounded-full bg-[var(--color-outer-space)]/10" />
+        </div>
+        <h4 id={titleId} className="text-base font-semibold">
+          Reward terms
+        </h4>
+        <p className="mt-1 text-xs leading-snug text-[var(--color-outer-space)]/70">
+          Please review the reward terms before proceeding.
+        </p>
+        {item.termsUrl ? (
+          <a
+            href={item.termsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-electric-purple)] underline-offset-2 hover:underline"
+          >
+            Download terms (PDF)
+          </a>
+        ) : null}
+
+        <div className="mt-3 max-h-60 overflow-auto rounded-[16px] bg-[var(--color-panel)]/60 px-3 py-3 text-xs leading-relaxed text-[var(--color-outer-space)]/80">
+          {paragraphs.length ? (
+            paragraphs.map((paragraph, index) => (
+              <p key={index} className="whitespace-pre-wrap">
+                {paragraph}
+              </p>
+            ))
+          ) : (
+            <p className="text-[var(--color-outer-space)]/60">No terms provided for this reward.</p>
+          )}
+        </div>
+
+        {requireAcceptance ? (
+          <label className="mt-3 flex items-start gap-2 text-xs text-[var(--color-outer-space)]/80">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(event) => setChecked(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border border-[var(--color-outer-space)]/40"
+            />
+            <span>I’ve read and accept the terms.</span>
+          </label>
+        ) : (
+          <p className="mt-3 text-[11px] text-[var(--color-outer-space)]/60">You have already accepted these terms.</p>
+        )}
+
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-transparent px-4 py-2 text-xs font-semibold text-[var(--color-outer-space)]/70 transition hover:bg-[var(--color-panel)]/80"
+          >
+            {requireAcceptance && mode === 'redeem' ? 'Cancel' : 'Close'}
+          </button>
+          {requireAcceptance ? (
+            <button
+              ref={confirmRef}
+              type="button"
+              onClick={handleAccept}
+              disabled={!checked}
+              className="rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {mode === 'redeem' ? 'Accept & continue' : 'Accept terms'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type RedeemDialogProps = {
   item: CatalogueDisplayItem;
   availablePoints: number;
@@ -830,6 +1102,8 @@ type RedeemDialogProps = {
   baseQuery?: string;
   onSubmit: () => void;
   onClose: () => void;
+  onShowTerms?: (item: CatalogueDisplayItem) => void;
+  termsAccepted?: boolean;
 };
 
 function RedeemDialog({
@@ -844,6 +1118,8 @@ function RedeemDialog({
   agentId,
   agentCode,
   baseQuery,
+  onShowTerms,
+  termsAccepted = true,
 }: RedeemDialogProps) {
   const requiredPoints = typeof item.points === 'number' ? item.points : 0;
   const insufficient = requiredPoints > availablePoints;
@@ -852,6 +1128,8 @@ function RedeemDialog({
   const showError = status === 'error';
   const [topupBusy, setTopupBusy] = useState(false);
   const [topupError, setTopupError] = useState<string | null>(null);
+  const termsSatisfied = !item.termsActive || termsAccepted;
+  const confirmDisabled = busy || !termsSatisfied;
 
   const extraPointsNeeded = insufficient ? requiredPoints - availablePoints : 0;
 
@@ -984,10 +1262,32 @@ function RedeemDialog({
               </p>
             )}
 
+            {item.termsActive ? (
+              <div className="rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3 text-xs text-[var(--color-outer-space)]/80">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-[var(--color-outer-space)]">Reward terms</span>
+                  {onShowTerms ? (
+                    <button
+                      type="button"
+                      onClick={() => onShowTerms(item)}
+                      className="inline-flex items-center gap-1 text-[var(--color-electric-purple)] underline-offset-2 hover:underline"
+                    >
+                      View terms
+                    </button>
+                  ) : null}
+                </div>
+                <p className="mt-1 leading-snug">
+                  {termsSatisfied
+                    ? 'You have accepted the terms for this reward. You can review them at any time.'
+                    : 'Please review and accept the reward terms before confirming.'}
+                </p>
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 onClick={onSubmit}
-                disabled={busy}
+                disabled={confirmDisabled}
                 className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {busy ? 'Submitting…' : 'Confirm redeem'}
@@ -1000,6 +1300,9 @@ function RedeemDialog({
                 Close
               </button>
             </div>
+            {!termsSatisfied ? (
+              <p className="text-[11px] text-rose-500">Accept the reward terms to continue.</p>
+            ) : null}
           </div>
         )}
       </div>
