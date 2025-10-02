@@ -484,7 +484,9 @@ export function DashboardClient({
       primaryLabel="Share on WhatsApp"
       primarySuccessLabel=""
       onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
-      secondaryLabel={investorPromoCode ? `Copy PROMOCODE (${investorPromoCode})` : 'Copy promo code'}
+      secondaryLabel={
+        investorPromoCodeValue ? `Copy PROMOCODE (${investorPromoCodeValue})` : 'Copy promo code'
+      }
       secondarySuccessLabel="Code copied!"
       onSecondaryClick={() => copyToClipboard(investorPromoCodeValue)}
     />,
