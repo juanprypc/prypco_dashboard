@@ -46,13 +46,13 @@ export function CatalogueGrid({ items, onRedeem, onImageError, onShowTerms }: Pr
             key={item.id}
             className="mx-auto flex h-full w-full max-w-[170px] flex-col rounded-[18px] bg-white px-3 pb-4 pt-4 text-center shadow-[0_18px_45px_-40px_rgba(13,9,59,0.35)] sm:mx-0 sm:h-[520px] sm:max-w-none sm:px-6 sm:pt-10 sm:pb-10 sm:text-left"
           >
-            <div className="flex items-center justify-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)] leading-[1.15] whitespace-nowrap sm:justify-start sm:text-[21px]">
+            <div className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)] leading-[1.15] sm:text-[18px]">
               <span>{getPoints(item.points)} points</span>
               {item.termsActive ? (
                 <button
                   type="button"
                   onClick={() => onShowTerms?.(item)}
-                  className="whitespace-nowrap rounded-full border border-transparent bg-[var(--color-electric-purple)]/10 px-2 py-0.5 text-[8px] font-semibold tracking-[0.2em] text-[var(--color-electric-purple)] transition hover:bg-[var(--color-electric-purple)]/20 sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.18em]"
+                  className="whitespace-nowrap px-1.5 py-0.5 text-[7px] font-semibold tracking-[0.2em] text-[var(--color-electric-purple)] transition hover:text-[var(--color-outer-space)] hover:underline sm:px-2 sm:text-[10px]"
                 >
                   Terms apply
                 </button>
