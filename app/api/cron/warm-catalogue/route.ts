@@ -1,6 +1,11 @@
 import { fetchLoyaltyCatalogue } from '@/lib/airtable';
 import { getKvClient } from '@/lib/kvClient';
-import { CATALOGUE_CACHE_KEY, DEFAULT_CATALOGUE_TTL_SECONDS } from '@/lib/catalogueCache';
+import {
+  CATALOGUE_CACHE_KEY,
+  DEFAULT_CATALOGUE_TTL_SECONDS,
+  getSafeCatalogueCacheTtl,
+  type CatalogueCachePayload,
+} from '@/lib/catalogueCache';
 
 const kv = getKvClient();
 
@@ -20,8 +25,8 @@ export async function GET(request: Request) {
 
   try {
     const items = await fetchLoyaltyCatalogue();
-    const payload = { items, fetchedAt: new Date().toISOString() };
-    await kv.set(CATALOGUE_CACHE_KEY, payload, { ex: Math.max(DEFAULT_CATALOGUE_TTL_SECONDS, 60) });
+    const payload: CatalogueCachePayload = { items, fetchedAt: new Date().toISOString() };
+    await kv.set(CATALOGUE_CACHE_KEY, payload, { ex: getSafeCatalogueCacheTtl(DEFAULT_CATALOGUE_TTL_SECONDS) });
 
     return new Response(JSON.stringify({ ok: true, count: items.length, refreshedAt: payload.fetchedAt }), {
       headers: { 'content-type': 'application/json' },

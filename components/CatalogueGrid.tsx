@@ -14,6 +14,7 @@ export type CatalogueDisplayItem = {
 type Props = {
   items: CatalogueDisplayItem[];
   onRedeem?: (item: CatalogueDisplayItem) => void;
+  onImageError?: (item: CatalogueDisplayItem) => void;
 };
 
 function getPoints(value: number | null): string {
@@ -21,7 +22,7 @@ function getPoints(value: number | null): string {
   return formatNumber(Math.round(value));
 }
 
-export function CatalogueGrid({ items, onRedeem }: Props) {
+export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
   if (!items.length) {
     return (
       <div className="rounded-[39px] border border-dashed border-[var(--color-electric-purple)] bg-white px-8 py-14 text-center text-sm text-[var(--color-outer-space)]">
@@ -51,6 +52,7 @@ export function CatalogueGrid({ items, onRedeem }: Props) {
                   fill
                   sizes="(max-width: 768px) 30vw, 380px"
                   className="object-contain"
+                  onError={() => onImageError?.(item)}
                 />
               ) : (
                 <span className="text-base text-[var(--color-outer-space)]/50">Image coming soon</span>

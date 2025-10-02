@@ -118,6 +118,7 @@ export function DashboardClient({
   const [topupMounted, setTopupMounted] = useState(false);
   const [topupVisible, setTopupVisible] = useState(false);
   const topupHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const catalogueImageRefreshInFlightRef = useRef(false);
   const topupTriggerRef = useRef<HTMLButtonElement | null>(null);
   const topupCloseButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -183,7 +184,7 @@ export function DashboardClient({
   const fallbackInvestorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent(
     'Hi! I would like to chat about the Prypco investor programme.'
   )}`;
-  const investorPromoCode = investorPromoCodeState ?? fallbackInvestorPromoCode;
+  const investorPromoCodeValue = investorPromoCodeState ?? fallbackInvestorPromoCode;
   const investorWhatsappHref = investorWhatsappLinkState ?? fallbackInvestorWhatsappHref;
 
   const openWhatsapp = useCallback((href: string) => {
@@ -260,20 +261,22 @@ export function DashboardClient({
     };
   }, []);
 
-  const loadCatalogue = useCallback(async () => {
-    if (cataloguePrefetchedRef.current) return;
-    if (catalogueFetchPromiseRef.current) {
-      try {
-        await catalogueFetchPromiseRef.current;
-      } catch {
-        /* no-op: downstream fetch can retry */
+  const loadCatalogue = useCallback(async ({ forceFresh = false }: { forceFresh?: boolean } = {}) => {
+    if (!forceFresh) {
+      if (cataloguePrefetchedRef.current) return;
+      if (catalogueFetchPromiseRef.current) {
+        try {
+          await catalogueFetchPromiseRef.current;
+        } catch {
+          /* no-op: downstream fetch can retry */
+        }
+        return;
       }
-      return;
     }
 
     const promise = (async () => {
       try {
-        const response = await fetch('/api/catalogue', { cache: 'no-store' });
+        const response = await fetch(`/api/catalogue${forceFresh ? '?fresh=1' : ''}`, { cache: 'no-store' });
         const body = (await response.json().catch(() => ({}))) as CatalogueResponse;
         if (!response.ok) {
           const message = typeof body === 'object' && body && 'error' in body ? (body as { error?: string }).error : null;
@@ -289,16 +292,26 @@ export function DashboardClient({
       }
     })();
 
-    catalogueFetchPromiseRef.current = promise;
+    if (!forceFresh) catalogueFetchPromiseRef.current = promise;
 
     try {
       await promise;
     } finally {
-      if (catalogueFetchPromiseRef.current === promise) {
+      if (!forceFresh && catalogueFetchPromiseRef.current === promise) {
         catalogueFetchPromiseRef.current = null;
       }
     }
   }, []);
+
+  const handleCatalogueImageError = useCallback(() => {
+    if (catalogueImageRefreshInFlightRef.current) return;
+    catalogueImageRefreshInFlightRef.current = true;
+    loadCatalogue({ forceFresh: true })
+      .catch(() => {})
+      .finally(() => {
+        catalogueImageRefreshInFlightRef.current = false;
+      });
+  }, [loadCatalogue]);
 
   useEffect(() => {
     let cancelled = false;
@@ -359,8 +372,7 @@ export function DashboardClient({
 
   useEffect(() => {
     if (activeView !== 'catalogue') return;
-    if (cataloguePrefetchedRef.current) return;
-    loadCatalogue().catch(() => {});
+    loadCatalogue({ forceFresh: true }).catch(() => {});
   }, [activeView, loadCatalogue]);
 
   const metrics = useMemo(() => {
@@ -474,7 +486,7 @@ export function DashboardClient({
       onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
       secondaryLabel={investorPromoCode ? `Copy PROMOCODE (${investorPromoCode})` : 'Copy promo code'}
       secondarySuccessLabel="Code copied!"
-      onSecondaryClick={() => copyToClipboard(investorPromoCode)}
+      onSecondaryClick={() => copyToClipboard(investorPromoCodeValue)}
     />,
   ];
 
@@ -735,6 +747,7 @@ export function DashboardClient({
               setRedeemStatus('idle');
               setRedeemMessage(null);
             }}
+            onImageError={handleCatalogueImageError}
           />
         </section>
       )}
