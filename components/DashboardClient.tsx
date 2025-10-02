@@ -180,6 +180,7 @@ export function DashboardClient({
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://collect.prypco.com';
   const agentReferralLink = `${appUrl}/refer/agent`;
+  const agentReferralDisplay = agentReferralLink.replace(/^https?:\/\//, '');
   const fallbackInvestorPromoCode = 'COLLECT2025';
   const fallbackInvestorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent(
     'Hi! I would like to chat about the Prypco investor programme.'
@@ -192,6 +193,20 @@ export function DashboardClient({
       window.open(href, '_blank', 'noopener');
     }
   }, []);
+
+  const shareAgentReferral = useCallback(async () => {
+    if (!agentReferralLink) return;
+    const shareText = `Join me on Prypco One — use my link: ${agentReferralLink}`;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: 'Prypco One', text: shareText, url: agentReferralLink });
+        return;
+      }
+    } catch {
+      /* ignore share errors and fall back to copy */
+    }
+    await copyToClipboard(agentReferralLink);
+  }, [agentReferralLink, copyToClipboard]);
 
   useEffect(() => {
     if (!topupVisible && topupMounted) {
@@ -472,21 +487,21 @@ export function DashboardClient({
     <ReferralCard
       key="ref-agent"
       title="Refer an Agent"
-      description="Invite a colleague to Prypco One and earn XYD Collect."
-      primaryLabel="Copy link"
-      primarySuccessLabel="Link copied!"
-      onPrimaryClick={() => copyToClipboard(agentReferralLink)}
+      description="Invite a colleague to Prypco One and earn bonus points."
+      primaryLabel="Share referral link"
+      onPrimaryClick={shareAgentReferral}
+      codeValue={agentReferralDisplay}
+      codeCopySuccessLabel="Link copied!"
+      onCodeCopy={() => copyToClipboard(agentReferralLink)}
     />,
     <ReferralCard
       key="ref-investor"
       title="Refer an Investor"
-      description="Share Prypco Blocks or Mint with investors and earn rewards."
+      description="Share Prypco Blocks or Mint with investors and earn 2,000 points."
       primaryLabel="Share via WhatsApp"
-      primarySuccessLabel=""
       onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
       codeValue={investorPromoCodeValue ?? undefined}
-      codeCopyLabel="Copy"
-      codeCopySuccessLabel="Copied!"
+      codeCopySuccessLabel="Code copied!"
       onCodeCopy={() => copyToClipboard(investorPromoCodeValue)}
     />,
   ];
