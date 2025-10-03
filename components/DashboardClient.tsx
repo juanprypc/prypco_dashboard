@@ -769,7 +769,7 @@ export function DashboardClient({
           }`}
         >
           <div
-            className={`absolute inset-0 bg-[var(--color-desert-dust)]/82 transition-opacity duration-200 ease-out ${
+            className={`absolute inset-0 bg-[var(--color-desert-dust)]/70 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${
               topupVisible ? 'opacity-100' : 'opacity-0'
             }`}
             onClick={closeTopup}
@@ -1177,7 +1177,7 @@ function RedeemDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-desert-dust)]/84 px-4 py-6">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-4 py-6 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-[28px] border border-[#d1b7fb] bg-white p-6 text-[var(--color-outer-space)] shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>

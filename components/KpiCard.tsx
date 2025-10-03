@@ -104,8 +104,7 @@ export function KpiCard({
     return formatNumber(Math.round(animatedValue));
   }, [animatedValue, numericTarget, value]);
 
-  const baseClass =
-    'relative flex h-full w-full flex-col items-start justify-between rounded-[22px] border border-white/35 bg-white/85 p-3 text-left text-[var(--color-outer-space)] shadow-[0_6px_22px_-18px_rgba(13,9,59,0.28)] transition-shadow duration-300 sm:rounded-[28px] sm:p-6 hover:shadow-[0_12px_30px_-20px_rgba(13,9,59,0.3)]';
+  const baseClass = 'relative flex h-full w-full flex-col items-start justify-between rounded-[22px] bg-white/60 shadow-[0_12px_30px_-28px_rgba(13,9,59,0.25)] backdrop-blur-sm p-3 text-left text-[var(--color-outer-space)] sm:rounded-[28px] sm:p-6';
   const rootClass = className ? `${baseClass} ${className}` : baseClass;
 
   return (
