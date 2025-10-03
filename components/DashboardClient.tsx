@@ -389,6 +389,9 @@ export function DashboardClient({
       closeTopup();
     }
     if (topupStatus === 'success') {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[topup] scheduling fresh loyalty fetch');
+      }
       if (topupRefreshTimerRef.current) {
         clearTimeout(topupRefreshTimerRef.current);
       }
