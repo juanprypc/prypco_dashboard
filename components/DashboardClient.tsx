@@ -140,6 +140,7 @@ export function DashboardClient({
   const [pendingRedeemItem, setPendingRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [termsDialogItem, setTermsDialogItem] = useState<CatalogueDisplayItem | null>(null);
   const [termsDialogMode, setTermsDialogMode] = useState<'view' | 'redeem'>('view');
+  const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState<Record<string, string>>(() => {
     if (typeof window === 'undefined') return {};
     try {
@@ -245,6 +246,7 @@ export function DashboardClient({
   const [topupMounted, setTopupMounted] = useState(false);
   const [topupVisible, setTopupVisible] = useState(false);
   const topupHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const topupRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const catalogueImageRefreshInFlightRef = useRef(false);
   const topupTriggerRef = useRef<HTMLButtonElement | null>(null);
   const topupCloseButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -386,12 +388,29 @@ export function DashboardClient({
     if (topupStatus) {
       closeTopup();
     }
+    if (topupStatus === 'success') {
+      if (topupRefreshTimerRef.current) {
+        clearTimeout(topupRefreshTimerRef.current);
+      }
+      topupRefreshTimerRef.current = setTimeout(() => {
+        setForceFreshLoyalty(true);
+        topupRefreshTimerRef.current = null;
+      }, 12000);
+    }
   }, [topupStatus, closeTopup]);
 
   useEffect(() => {
     return () => {
       if (topupHideTimerRef.current) {
         clearTimeout(topupHideTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (topupRefreshTimerRef.current) {
+        clearTimeout(topupRefreshTimerRef.current);
       }
     };
   }, []);
@@ -466,6 +485,7 @@ export function DashboardClient({
 
       try {
         const params = new URLSearchParams(identifierParams);
+        if (forceFreshLoyalty) params.set('fresh', '1');
         const loyaltyUrl = `/api/loyalty?${params.toString()}`;
         const ledgerRes = await fetch(loyaltyUrl, { cache: 'no-store' });
 
@@ -485,6 +505,7 @@ export function DashboardClient({
 
         setLastUpdated(new Date());
         setLoading(false);
+        if (forceFreshLoyalty) setForceFreshLoyalty(false);
       } catch (err) {
         if (cancelled) return;
         const retryable = typeof err === 'object' && err !== null && 'retryable' in err;
@@ -497,6 +518,7 @@ export function DashboardClient({
         const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to load data';
         setError(message);
         setLoading(false);
+        if (forceFreshLoyalty) setForceFreshLoyalty(false);
       }
     }
 
@@ -506,7 +528,7 @@ export function DashboardClient({
       cancelled = true;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [identifierParams]);
+  }, [identifierParams, forceFreshLoyalty]);
 
   useEffect(() => {
     loadCatalogue().catch(() => {});

@@ -16,7 +16,7 @@ type CachedBody = {
   investorWhatsappLink?: string | null;
 };
 
-const DEFAULT_TTL_SECONDS = Number(process.env.LOYALTY_CACHE_TTL ?? 60);
+const DEFAULT_TTL_SECONDS = Number(process.env.LOYALTY_CACHE_TTL ?? 600);
 
 function cacheKeyFor(agentId?: string, agentCode?: string): string {
   return `loyalty:${agentId ?? ''}:${agentCode ?? ''}`;
