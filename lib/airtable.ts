@@ -213,23 +213,7 @@ export type AgentProfile = {
   investorWhatsappLink: string | null;
 };
 
-export async function fetchAgentProfile(agentId: string): Promise<AgentProfile> {
-  const apiKey = env('AIRTABLE_API_KEY');
-  const baseId = env('AIRTABLE_BASE');
-  const agentsTable = process.env.AIRTABLE_TABLE_AGENTS;
-  if (!agentsTable)
-    return { displayName: null, investorPromoCode: null, investorWhatsappLink: null };
-
-  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(agentsTable)}/${agentId}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    cache: 'no-store',
-  });
-  if (!res.ok)
-    return { displayName: null, investorPromoCode: null, investorWhatsappLink: null };
-  const json = (await res.json()) as { id: string; fields: Record<string, unknown> };
-  const fields = json.fields || {};
-
+function buildAgentProfile(fields: Record<string, unknown>): AgentProfile {
   const firstNameCandidates = ['First Name', 'first_name', 'FirstName', 'firstName'];
   let displayName: string | null = null;
   for (const key of firstNameCandidates) {
@@ -269,6 +253,44 @@ export async function fetchAgentProfile(agentId: string): Promise<AgentProfile> 
     investorPromoCode,
     investorWhatsappLink,
   };
+}
+
+export async function fetchAgentProfile(agentId: string): Promise<AgentProfile> {
+  const apiKey = env('AIRTABLE_API_KEY');
+  const baseId = env('AIRTABLE_BASE');
+  const agentsTable = process.env.AIRTABLE_TABLE_AGENTS;
+  if (!agentsTable)
+    return { displayName: null, investorPromoCode: null, investorWhatsappLink: null };
+
+  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(agentsTable)}/${agentId}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    cache: 'no-store',
+  });
+  if (!res.ok)
+    return { displayName: null, investorPromoCode: null, investorWhatsappLink: null };
+  const json = (await res.json()) as { id: string; fields: Record<string, unknown> };
+  return buildAgentProfile(json.fields || {});
+}
+
+export async function fetchAgentProfileByCode(agentCode: string): Promise<AgentProfile | null> {
+  const apiKey = env('AIRTABLE_API_KEY');
+  const baseId = env('AIRTABLE_BASE');
+  const agentsTable = process.env.AIRTABLE_TABLE_AGENTS;
+  if (!agentsTable) return null;
+
+  const fieldName = getAgentCodeFieldName();
+  const filter = `FILTER_BY_FORMULA=${encodeURIComponent(`{${fieldName}}='${escapeFormulaValue(agentCode)}'`)}`;
+  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(agentsTable)}?${filter}&maxRecords=1`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { records: Array<{ fields: Record<string, unknown> }> };
+  const record = json.records?.[0];
+  if (!record) return null;
+  return buildAgentProfile(record.fields || {});
 }
 
 export type PublicLoyaltyRow = {

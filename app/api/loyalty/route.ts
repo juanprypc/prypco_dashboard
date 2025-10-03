@@ -3,6 +3,7 @@ import { getKvClient } from '@/lib/kvClient';
 import {
   extractAgentCodes,
   fetchAgentProfile,
+  fetchAgentProfileByCode,
   fetchLoyaltyForAgent,
   fetchPostedUnexpiredRecords,
   toPublicRow,
@@ -88,6 +89,18 @@ export async function GET(req: Request) {
         }
       }
     }
+    if (!displayName && agentCode) {
+      const profileByCode = await fetchAgentProfileByCode(agentCode).catch(() => null);
+      if (profileByCode) {
+        displayName = profileByCode.displayName ?? displayName;
+        investorPromoCode = investorPromoCode ?? profileByCode.investorPromoCode ?? null;
+        investorWhatsappLink = investorWhatsappLink ?? profileByCode.investorWhatsappLink ?? null;
+      }
+    }
+    if (!displayName && agentCode) {
+      displayName = agentCode;
+    }
+
     const records = rows
       .map(toPublicRow)
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
