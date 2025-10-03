@@ -16,6 +16,9 @@ export async function POST(request: Request) {
       rewardName?: string;
       rewardPoints?: number | null;
       priceAed?: number | null;
+      unitAllocationId?: string | null;
+      unitAllocationLabel?: string | null;
+      unitAllocationPoints?: number | null;
     };
 
     if (!body?.agentId && !body?.agentCode) {
@@ -33,6 +36,17 @@ export async function POST(request: Request) {
       rewardName: body.rewardName ?? null,
       rewardPoints: typeof body.rewardPoints === 'number' ? body.rewardPoints : null,
       priceAed: typeof body.priceAed === 'number' ? body.priceAed : null,
+      unitAllocationId: typeof body.unitAllocationId === 'string' && body.unitAllocationId.trim()
+        ? body.unitAllocationId.trim()
+        : null,
+      unitAllocationLabel:
+        typeof body.unitAllocationLabel === 'string' && body.unitAllocationLabel.trim()
+          ? body.unitAllocationLabel.trim()
+          : null,
+      unitAllocationPoints:
+        typeof body.unitAllocationPoints === 'number' && Number.isFinite(body.unitAllocationPoints)
+          ? body.unitAllocationPoints
+          : null,
       requestedAt: new Date().toISOString(),
     };
 

@@ -2,6 +2,14 @@ import Image from 'next/image';
 import React from 'react';
 import { formatNumber } from '@/lib/format';
 
+export type CatalogueUnitAllocation = {
+  id: string;
+  unitType: string | null;
+  maxStock: number | null;
+  points: number | null;
+  pictureUrl: string | null;
+};
+
 export type CatalogueDisplayItem = {
   id: string;
   name: string;
@@ -14,6 +22,7 @@ export type CatalogueDisplayItem = {
   termsVersion?: string | null;
   termsUrl?: string | null;
   termsSignature?: string | null;
+  unitAllocations: CatalogueUnitAllocation[];
 };
 
 type Props = {
@@ -78,6 +87,11 @@ export function CatalogueGrid({ items, onRedeem, onImageError, onShowTerms }: Pr
               <h3 className="text-[13px] font-semibold leading-[1.2] text-[var(--color-outer-space)] sm:text-[32px] sm:text-left">
                 {item.name}
               </h3>
+              {item.unitAllocations.length > 0 ? (
+                <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-outer-space)]/60 sm:text-xs">
+                  {item.unitAllocations.length} property option{item.unitAllocations.length === 1 ? '' : 's'} available
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={() => onRedeem?.(item)}

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
 import { formatNumber, formatPoints } from '@/lib/format';
 import { KpiCard } from './KpiCard';
-import { CatalogueGrid, type CatalogueDisplayItem } from './CatalogueGrid';
+import { CatalogueGrid, type CatalogueDisplayItem, type CatalogueUnitAllocation } from './CatalogueGrid';
 import { BuyPointsButton } from './BuyPointsButton';
 import { TopupBanner } from './TopupBanner';
 import { LoadingOverlay } from './LoadingOverlay';
@@ -35,12 +35,21 @@ type LedgerResponse = {
   investorWhatsappLink?: string | null;
 };
 
-type CatalogueResponse = {
-  items: Array<{
+type CatalogueResponseItem = {
+  id: string;
+  createdTime: string;
+  fields: Record<string, unknown>;
+  unitAllocations?: Array<{
     id: string;
-    createdTime: string;
-    fields: Record<string, unknown>;
+    unitType: string | null;
+    maxStock: number | null;
+    points: number | null;
+    pictureUrl: string | null;
   }>;
+};
+
+type CatalogueResponse = {
+  items: CatalogueResponseItem[];
 };
 
 const MAX_RETRIES = 3;
@@ -89,6 +98,22 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       ? tcVersion || `${tcText.length}:${tcText.slice(0, 64)}`
       : null;
 
+    const unitAllocations = Array.isArray(item.unitAllocations)
+      ? item.unitAllocations
+          .map((allocation) => {
+            const id = typeof allocation.id === 'string' ? allocation.id.trim() : null;
+            if (!id) return null;
+            return {
+              id,
+              unitType: allocation.unitType ?? null,
+              maxStock: typeof allocation.maxStock === 'number' ? allocation.maxStock : null,
+              points: typeof allocation.points === 'number' ? allocation.points : null,
+              pictureUrl: typeof allocation.pictureUrl === 'string' ? allocation.pictureUrl : null,
+            } satisfies CatalogueUnitAllocation;
+          })
+          .filter((allocation): allocation is CatalogueUnitAllocation => allocation !== null)
+      : [];
+
     return {
       id: item.id,
       name,
@@ -102,6 +127,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       termsVersion: tcVersion,
       termsUrl: tcUrl,
       termsSignature: tcSignature,
+      unitAllocations,
     };
   });
 }
@@ -140,6 +166,9 @@ export function DashboardClient({
   const [pendingRedeemItem, setPendingRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [termsDialogItem, setTermsDialogItem] = useState<CatalogueDisplayItem | null>(null);
   const [termsDialogMode, setTermsDialogMode] = useState<'view' | 'redeem'>('view');
+  const [unitAllocationDialogItem, setUnitAllocationDialogItem] = useState<CatalogueDisplayItem | null>(null);
+  const [unitAllocationSelection, setUnitAllocationSelection] = useState<string | null>(null);
+  const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState<Record<string, string>>(() => {
     if (typeof window === 'undefined') return {};
@@ -183,11 +212,45 @@ export function DashboardClient({
     });
   }, [setAcceptedTerms]);
 
-  const beginRedeem = useCallback((item: CatalogueDisplayItem) => {
-    setRedeemItem(item);
-    setRedeemStatus('idle');
-    setRedeemMessage(null);
+  const beginRedeem = useCallback(
+    (item: CatalogueDisplayItem, allocation: CatalogueUnitAllocation | null) => {
+      setRedeemItem(item);
+      setSelectedUnitAllocation(allocation);
+      setRedeemStatus('idle');
+      setRedeemMessage(null);
+    },
+    [],
+  );
+
+  const startRedeemFlow = useCallback(
+    (item: CatalogueDisplayItem) => {
+      const allocations = item.unitAllocations;
+      setSelectedUnitAllocation(null);
+      if (allocations.length > 0) {
+        setUnitAllocationDialogItem(item);
+        setUnitAllocationSelection(null);
+        return;
+      }
+      beginRedeem(item, null);
+    },
+    [beginRedeem],
+  );
+
+  const closeUnitAllocationDialog = useCallback(() => {
+    setUnitAllocationDialogItem(null);
+    setUnitAllocationSelection(null);
   }, []);
+
+  const confirmUnitAllocation = useCallback(() => {
+    if (!unitAllocationDialogItem) return;
+    const selectionId = unitAllocationSelection;
+    if (!selectionId) return;
+    const allocations = unitAllocationDialogItem.unitAllocations;
+    const chosen = allocations.find((allocation) => allocation.id === selectionId) ?? null;
+    if (!chosen) return;
+    closeUnitAllocationDialog();
+    beginRedeem(unitAllocationDialogItem, chosen);
+  }, [beginRedeem, closeUnitAllocationDialog, unitAllocationDialogItem, unitAllocationSelection]);
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
@@ -197,9 +260,9 @@ export function DashboardClient({
         setTermsDialogMode('redeem');
         return;
       }
-      beginRedeem(item);
+      startRedeemFlow(item);
     },
-    [beginRedeem, hasAcceptedTerms],
+    [hasAcceptedTerms, startRedeemFlow],
   );
 
   const handleShowTerms = useCallback((item: CatalogueDisplayItem) => {
@@ -216,14 +279,14 @@ export function DashboardClient({
         setTermsDialogItem(null);
         setTermsDialogMode('view');
         setPendingRedeemItem(null);
-        if (target) beginRedeem(target);
+        if (target) startRedeemFlow(target);
       } else {
         setTermsDialogItem(null);
         setTermsDialogMode('view');
         setPendingRedeemItem(null);
       }
     },
-    [rememberTermsAcceptance, termsDialogMode, pendingRedeemItem, beginRedeem],
+    [rememberTermsAcceptance, termsDialogMode, pendingRedeemItem, startRedeemFlow],
   );
 
   const handleTermsClose = useCallback(() => {
@@ -292,7 +355,7 @@ export function DashboardClient({
         await navigator.clipboard.writeText(value);
         return;
       }
-    } catch (error) {
+    } catch {
       // ignore and fall back below
     }
     if (typeof document === 'undefined') return;
@@ -926,9 +989,20 @@ export function DashboardClient({
         />
       ) : null}
 
+      {unitAllocationDialogItem ? (
+        <UnitAllocationDialog
+          item={unitAllocationDialogItem}
+          selectedId={unitAllocationSelection}
+          onSelect={(value) => setUnitAllocationSelection(value)}
+          onConfirm={confirmUnitAllocation}
+          onClose={closeUnitAllocationDialog}
+        />
+      ) : null}
+
       {redeemItem ? (
         <RedeemDialog
           item={redeemItem}
+          unitAllocation={selectedUnitAllocation}
           availablePoints={metrics.totalPosted}
           status={redeemStatus}
           message={redeemMessage}
@@ -944,6 +1018,13 @@ export function DashboardClient({
             setRedeemStatus('submitting');
             setRedeemMessage(null);
             try {
+              const allocation = selectedUnitAllocation;
+              const rewardPoints =
+                typeof allocation?.points === 'number'
+                  ? allocation.points
+                  : typeof redeemItem.points === 'number'
+                    ? redeemItem.points
+                    : null;
               const res = await fetch('/api/redeem', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
@@ -952,8 +1033,11 @@ export function DashboardClient({
                   agentCode: agentCode ?? null,
                   rewardId: redeemItem.id,
                   rewardName: redeemItem.name,
-                  rewardPoints: redeemItem.points ?? null,
+                  rewardPoints,
                   priceAed: redeemItem.priceAED ?? null,
+                  unitAllocationId: allocation?.id ?? null,
+                  unitAllocationLabel: allocation?.unitType ?? null,
+                  unitAllocationPoints: typeof allocation?.points === 'number' ? allocation.points : null,
                 }),
               });
               if (!res.ok) {
@@ -972,9 +1056,163 @@ export function DashboardClient({
             setRedeemItem(null);
             setRedeemStatus('idle');
             setRedeemMessage(null);
+            setSelectedUnitAllocation(null);
           }}
         />
       ) : null}
+    </div>
+  );
+}
+
+type UnitAllocationDialogProps = {
+  item: CatalogueDisplayItem;
+  selectedId: string | null;
+  onSelect: (value: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+};
+
+function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }: UnitAllocationDialogProps) {
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const allocations = item.unitAllocations;
+  const hasSelectable = allocations.some((allocation) =>
+    typeof allocation.maxStock === 'number' ? allocation.maxStock > 0 : true,
+  );
+  const selectedAllocation = allocations.find((allocation) => allocation.id === selectedId) ?? null;
+  const confirmDisabled = !selectedAllocation || (typeof selectedAllocation.maxStock === 'number' && selectedAllocation.maxStock <= 0);
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', listener);
+    return () => document.removeEventListener('keydown', listener);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (confirmDisabled) {
+      closeRef.current?.focus();
+    } else {
+      confirmRef.current?.focus();
+    }
+  }, [confirmDisabled]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[65] flex items-end justify-center bg-black/40 px-4 py-6 sm:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`unit-allocation-${item.id}`}
+        className="w-full max-w-lg rounded-[28px] border border-[#d1b7fb] bg-white p-6 text-[var(--color-outer-space)] shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 id={`unit-allocation-${item.id}`} className="text-lg font-semibold">
+              Choose property type
+            </h3>
+            <p className="mt-1 text-xs text-[var(--color-outer-space)]/70">
+              Select the exact property option you want to redeem.
+            </p>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1 text-xs font-medium text-[var(--color-outer-space)]/60 transition hover:border-[var(--color-outer-space)]/20 hover:bg-white hover:text-[var(--color-outer-space)]"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {allocations.map((allocation) => {
+            const disabled = typeof allocation.maxStock === 'number' && allocation.maxStock <= 0;
+            const selected = selectedId === allocation.id;
+            const pointsLabel = typeof allocation.points === 'number' ? formatNumber(allocation.points) : null;
+            return (
+              <button
+                key={allocation.id}
+                type="button"
+                onClick={() => {
+                  if (disabled) return;
+                  onSelect(allocation.id);
+                }}
+                className={`w-full rounded-[22px] border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)] focus:ring-offset-2 focus:ring-offset-white sm:px-5 sm:py-4 ${
+                  selected
+                    ? 'border-[var(--color-electric-purple)] bg-[var(--color-panel)]/70'
+                    : 'border-[#d1b7fb]/70 bg-white hover:border-[var(--color-electric-purple)]/40'
+                } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                aria-pressed={selected}
+                disabled={disabled}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--color-outer-space)]">
+                      {allocation.unitType || 'Property option'}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[var(--color-outer-space)]/60">
+                      {pointsLabel ? `${pointsLabel} points` : 'Uses catalogue points'}
+                    </p>
+                  </div>
+                  <div className="text-right text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
+                    {selected ? 'Selected' : disabled ? 'Out of stock' : 'Choose'}
+                  </div>
+                </div>
+                {typeof allocation.maxStock === 'number' ? (
+                  <p className="mt-2 text-[11px] text-[var(--color-outer-space)]/50">
+                    Remaining stock: {formatNumber(Math.max(allocation.maxStock, 0))}
+                  </p>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {allocations.length === 0 ? (
+          <p className="mt-4 text-xs text-[var(--color-outer-space)]/60">
+            No unit allocations are configured for this reward yet.
+          </p>
+        ) : null}
+
+        {allocations.length > 0 && !hasSelectable ? (
+          <p className="mt-4 text-xs text-rose-500">
+            All variants are currently out of stock. Please reach out to the fulfilment team for availability.
+          </p>
+        ) : !selectedAllocation ? (
+          <p className="mt-4 text-xs text-[var(--color-outer-space)]/60">
+            Choose a property to continue with the redemption.
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-transparent px-4 py-2 text-xs font-semibold text-[var(--color-outer-space)]/60 transition hover:bg-[var(--color-panel)]/80"
+          >
+            Back
+          </button>
+          <button
+            ref={confirmRef}
+            type="button"
+            onClick={onConfirm}
+            disabled={confirmDisabled}
+            className="rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Continue
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1117,6 +1355,7 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
 
 type RedeemDialogProps = {
   item: CatalogueDisplayItem;
+  unitAllocation?: CatalogueUnitAllocation | null;
   availablePoints: number;
   status: 'idle' | 'submitting' | 'success' | 'error';
   message: string | null;
@@ -1133,6 +1372,7 @@ type RedeemDialogProps = {
 
 function RedeemDialog({
   item,
+  unitAllocation,
   availablePoints,
   status,
   message,
@@ -1146,7 +1386,13 @@ function RedeemDialog({
   onShowTerms,
   termsAccepted = true,
 }: RedeemDialogProps) {
-  const requiredPoints = typeof item.points === 'number' ? item.points : 0;
+  const rawRequiredPoints =
+    typeof unitAllocation?.points === 'number'
+      ? unitAllocation.points
+      : typeof item.points === 'number'
+        ? item.points
+        : 0;
+  const requiredPoints = Number.isFinite(rawRequiredPoints) ? Math.max(rawRequiredPoints, 0) : 0;
   const insufficient = requiredPoints > availablePoints;
   const busy = status === 'submitting';
   const showSuccess = status === 'success';
@@ -1212,6 +1458,27 @@ function RedeemDialog({
           <button onClick={onClose} className="cursor-pointer text-sm text-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]">Close</button>
         </div>
 
+        {unitAllocation ? (
+          <div className="mt-4 rounded-[20px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 p-4 text-xs text-[var(--color-outer-space)]/80">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
+              Selected property
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[var(--color-outer-space)]">
+              {unitAllocation.unitType || 'Allocation'}
+            </p>
+            {typeof unitAllocation.maxStock === 'number' ? (
+              <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">
+                Available units: {formatNumber(Math.max(unitAllocation.maxStock, 0))}
+              </p>
+            ) : null}
+            {typeof unitAllocation.points === 'number' && typeof item.points === 'number' && unitAllocation.points !== item.points ? (
+              <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">
+                This property requires {formatNumber(unitAllocation.points)} points.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mt-4 space-y-2 text-sm text-[var(--color-outer-space)]/80">
           <div className="flex items-center justify-between">
             <span>Required points</span>
@@ -1253,6 +1520,11 @@ function RedeemDialog({
               <p className="text-[11px] leading-snug text-[var(--color-outer-space)]/60">
                 We’ll email you once the fulfilment team approves this redemption. Feel free to continue browsing rewards.
               </p>
+              {unitAllocation ? (
+                <p className="text-[11px] leading-snug text-[var(--color-electric-purple)]/70">
+                  Selected property: {unitAllocation.unitType || 'Allocation'}.
+                </p>
+              ) : null}
             </div>
             <button
               onClick={onClose}
@@ -1263,7 +1535,10 @@ function RedeemDialog({
           </div>
         ) : insufficient ? (
           <div className="mt-6 space-y-4 text-sm">
-            <p>You need {formatNumber(requiredPoints - availablePoints)} more points to redeem this reward.</p>
+            <p>
+              You need {formatNumber(requiredPoints - availablePoints)} more points to redeem this
+              {unitAllocation ? ` ${unitAllocation.unitType || 'property option'}` : ' reward'}.
+            </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 onClick={handleDirectTopup}

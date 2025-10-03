@@ -345,7 +345,82 @@ export type CatalogueFields = {
 
 export type CatalogueItem = AirtableRecord<CatalogueFields>;
 
-export async function fetchLoyaltyCatalogue(): Promise<CatalogueItem[]> {
+export type UnitAllocationFields = {
+  Catalogue?: string[] | string;
+  unit_type?: string;
+  max_stock?: number;
+  Points?: number;
+  Picture?: Array<{ url: string; thumbnails?: { large?: { url?: string }; small?: { url?: string } } }>;
+};
+
+export type CatalogueUnitAllocation = {
+  id: string;
+  catalogueId: string | null;
+  unitType: string | null;
+  maxStock: number | null;
+  points: number | null;
+  pictureUrl: string | null;
+};
+
+export type CatalogueItemWithAllocations = CatalogueItem & {
+  unitAllocations: CatalogueUnitAllocation[];
+};
+
+
+async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
+  const apiKey = env('AIRTABLE_API_KEY');
+  const baseId = env('AIRTABLE_BASE');
+  const table = process.env.AIRTABLE_TABLE_UNIT_ALLOCATIONS || 'loyalty_unit_allocation';
+
+  const urlBase = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}`;
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+  } as const;
+
+  const records: AirtableRecord<UnitAllocationFields>[] = [];
+  let offset: string | undefined;
+  let guard = 0;
+
+  do {
+    const params = new URLSearchParams();
+    params.set('pageSize', '100');
+    if (offset) params.set('offset', offset);
+
+    const res = await fetch(`${urlBase}?${params.toString()}`, {
+      headers,
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Airtable unit allocation error ${res.status}: ${text}`);
+    }
+    const json = (await res.json()) as {
+      records: AirtableRecord<UnitAllocationFields>[];
+      offset?: string;
+    };
+    records.push(...json.records);
+    offset = json.offset;
+    guard++;
+  } while (offset && guard < 20);
+
+  return records.map((record) => {
+    const fields = record.fields || {};
+    const catalogueIds = toStringArray(fields.Catalogue);
+    const pictureAttachment = Array.isArray(fields.Picture) && fields.Picture.length > 0 ? fields.Picture[0] : null;
+    const pictureUrl = pictureAttachment?.thumbnails?.large?.url || pictureAttachment?.url || null;
+
+    return {
+      id: record.id,
+      catalogueId: catalogueIds[0] ?? null,
+      unitType: toMaybeString(fields.unit_type) ?? null,
+      maxStock: typeof fields.max_stock === 'number' ? fields.max_stock : null,
+      points: typeof fields.Points === 'number' ? fields.Points : null,
+      pictureUrl,
+    } satisfies CatalogueUnitAllocation;
+  });
+}
+
+export async function fetchLoyaltyCatalogue(): Promise<CatalogueItemWithAllocations[]> {
   const apiKey = env('AIRTABLE_API_KEY');
   const baseId = env('AIRTABLE_BASE');
   const table = process.env.AIRTABLE_TABLE_CATALOGUE || 'loyalty_catalogue';
@@ -383,9 +458,23 @@ export async function fetchLoyaltyCatalogue(): Promise<CatalogueItem[]> {
     guard++;
   } while (offset && guard < 20);
 
-  return records.filter((item) => {
-    const active = item.fields?.is_active;
-    if (typeof active === 'boolean') return active;
-    return active === 'checked' || active === 'TRUE';
-  });
+  const allocations = await fetchUnitAllocations();
+  const allocationsByCatalogue = new Map<string, CatalogueUnitAllocation[]>();
+  for (const allocation of allocations) {
+    if (!allocation.catalogueId) continue;
+    const existing = allocationsByCatalogue.get(allocation.catalogueId);
+    if (existing) existing.push(allocation);
+    else allocationsByCatalogue.set(allocation.catalogueId, [allocation]);
+  }
+
+  return records
+    .filter((item) => {
+      const active = item.fields?.is_active;
+      if (typeof active === 'boolean') return active;
+      return active === 'checked' || active === 'TRUE';
+    })
+    .map((item) => ({
+      ...item,
+      unitAllocations: allocationsByCatalogue.get(item.id) ?? [],
+    }));
 }

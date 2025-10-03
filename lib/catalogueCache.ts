@@ -1,4 +1,4 @@
-import type { CatalogueItem } from '@/lib/airtable';
+import type { CatalogueItemWithAllocations } from '@/lib/airtable';
 
 const AIRTABLE_ATTACHMENT_HOSTS = new Set(['v5.airtableusercontent.com', 'dl.airtable.com']);
 const EXPIRY_SEGMENT_REGEX = /^\d{13}$/;
@@ -35,7 +35,7 @@ export function getSafeCatalogueCacheTtl(requestedTtlSeconds = DEFAULT_CATALOGUE
 }
 
 export type CatalogueCachePayload = {
-  items: CatalogueItem[];
+  items: CatalogueItemWithAllocations[];
   fetchedAt: string;
 };
 
@@ -44,11 +44,21 @@ export function catalogueCacheHasExpiringAsset(
   nowMs = Date.now(),
 ): boolean {
   const bufferMs = AIRTABLE_SIGNED_URL_REFRESH_BUFFER_SECONDS * 1000;
-  return cache.items.some((item) => hasAttachmentExpiringSoon(item, bufferMs, nowMs));
+  return cache.items.some((item) => {
+    if (hasAttachmentExpiringSoon(item, bufferMs, nowMs)) return true;
+    if (
+      item.unitAllocations?.some(
+        (allocation) => allocation.pictureUrl && isSignedUrlExpiring(allocation.pictureUrl, bufferMs, nowMs),
+      )
+    ) {
+      return true;
+    }
+    return false;
+  });
 }
 
 function hasAttachmentExpiringSoon(
-  item: CatalogueItem,
+  item: CatalogueItemWithAllocations,
   bufferMs: number,
   nowMs: number,
 ): boolean {

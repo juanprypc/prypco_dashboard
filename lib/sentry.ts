@@ -8,7 +8,7 @@ if (dsn) {
       dsn,
       tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.05),
     });
-  } catch (error) {
+  } catch {
     // ignore duplicate init attempts
   }
 }
