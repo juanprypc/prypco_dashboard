@@ -1,20 +1,33 @@
 import { Sentry } from '@/lib/sentry';
 import { getKvClient } from '@/lib/kvClient';
+import type { PublicLoyaltyRow } from '@/lib/airtable';
 import {
-  extractAgentCodes,
-  fetchAgentProfile,
-  fetchAgentProfileByCode,
-  fetchLoyaltyForAgent,
-  fetchPostedUnexpiredRecords,
-  toPublicRow,
-  type PublicLoyaltyRow,
-} from '@/lib/airtable';
+  fetchAgentProfileByCode as fetchSupabaseAgentProfileByCode,
+  fetchAgentProfileById as fetchSupabaseAgentProfileById,
+  fetchAllPostedLoyaltyPointsRaw,
+  fetchLoyaltyPointRows,
+  fetchMonthlySummaries,
+  mapLoyaltyPointsToPublic,
+  type SupabaseAgentProfile,
+  type LoyaltyMonthlySummary,
+} from '@/lib/supabaseLoyalty';
+
+type LoyaltyTotals = {
+  totalPoints: number;
+  positivePoints: number;
+  negativePoints: number;
+  currentMonth: number;
+  expiringSoon: number;
+};
 
 type CachedBody = {
   records: PublicLoyaltyRow[];
   displayName?: string | null;
   investorPromoCode?: string | null;
   investorWhatsappLink?: string | null;
+  monthlySummary?: LoyaltyMonthlySummary[];
+  totals?: LoyaltyTotals;
+  summaryGeneratedAt?: string;
 };
 
 const DEFAULT_TTL_SECONDS = Number(process.env.LOYALTY_CACHE_TTL ?? 60);
@@ -34,6 +47,7 @@ export async function GET(req: Request) {
 
   const agentId = rawAgent && rawAgent.startsWith('rec') ? rawAgent : undefined;
   const agentCode = agentCodeParam || (!agentId ? rawAgent : undefined);
+  const normalisedAgentCode = agentCode ? agentCode.trim().toLowerCase() : undefined;
   const forceFresh = searchParams.get('fresh') === '1';
 
   if (!agentId && !agentCode) {
@@ -59,76 +73,54 @@ export async function GET(req: Request) {
       }
     }
     // Try to fetch the agent's display name for text fallback rows if configured
-    const agentProfile = agentId ? await fetchAgentProfile(agentId).catch(() => null) : null;
-    const inferredName = agentProfile?.displayName ?? null;
-    const rows = await fetchLoyaltyForAgent({
-      agentId,
-      agentCode,
-      agentName: inferredName || undefined,
-    });
-    let displayName = inferredName;
+    const supabaseRows = await fetchLoyaltyPointRows({ agentId, agentCode, includeExpired: false });
+
+    const agentProfile = agentId ? await fetchSupabaseAgentProfileById(agentId).catch(() => null) : null;
+
+    let displayName = agentProfile?.displayName ?? null;
     let investorPromoCode = agentProfile?.investorPromoCode ?? null;
     let investorWhatsappLink = agentProfile?.investorWhatsappLink ?? null;
-    if (!displayName) {
-      const firstWithAgent = rows.find((row) => {
-        const value = row.fields?.agent as unknown;
-        if (Array.isArray(value)) return value.length > 0;
-        if (typeof value === 'string') return value.trim().startsWith('rec');
-        return false;
-      });
-      if (firstWithAgent) {
-        const raw = firstWithAgent.fields?.agent as string[] | string | undefined;
-        let candidate: string | undefined;
-        if (Array.isArray(raw)) candidate = raw[0];
-        else if (typeof raw === 'string') candidate = raw;
-        if (candidate?.startsWith('rec')) {
-          const fallbackProfile = await fetchAgentProfile(candidate).catch(() => null);
-          displayName = fallbackProfile?.displayName ?? displayName;
-          investorPromoCode = investorPromoCode ?? fallbackProfile?.investorPromoCode ?? null;
-          investorWhatsappLink = investorWhatsappLink ?? fallbackProfile?.investorWhatsappLink ?? null;
-        }
-      }
-    }
-    if (!displayName && agentCode) {
-      const profileByCode = await fetchAgentProfileByCode(agentCode).catch(() => null);
+    let profileByCode: SupabaseAgentProfile | null = null;
+
+    if ((!displayName || !investorPromoCode || !investorWhatsappLink) && agentCode) {
+      profileByCode = await fetchSupabaseAgentProfileByCode(agentCode).catch(() => null);
       if (profileByCode) {
-        displayName = profileByCode.displayName ?? displayName;
+        displayName = displayName ?? profileByCode.displayName ?? profileByCode.code ?? null;
         investorPromoCode = investorPromoCode ?? profileByCode.investorPromoCode ?? null;
         investorWhatsappLink = investorWhatsappLink ?? profileByCode.investorWhatsappLink ?? null;
       }
     }
+
+    if (!displayName) {
+      const firstWithName = supabaseRows.find((row) => row.agent_display_name && row.agent_display_name.trim().length > 0);
+      if (firstWithName) {
+        displayName = firstWithName.agent_display_name ?? null;
+      }
+    }
+
     if (!displayName && agentCode) {
       displayName = agentCode;
     }
 
-    const records = rows
-      .map(toPublicRow)
-      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+    const records = mapLoyaltyPointsToPublic(supabaseRows);
+    const totals = computeTotals(records);
+    const summaryAgentId = agentProfile?.id ?? profileByCode?.id ?? agentId ?? (supabaseRows[0]?.agent_id ?? null);
+    const monthlySummary = summaryAgentId
+      ? await fetchMonthlySummaries(summaryAgentId, 12).catch(() => [] as LoyaltyMonthlySummary[])
+      : [];
+    const summaryGeneratedAt = new Date().toISOString();
 
     if (debug) {
-      const all = await fetchPostedUnexpiredRecords(skipExpiry);
-      const allPub = all.map(toPublicRow).filter((x): x is NonNullable<typeof x> => Boolean(x));
-      const byId = agentId
-        ? all.filter((r) => Array.isArray(r.fields?.agent) && (r.fields!.agent as string[]).includes(agentId))
-        : [];
-      const byName = inferredName
-        ? all.filter((r) => {
-            const a = r.fields?.agent as unknown;
-            if (Array.isArray(a)) return a.includes(inferredName);
-            if (typeof a === 'string') return a.trim() === inferredName;
-            return false;
-          })
-        : [];
-      const byCode = agentCode
-        ? all.filter((r) => {
-            const codes = extractAgentCodes((r.fields || {}) as Record<string, unknown>);
-            return codes.some((code) => code === agentCode || code.toLowerCase() === agentCode.toLowerCase());
-          })
+      const allRaw = await fetchAllPostedLoyaltyPointsRaw(skipExpiry);
+      const allPub = mapLoyaltyPointsToPublic(allRaw);
+      const byId = agentId ? allRaw.filter((row) => row.agent_id === agentId) : [];
+      const byCode = normalisedAgentCode
+        ? allRaw.filter((row) => row.agent_code && row.agent_code.trim().toLowerCase() === normalisedAgentCode)
         : [];
       const ids = {
-        all: all.map((r) => r.id),
+        all: allRaw.map((r) => r.id),
         byId: byId.map((r) => r.id),
-        byName: byName.map((r) => r.id),
+        byName: [] as string[],
         byCode: byCode.map((r) => r.id),
         returned: records.map((r) => r.id),
       };
@@ -142,21 +134,35 @@ export async function GET(req: Request) {
         displayName?: string | null;
         investorPromoCode?: string | null;
         investorWhatsappLink?: string | null;
+        monthlySummary?: LoyaltyMonthlySummary[];
+        totals?: LoyaltyTotals;
+        summaryGeneratedAt?: string;
       } = {
         records,
         debug: {
-          counts: { all: all.length, allPub: allPub.length, byId: byId.length, byName: byName.length, byCode: byCode.length },
+          counts: { all: allRaw.length, allPub: allPub.length, byId: byId.length, byName: 0, byCode: byCode.length },
           ids,
         },
         displayName,
         investorPromoCode,
         investorWhatsappLink,
+        monthlySummary,
+        totals,
+        summaryGeneratedAt,
       };
       if (process.env.NODE_ENV !== 'production') body.all = allPub;
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     }
 
-    const body: CachedBody = { records, displayName, investorPromoCode, investorWhatsappLink };
+    const body: CachedBody = {
+      records,
+      displayName,
+      investorPromoCode,
+      investorWhatsappLink,
+      monthlySummary,
+      totals,
+      summaryGeneratedAt,
+    };
 
     if (cacheEligible && cacheKey) {
       await kv.set(cacheKey, body, { ex: ttlSeconds });
@@ -173,4 +179,56 @@ export async function GET(req: Request) {
       headers: { 'content-type': 'application/json' },
     });
   }
+}
+
+function computeTotals(records: PublicLoyaltyRow[]): LoyaltyTotals {
+  const totals: LoyaltyTotals = {
+    totalPoints: 0,
+    positivePoints: 0,
+    negativePoints: 0,
+    currentMonth: 0,
+    expiringSoon: 0,
+  };
+
+  if (!records.length) return totals;
+
+  const nowTime = Date.now();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const soonTime = nowTime + thirtyDaysMs;
+  const currentMonthKey = monthKey(new Date(nowTime).toISOString());
+
+  for (const row of records) {
+    const points = row.points ?? 0;
+    totals.totalPoints += points;
+
+    if (points > 0) {
+      totals.positivePoints += points;
+
+      const earnedSource = row.earned_at ?? row.createdTime;
+      const earnedKey = monthKey(earnedSource);
+      if (earnedKey && earnedKey === currentMonthKey) {
+        totals.currentMonth += points;
+      }
+
+      if (row.expires_at) {
+        const expiresAt = Date.parse(row.expires_at);
+        if (!Number.isNaN(expiresAt) && expiresAt >= nowTime && expiresAt <= soonTime) {
+          totals.expiringSoon += points;
+        }
+      }
+    } else if (points < 0) {
+      totals.negativePoints += points;
+    }
+  }
+
+  return totals;
+}
+
+function monthKey(dateIso: string | undefined): string | null {
+  if (!dateIso) return null;
+  const date = new Date(dateIso);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
