@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 export function LoadingOverlay({ visible }: { visible: boolean }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     if (!visible) return;
     const previous = document.body.style.overflow;
@@ -12,13 +14,35 @@ export function LoadingOverlay({ visible }: { visible: boolean }) {
     };
   }, [visible]);
 
+  useEffect(() => {
+    if (!visible) return;
+
+    const updateHeight = () => {
+      const vh = window.innerHeight;
+      if (containerRef.current) {
+        containerRef.current.style.setProperty('--overlay-height', `${vh}px`);
+      }
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    window.addEventListener('orientationchange', updateHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('orientationchange', updateHeight);
+    };
+  }, [visible]);
+
   if (!visible) return null;
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[80] flex w-screen flex-col items-center justify-center bg-white overflow-hidden"
       style={{
-        height: '100dvh',
+        minHeight: '100vh',
+        height: 'var(--overlay-height, 100vh)',
         width: '100vw',
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
