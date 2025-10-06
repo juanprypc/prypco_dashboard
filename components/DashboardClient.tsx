@@ -4,7 +4,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
-import { formatNumber, formatPoints } from '@/lib/format';
+import { formatNumber, formatPoints, formatAedCompact } from '@/lib/format';
 import { KpiCard } from './KpiCard';
 import { CatalogueGrid, type CatalogueDisplayItem, type CatalogueUnitAllocation } from './CatalogueGrid';
 import { BuyPointsButton } from './BuyPointsButton';
@@ -45,6 +45,7 @@ type CatalogueResponseItem = {
     maxStock: number | null;
     points: number | null;
     pictureUrl: string | null;
+    priceAed: number | null;
   }>;
 };
 
@@ -109,6 +110,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
               maxStock: typeof allocation.maxStock === 'number' ? allocation.maxStock : null,
               points: typeof allocation.points === 'number' ? allocation.points : null,
               pictureUrl: typeof allocation.pictureUrl === 'string' ? allocation.pictureUrl : null,
+              priceAed: typeof allocation.priceAed === 'number' ? allocation.priceAed : null,
             } satisfies CatalogueUnitAllocation;
           })
           .filter((allocation): allocation is CatalogueUnitAllocation => allocation !== null)
@@ -1076,11 +1078,11 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const allocations = item.unitAllocations;
-  const hasSelectable = allocations.some((allocation) =>
-    typeof allocation.maxStock === 'number' ? allocation.maxStock > 0 : true,
-  );
+  const isOutOfStock = (allocation: CatalogueUnitAllocation): boolean =>
+    typeof allocation.maxStock === 'number' ? allocation.maxStock <= 0 : false;
+  const hasSelectable = allocations.some((allocation) => !isOutOfStock(allocation));
   const selectedAllocation = allocations.find((allocation) => allocation.id === selectedId) ?? null;
-  const confirmDisabled = !selectedAllocation || (typeof selectedAllocation.maxStock === 'number' && selectedAllocation.maxStock <= 0);
+  const confirmDisabled = !selectedAllocation || isOutOfStock(selectedAllocation);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -1136,9 +1138,10 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
 
         <div className="mt-4 space-y-3">
           {allocations.map((allocation) => {
-            const disabled = typeof allocation.maxStock === 'number' && allocation.maxStock <= 0;
+            const disabled = isOutOfStock(allocation);
             const selected = selectedId === allocation.id;
             const pointsLabel = typeof allocation.points === 'number' ? formatNumber(allocation.points) : null;
+            const priceLabel = formatAedCompact(allocation.priceAed);
             return (
               <button
                 key={allocation.id}
@@ -1151,7 +1154,7 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
                   selected
                     ? 'border-[var(--color-electric-purple)] bg-[var(--color-panel)]/70'
                     : 'border-[#d1b7fb]/70 bg-white hover:border-[var(--color-electric-purple)]/40'
-                } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                } disabled:cursor-not-allowed disabled:opacity-50`}
                 aria-pressed={selected}
                 disabled={disabled}
               >
@@ -1163,16 +1166,17 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
                     <p className="mt-0.5 text-[11px] text-[var(--color-outer-space)]/60">
                       {pointsLabel ? `${pointsLabel} points` : 'Uses catalogue points'}
                     </p>
+                    {priceLabel ? (
+                      <p className="mt-0.5 text-[11px] text-[var(--color-outer-space)]/60">Avg {priceLabel}</p>
+                    ) : null}
+                    {disabled ? (
+                      <p className="mt-0.5 text-[11px] text-rose-500/70">Currently unavailable</p>
+                    ) : null}
                   </div>
                   <div className="text-right text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
-                    {selected ? 'Selected' : disabled ? 'Out of stock' : 'Choose'}
+                    {selected ? 'Selected' : disabled ? 'Unavailable' : 'Choose'}
                   </div>
                 </div>
-                {typeof allocation.maxStock === 'number' ? (
-                  <p className="mt-2 text-[11px] text-[var(--color-outer-space)]/50">
-                    Remaining stock: {formatNumber(Math.max(allocation.maxStock, 0))}
-                  </p>
-                ) : null}
               </button>
             );
           })}
@@ -1182,11 +1186,9 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
           <p className="mt-4 text-xs text-[var(--color-outer-space)]/60">
             No unit allocations are configured for this reward yet.
           </p>
-        ) : null}
-
-        {allocations.length > 0 && !hasSelectable ? (
+        ) : !hasSelectable ? (
           <p className="mt-4 text-xs text-rose-500">
-            All variants are currently out of stock. Please reach out to the fulfilment team for availability.
+            All variants are currently unavailable. Please reach out to the fulfilment team for availability.
           </p>
         ) : !selectedAllocation ? (
           <p className="mt-4 text-xs text-[var(--color-outer-space)]/60">
@@ -1401,6 +1403,7 @@ function RedeemDialog({
   const [topupError, setTopupError] = useState<string | null>(null);
   const termsSatisfied = !item.termsActive || termsAccepted;
   const confirmDisabled = busy || !termsSatisfied;
+  const selectedPriceLabel = formatAedCompact(unitAllocation?.priceAed ?? null);
 
   const extraPointsNeeded = insufficient ? requiredPoints - availablePoints : 0;
 
@@ -1466,10 +1469,8 @@ function RedeemDialog({
             <p className="mt-1 text-sm font-semibold text-[var(--color-outer-space)]">
               {unitAllocation.unitType || 'Allocation'}
             </p>
-            {typeof unitAllocation.maxStock === 'number' ? (
-              <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">
-                Available units: {formatNumber(Math.max(unitAllocation.maxStock, 0))}
-              </p>
+            {selectedPriceLabel ? (
+              <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">Avg {selectedPriceLabel}</p>
             ) : null}
             {typeof unitAllocation.points === 'number' && typeof item.points === 'number' && unitAllocation.points !== item.points ? (
               <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">
@@ -1522,7 +1523,8 @@ function RedeemDialog({
               </p>
               {unitAllocation ? (
                 <p className="text-[11px] leading-snug text-[var(--color-electric-purple)]/70">
-                  Selected property: {unitAllocation.unitType || 'Allocation'}.
+                  Selected property: {unitAllocation.unitType || 'Allocation'}
+                  {selectedPriceLabel ? ` · Avg ${selectedPriceLabel}` : ''}.
                 </p>
               ) : null}
             </div>

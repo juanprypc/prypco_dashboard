@@ -350,6 +350,7 @@ export type UnitAllocationFields = {
   unit_type?: string;
   max_stock?: number;
   Points?: number;
+  price_aed?: number;
   Picture?: Array<{ url: string; thumbnails?: { large?: { url?: string }; small?: { url?: string } } }>;
 };
 
@@ -360,6 +361,7 @@ export type CatalogueUnitAllocation = {
   maxStock: number | null;
   points: number | null;
   pictureUrl: string | null;
+  priceAed: number | null;
 };
 
 export type CatalogueItemWithAllocations = CatalogueItem & {
@@ -418,6 +420,7 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
       maxStock: typeof fields.max_stock === 'number' ? fields.max_stock : null,
       points: typeof fields.Points === 'number' ? fields.Points : null,
       pictureUrl,
+      priceAed: typeof fields.price_aed === 'number' ? fields.price_aed : null,
     } satisfies CatalogueUnitAllocation;
   });
 }

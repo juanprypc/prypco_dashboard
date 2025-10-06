@@ -18,6 +18,13 @@ const monthFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 });
 
+const compactAedFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'AED',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
 export function formatNumber(value: number | string): string {
   if (typeof value === 'string') return value;
   return numberFormatter.format(value);
@@ -39,3 +46,8 @@ export function formatMonth(value: string | Date): string {
   return monthFormatter.format(date);
 }
 
+
+export function formatAedCompact(value: number | null | undefined): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '';
+  return compactAedFormatter.format(value);
+}

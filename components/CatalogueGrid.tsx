@@ -8,6 +8,7 @@ export type CatalogueUnitAllocation = {
   maxStock: number | null;
   points: number | null;
   pictureUrl: string | null;
+  priceAed: number | null;
 };
 
 export type CatalogueDisplayItem = {
