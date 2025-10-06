@@ -386,10 +386,12 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
     params.set('pageSize', '100');
     if (offset) params.set('offset', offset);
 
-    const res = await fetch(`${urlBase}?${params.toString()}`, {
-      headers,
-      cache: 'no-store',
-    });
+    const res = await scheduleAirtableRequest(() =>
+      fetch(`${urlBase}?${params.toString()}`, {
+        headers,
+        cache: 'no-store',
+      })
+    );
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Airtable unit allocation error ${res.status}: ${text}`);
