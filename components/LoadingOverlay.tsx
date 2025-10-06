@@ -16,8 +16,8 @@ export function LoadingOverlay({ visible }: { visible: boolean }) {
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex w-full flex-col items-center justify-center bg-white"
-      style={{ minHeight: '100dvh' }}
+      className="fixed inset-0 z-[80] flex w-screen flex-col items-center justify-center bg-white"
+      style={{ minHeight: '100vh', height: '100dvh' }}
     >
       <video
         className="h-32 w-32 object-contain"
