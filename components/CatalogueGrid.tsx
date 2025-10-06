@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import React from 'react';
-import { formatAedCompact, formatNumber } from '@/lib/format';
+import { formatNumber } from '@/lib/format';
 
 export type CatalogueUnitAllocation = {
   id: string;
@@ -58,9 +58,6 @@ export function CatalogueGrid({ items, onRedeem, onImageError, onShowTerms }: Pr
           >
             <div className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)] leading-[1.15] sm:text-[18px]">
               <span>{getPoints(item.points)} points</span>
-              {typeof item.priceAED === 'number' ? (
-                <span className="text-[var(--color-outer-space)]/60">Avg {formatAedCompact(item.priceAED)}</span>
-              ) : null}
               {item.termsActive ? (
                 <button
                   type="button"
