@@ -1105,7 +1105,7 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
 
   return (
     <div
-      className="fixed inset-0 z-[65] flex items-end justify-center bg-black/40 px-4 py-6 sm:items-center"
+      className="fixed inset-0 z-[65] flex items-center justify-center bg-black/40 px-4 py-6"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1114,7 +1114,7 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
         role="dialog"
         aria-modal="true"
         aria-labelledby={`unit-allocation-${item.id}`}
-        className="w-full max-w-lg rounded-[28px] border border-[#d1b7fb] bg-white p-6 text-[var(--color-outer-space)] shadow-xl"
+        className="w-full max-w-lg rounded-[28px] border border-[#d1b7fb] bg-white p-6 text-[var(--color-outer-space)] shadow-xl max-h-[85vh] overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -1271,7 +1271,7 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 px-4 py-6 sm:items-center"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4 py-6"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -1280,12 +1280,9 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-lg rounded-t-3xl bg-white px-4 pb-5 pt-4 text-[var(--color-outer-space)] shadow-xl sm:rounded-3xl sm:px-6 sm:py-6"
+        className="relative w-full max-w-lg rounded-[28px] border border-[#d1b7fb] bg-white px-4 pb-5 pt-4 text-[var(--color-outer-space)] shadow-xl sm:px-6 sm:py-6 max-h-[85vh] overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mb-3 flex justify-center sm:hidden">
-          <span className="h-1.5 w-12 rounded-full bg-[var(--color-outer-space)]/10" />
-        </div>
         <h4 id={titleId} className="text-base font-semibold">
           Reward terms
         </h4>
