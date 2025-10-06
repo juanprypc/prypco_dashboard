@@ -16,9 +16,8 @@ export function LoadingOverlay({ visible }: { visible: boolean }) {
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex w-screen flex-col items-center justify-center bg-white"
+      className="fixed inset-0 z-[80] flex w-screen flex-col items-center justify-center bg-white overflow-hidden"
       style={{
-        minHeight: '100vh',
         height: '100dvh',
         width: '100vw',
         paddingTop: 'env(safe-area-inset-top)',
