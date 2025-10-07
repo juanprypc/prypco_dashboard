@@ -165,9 +165,6 @@ export async function fetchDamacRedemptionById(id: string): Promise<DamacRedempt
   const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}/${id}`;
 
   const params = new URLSearchParams();
-  for (const field of DAMAC_FIELDS) {
-    params.append('fields[]', field);
-  }
   applyStringCellFormatParams(params);
 
   const res = await scheduleAirtableRequest(() =>
