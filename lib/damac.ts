@@ -77,8 +77,8 @@ const DAMAC_FIELDS = [
   'damac_verified_note',
 ] as const;
 
-const AIRTABLE_STRING_FORMAT_TIME_ZONE = process.env.AIRTABLE_TIMEZONE ?? 'Etc/UTC';
-const AIRTABLE_STRING_FORMAT_LOCALE = process.env.AIRTABLE_LOCALE ?? 'en';
+const AIRTABLE_STRING_FORMAT_TIME_ZONE = (process.env.AIRTABLE_TIMEZONE || 'UTC').trim();
+const AIRTABLE_STRING_FORMAT_LOCALE = (process.env.AIRTABLE_LOCALE || 'en-US').trim();
 
 function applyStringCellFormatParams(params: URLSearchParams): void {
   params.set('cellFormat', 'string');
