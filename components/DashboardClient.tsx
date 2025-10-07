@@ -1015,7 +1015,7 @@ export function DashboardClient({
           baseQuery={baseQuery}
           termsAccepted={hasAcceptedTerms(redeemItem)}
           onShowTerms={handleShowTerms}
-          onSubmit={async (customerInfo) => {
+          onSubmit={async () => {
             if (!redeemItem) return;
             setRedeemStatus('submitting');
             setRedeemMessage(null);
@@ -1040,8 +1040,6 @@ export function DashboardClient({
                   unitAllocationId: allocation?.id ?? null,
                   unitAllocationLabel: allocation?.unitType ?? null,
                   unitAllocationPoints: typeof allocation?.points === 'number' ? allocation.points : null,
-                  customerFirstName: customerInfo.firstName,
-                  customerPhoneLast4: customerInfo.phoneLast4,
                 }),
               });
               if (!res.ok) {
@@ -1365,7 +1363,7 @@ type RedeemDialogProps = {
   agentId?: string | null;
   agentCode?: string | null;
   baseQuery?: string;
-  onSubmit: (info: { firstName: string | null; phoneLast4: string | null }) => void;
+  onSubmit: () => void;
   onClose: () => void;
   onShowTerms?: (item: CatalogueDisplayItem) => void;
   termsAccepted?: boolean;
@@ -1400,26 +1398,12 @@ function RedeemDialog({
   const showError = status === 'error';
   const [topupBusy, setTopupBusy] = useState(false);
   const [topupError, setTopupError] = useState<string | null>(null);
-  const [customerFirstName, setCustomerFirstName] = useState('');
-  const [customerPhoneLast4, setCustomerPhoneLast4] = useState('');
-  const [customerInfoTouched, setCustomerInfoTouched] = useState(false);
-  const requiresCustomerInfo = Boolean(unitAllocation);
-  const customerFirstNameTrimmed = customerFirstName.trim();
-  const customerPhoneTrimmed = customerPhoneLast4.trim();
-  const customerInfoValid = (
-    !requiresCustomerInfo || (customerFirstNameTrimmed.length > 0 && /^\d{4}$/.test(customerPhoneTrimmed))
-  );
   const termsSatisfied = !item.termsActive || termsAccepted;
-  const confirmDisabled = busy || !termsSatisfied || !customerInfoValid;
+  const confirmDisabled = busy || !termsSatisfied;
   const selectedPriceLabel = formatAedCompact(unitAllocation?.priceAed ?? null);
 
   const extraPointsNeeded = insufficient ? requiredPoints - availablePoints : 0;
 
-  useEffect(() => {
-    setCustomerFirstName('');
-    setCustomerPhoneLast4('');
-    setCustomerInfoTouched(false);
-  }, [unitAllocation?.id, item.id]);
 
   const normaliseAmount = (value: number, min: number) => {
     if (!Number.isFinite(value) || value <= 0) return min;
@@ -1464,14 +1448,6 @@ function RedeemDialog({
     }
   }
 
-  const handleConfirm = () => {
-    setCustomerInfoTouched(true);
-    if (confirmDisabled) return;
-    onSubmit({
-      firstName: requiresCustomerInfo ? customerFirstNameTrimmed : null,
-      phoneLast4: requiresCustomerInfo ? customerPhoneTrimmed : null,
-    });
-  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-4 py-6 backdrop-blur-sm">
@@ -1609,54 +1585,10 @@ function RedeemDialog({
               </div>
             ) : null}
 
-            {requiresCustomerInfo ? (
-              <div className="space-y-3 rounded-[18px] border border-[#d1b7fb]/70 bg-[var(--color-panel)]/60 px-4 py-3 text-xs text-[var(--color-outer-space)]/80">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
-                  Buyer details
-                </p>
-                <p className="text-[11px] text-[var(--color-outer-space)]/60">
-                  We verify every reservation with Damac. Share your buyer’s first name and the last four digits of their phone.
-                </p>
-                <label className="block text-[11px] font-medium text-[var(--color-outer-space)]/70">
-                  First name
-                  <input
-                    type="text"
-                    value={customerFirstName}
-                    onChange={(event) => setCustomerFirstName(event.target.value)}
-                    onBlur={() => setCustomerInfoTouched(true)}
-                    className="mt-1 w-full rounded-[12px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                    placeholder="Jane"
-                    autoComplete="given-name"
-                  />
-                </label>
-                <label className="block text-[11px] font-medium text-[var(--color-outer-space)]/70">
-                  Last 4 digits of phone number
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="\\d*"
-                    value={customerPhoneLast4}
-                    onChange={(event) => {
-                      const next = event.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-                      setCustomerPhoneLast4(next);
-                    }}
-                    onBlur={() => setCustomerInfoTouched(true)}
-                    className="mt-1 w-full rounded-[12px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                    placeholder="1234"
-                    autoComplete="off"
-                  />
-                </label>
-                {!customerInfoValid && customerInfoTouched ? (
-                  <p className="text-[11px] text-rose-500">
-                    Enter the guest’s first name and exactly four digits for the phone number.
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
-                onClick={handleConfirm}
+                onClick={onSubmit}
                 disabled={confirmDisabled}
                 className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
