@@ -71,6 +71,15 @@ const DAMAC_FIELDS = [
   'damac_verified_at',
 ] as const;
 
+const AIRTABLE_STRING_FORMAT_TIME_ZONE = process.env.AIRTABLE_TIMEZONE ?? 'Etc/UTC';
+const AIRTABLE_STRING_FORMAT_LOCALE = process.env.AIRTABLE_LOCALE ?? 'en';
+
+function applyStringCellFormatParams(params: URLSearchParams): void {
+  params.set('cellFormat', 'string');
+  if (!params.has('timeZone')) params.set('timeZone', AIRTABLE_STRING_FORMAT_TIME_ZONE);
+  if (!params.has('userLocale')) params.set('userLocale', AIRTABLE_STRING_FORMAT_LOCALE);
+}
+
 function parseBoolean(value: unknown): boolean {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
@@ -110,7 +119,7 @@ async function fetchRedemptionRecords(params: URLSearchParams): Promise<Airtable
   for (const field of DAMAC_FIELDS) {
     params.append('fields[]', field);
   }
-  params.set('cellFormat', 'string');
+  applyStringCellFormatParams(params);
 
   const res = await scheduleAirtableRequest(() =>
     fetch(`${urlBase}?${params.toString()}`, {
@@ -151,7 +160,7 @@ export async function fetchDamacRedemptionById(id: string): Promise<DamacRedempt
   for (const field of DAMAC_FIELDS) {
     params.append('fields[]', field);
   }
-  params.set('cellFormat', 'string');
+  applyStringCellFormatParams(params);
 
   const res = await scheduleAirtableRequest(() =>
     fetch(`${url}?${params.toString()}`, {
