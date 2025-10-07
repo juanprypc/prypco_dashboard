@@ -5,16 +5,17 @@ const BASIC_AUTH_REALM = 'Restricted Area';
 const BASIC_AUTH_USERNAME = (process.env.BASIC_AUTH_USERNAME || 'admin').trim();
 const BASIC_AUTH_PASSWORD = (process.env.BASIC_AUTH_PASSWORD || 'xuhhin-keXpiz-0mipbi').trim();
 
-function isPublicPath(pathname: string): boolean {
-  if (pathname.startsWith('/_next/')) return true;
-  if (pathname === '/favicon.ico' || pathname === '/robots.txt') return true;
-  if (/\.[^/]+$/.test(pathname)) return true;
+function requiresAuth(pathname: string): boolean {
+  if (pathname === '/damac') return true;
+  if (pathname.startsWith('/damac/')) return true;
+  if (pathname === '/api/damac') return true;
+  if (pathname.startsWith('/api/damac/')) return true;
   return false;
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (isPublicPath(pathname)) {
+  if (!requiresAuth(pathname)) {
     return NextResponse.next();
   }
 
@@ -45,5 +46,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/:path*'],
+  matcher: ['/damac', '/damac/:path*', '/api/damac', '/api/damac/:path*'],
 };
