@@ -19,6 +19,8 @@ export async function POST(request: Request) {
       unitAllocationId?: string | null;
       unitAllocationLabel?: string | null;
       unitAllocationPoints?: number | null;
+      customerFirstName?: string | null;
+      customerPhoneLast4?: string | null;
     };
 
     if (!body?.agentId && !body?.agentCode) {
@@ -46,6 +48,14 @@ export async function POST(request: Request) {
       unitAllocationPoints:
         typeof body.unitAllocationPoints === 'number' && Number.isFinite(body.unitAllocationPoints)
           ? body.unitAllocationPoints
+          : null,
+      customerFirstName:
+        typeof body.customerFirstName === 'string' && body.customerFirstName.trim()
+          ? body.customerFirstName.trim()
+          : null,
+      customerPhoneLast4:
+        typeof body.customerPhoneLast4 === 'string' && body.customerPhoneLast4.trim()
+          ? body.customerPhoneLast4.trim()
           : null,
       requestedAt: new Date().toISOString(),
     };
