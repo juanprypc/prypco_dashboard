@@ -4,8 +4,6 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 
 const initialState = {
   code: '',
-  buyerFirstName: '',
-  buyerPhoneLast4: '',
 };
 
 type RedemptionRecord = {
@@ -30,7 +28,7 @@ type ApiLookupResponse = { record: RedemptionRecord };
 type ApiConfirmResponse = { record: RedemptionRecord };
 
 export default function DamacOperationsPage() {
-  const [form, setForm] = useState(initialState);
+  const [code, setCode] = useState(initialState.code);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [record, setRecord] = useState<RedemptionRecord | null>(null);
@@ -41,7 +39,7 @@ export default function DamacOperationsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const reset = useCallback(() => {
-    setForm(initialState);
+    setCode(initialState.code);
     setRecord(null);
     setOperatorName('');
     setNote('');
@@ -55,20 +53,16 @@ export default function DamacOperationsPage() {
     setConfirmError(null);
     setSuccessMessage(null);
     setRecord(null);
-    const code = form.code.trim();
-    const firstName = form.buyerFirstName.trim();
-    const phone = form.buyerPhoneLast4.trim();
-    if (!code || !firstName || !/^\d{4}$/.test(phone)) {
-      setLookupError('Enter the code, buyer first name, and the last four digits of their phone number.');
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      setLookupError('Enter the unit allocation code.');
       return;
     }
 
     startTransition(async () => {
       try {
         const params = new URLSearchParams({
-          code,
-          firstName,
-          phoneLast4: phone,
+          code: trimmedCode,
         });
         const res = await fetch(`/api/damac/redemption?${params.toString()}`, { cache: 'no-store' });
         if (!res.ok) {
@@ -83,7 +77,7 @@ export default function DamacOperationsPage() {
         setLookupError(message);
       }
     });
-  }, [form]);
+  }, [code]);
 
   const confirmDisabled = useMemo(() => {
     if (!record) return true;
@@ -141,41 +135,14 @@ export default function DamacOperationsPage() {
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <label className="flex flex-col text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)]/70">
-              Code
+            <label className="sm:col-span-2 flex flex-col text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)]/70">
+              Redemption code
               <input
                 type="text"
-                value={form.code}
-                onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
                 className="mt-2 rounded-[16px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-3 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
                 placeholder="PRY-XXXX"
-                autoComplete="off"
-              />
-            </label>
-            <label className="flex flex-col text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)]/70">
-              Buyer first name
-              <input
-                type="text"
-                value={form.buyerFirstName}
-                onChange={(event) => setForm((prev) => ({ ...prev, buyerFirstName: event.target.value }))}
-                className="mt-2 rounded-[16px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-3 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                placeholder="Jane"
-                autoComplete="off"
-              />
-            </label>
-            <label className="flex flex-col text-xs font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)]/70">
-              Phone last 4 digits
-              <input
-                type="tel"
-                inputMode="numeric"
-                pattern="\d*"
-                value={form.buyerPhoneLast4}
-                onChange={(event) => {
-                  const next = event.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-                  setForm((prev) => ({ ...prev, buyerPhoneLast4: next }));
-                }}
-                className="mt-2 rounded-[16px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-3 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                placeholder="1234"
                 autoComplete="off"
               />
             </label>
