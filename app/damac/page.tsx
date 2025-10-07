@@ -19,6 +19,8 @@ type RedemptionRecord = {
   redeemed: boolean;
   createdTime: string;
   updatedTime: string | null;
+  verifiedBy: string | null;
+  verifiedNote: string | null;
 };
 
 type ApiError = { error: string; code?: string };

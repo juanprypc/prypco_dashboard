@@ -42,6 +42,8 @@ type DamacRawFields = Record<string, unknown> & {
   loyalty_unit_allocation?: string;
   damac_island_unit_allocation_redeemed?: boolean | string;
   damac_verified_at?: string;
+  damac_verified_by?: string;
+  damac_verified_note?: string;
 };
 
 export type DamacRedemptionRecord = {
@@ -57,6 +59,8 @@ export type DamacRedemptionRecord = {
   redeemed: boolean;
   createdTime: string;
   updatedTime: string | null;
+  verifiedBy: string | null;
+  verifiedNote: string | null;
 };
 
 const DAMAC_FIELDS = [
@@ -69,6 +73,8 @@ const DAMAC_FIELDS = [
   'loyalty_unit_allocation',
   'damac_island_unit_allocation_redeemed',
   'damac_verified_at',
+  'damac_verified_by',
+  'damac_verified_note',
 ] as const;
 
 const AIRTABLE_STRING_FORMAT_TIME_ZONE = process.env.AIRTABLE_TIMEZONE ?? 'Etc/UTC';
@@ -107,6 +113,8 @@ function mapRecord(
     redeemed: parseBoolean(fields.damac_island_unit_allocation_redeemed),
     createdTime: record.createdTime,
     updatedTime: toMaybeString(fields.damac_verified_at) ?? null,
+    verifiedBy: toMaybeString(fields.damac_verified_by) ?? null,
+    verifiedNote: toMaybeString(fields.damac_verified_note) ?? null,
   };
 }
 
