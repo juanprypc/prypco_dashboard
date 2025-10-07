@@ -1612,10 +1612,10 @@ function RedeemDialog({
             {requiresCustomerInfo ? (
               <div className="space-y-3 rounded-[18px] border border-[#d1b7fb]/70 bg-[var(--color-panel)]/60 px-4 py-3 text-xs text-[var(--color-outer-space)]/80">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
-                  Guest details
+                  Buyer details
                 </p>
                 <p className="text-[11px] text-[var(--color-outer-space)]/60">
-                  We’ll verify each reservation. Share the guest’s first name and the last four digits of their phone.
+                  We verify every reservation with Damac. Share your buyer’s first name and the last four digits of their phone.
                 </p>
                 <label className="block text-[11px] font-medium text-[var(--color-outer-space)]/70">
                   First name
