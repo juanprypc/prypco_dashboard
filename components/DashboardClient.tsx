@@ -1015,7 +1015,7 @@ export function DashboardClient({
           baseQuery={baseQuery}
           termsAccepted={hasAcceptedTerms(redeemItem)}
           onShowTerms={handleShowTerms}
-          onSubmit={async () => {
+          onSubmit={async ({ customerFirstName, customerPhoneLast4 }) => {
             if (!redeemItem) return;
             setRedeemStatus('submitting');
             setRedeemMessage(null);
@@ -1040,6 +1040,8 @@ export function DashboardClient({
                   unitAllocationId: allocation?.id ?? null,
                   unitAllocationLabel: allocation?.unitType ?? null,
                   unitAllocationPoints: typeof allocation?.points === 'number' ? allocation.points : null,
+                  customerFirstName,
+                  customerPhoneLast4,
                 }),
               });
               if (!res.ok) {
@@ -1363,7 +1365,7 @@ type RedeemDialogProps = {
   agentId?: string | null;
   agentCode?: string | null;
   baseQuery?: string;
-  onSubmit: () => void;
+  onSubmit: (details: { customerFirstName: string; customerPhoneLast4: string }) => void;
   onClose: () => void;
   onShowTerms?: (item: CatalogueDisplayItem) => void;
   termsAccepted?: boolean;
@@ -1385,6 +1387,10 @@ function RedeemDialog({
   onShowTerms,
   termsAccepted = true,
 }: RedeemDialogProps) {
+  const [customerFirstName, setCustomerFirstName] = useState('');
+  const [customerPhoneLast4, setCustomerPhoneLast4] = useState('');
+  const [firstNameTouched, setFirstNameTouched] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const rawRequiredPoints =
     typeof unitAllocation?.points === 'number'
       ? unitAllocation.points
@@ -1399,7 +1405,11 @@ function RedeemDialog({
   const [topupBusy, setTopupBusy] = useState(false);
   const [topupError, setTopupError] = useState<string | null>(null);
   const termsSatisfied = !item.termsActive || termsAccepted;
-  const confirmDisabled = busy || !termsSatisfied;
+  const trimmedFirstName = customerFirstName.trim();
+  const trimmedPhone = customerPhoneLast4.trim();
+  const firstNameValid = trimmedFirstName.length > 0;
+  const phoneValid = /^\d{4}$/.test(trimmedPhone);
+  const confirmDisabled = busy || !termsSatisfied || !firstNameValid || !phoneValid;
   const selectedPriceLabel = formatAedCompact(unitAllocation?.priceAed ?? null);
 
   const extraPointsNeeded = insufficient ? requiredPoints - availablePoints : 0;
@@ -1447,6 +1457,13 @@ function RedeemDialog({
       setTopupBusy(false);
     }
   }
+
+  useEffect(() => {
+    setCustomerFirstName('');
+    setCustomerPhoneLast4('');
+    setFirstNameTouched(false);
+    setPhoneTouched(false);
+  }, [item.id, unitAllocation?.id]);
 
 
   return (
@@ -1563,6 +1580,53 @@ function RedeemDialog({
               </p>
             )}
 
+            <div className="space-y-3 rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
+                Buyer verification
+              </p>
+              <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
+                Buyer first name
+                <input
+                  type="text"
+                  value={customerFirstName}
+                  onChange={(event) => setCustomerFirstName(event.target.value)}
+                  onBlur={() => setFirstNameTouched(true)}
+                  className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
+                  placeholder="Customer first name"
+                  autoComplete="off"
+                />
+              </label>
+              {firstNameTouched && !firstNameValid ? (
+                <p className="text-[11px] text-rose-500">Enter the customer’s first name.</p>
+              ) : null}
+              <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
+                Buyer phone · last 4 digits
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\\d*"
+                  maxLength={4}
+                  value={customerPhoneLast4}
+                  onChange={(event) => {
+                    const digits = event.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                    setCustomerPhoneLast4(digits);
+                  }}
+                  onBlur={() => setPhoneTouched(true)}
+                  className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
+                  placeholder="1234"
+                  autoComplete="off"
+                />
+              </label>
+              {phoneTouched && !phoneValid ? (
+                <p className="text-[11px] text-rose-500">Enter the last four digits from the buyer’s phone number.</p>
+              ) : null}
+              {!firstNameValid || !phoneValid ? (
+                <p className="text-[11px] text-[var(--color-outer-space)]/60">
+                  We’ll store these details with the redemption so the RM team can verify the unit allocation.
+                </p>
+              ) : null}
+            </div>
+
             {item.termsActive ? (
               <div className="rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3 text-xs text-[var(--color-outer-space)]/80">
                 <div className="flex items-center justify-between gap-2">
@@ -1588,7 +1652,13 @@ function RedeemDialog({
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
-                onClick={onSubmit}
+                type="button"
+                onClick={() =>
+                  onSubmit({
+                    customerFirstName: trimmedFirstName,
+                    customerPhoneLast4: trimmedPhone,
+                  })
+                }
                 disabled={confirmDisabled}
                 className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >

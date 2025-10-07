@@ -19,6 +19,8 @@ export async function POST(request: Request) {
       unitAllocationId?: string | null;
       unitAllocationLabel?: string | null;
       unitAllocationPoints?: number | null;
+      customerFirstName?: string;
+      customerPhoneLast4?: string;
     };
 
     if (!body?.agentId && !body?.agentCode) {
@@ -27,6 +29,17 @@ export async function POST(request: Request) {
 
     if (!body?.rewardId) {
       return NextResponse.json({ error: 'Missing reward identifier' }, { status: 400 });
+    }
+
+    const customerFirstName = typeof body?.customerFirstName === 'string' ? body.customerFirstName.trim() : '';
+    const customerPhoneLast4 = typeof body?.customerPhoneLast4 === 'string' ? body.customerPhoneLast4.trim() : '';
+
+    if (!customerFirstName) {
+      return NextResponse.json({ error: 'Buyer first name is required' }, { status: 400 });
+    }
+
+    if (!/^\d{4}$/.test(customerPhoneLast4)) {
+      return NextResponse.json({ error: 'Buyer phone last four digits are invalid' }, { status: 400 });
     }
 
     const payload = {
@@ -47,6 +60,8 @@ export async function POST(request: Request) {
         typeof body.unitAllocationPoints === 'number' && Number.isFinite(body.unitAllocationPoints)
           ? body.unitAllocationPoints
           : null,
+      customerFirstName,
+      customerPhoneLast4,
       requestedAt: new Date().toISOString(),
     };
 
