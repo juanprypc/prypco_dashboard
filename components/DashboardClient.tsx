@@ -56,7 +56,6 @@ type CatalogueResponse = {
 };
 
 const MAX_RETRIES = 3;
-const TERMS_ACCEPTANCE_STORAGE_KEY = 'collect:terms-acceptance';
 
 const LEARN_FAQ_ITEMS: Array<{ question: string; answer: ReactNode }> = [
   {
@@ -232,47 +231,16 @@ export function DashboardClient({
   const [unitAllocationSelection, setUnitAllocationSelection] = useState<string | null>(null);
   const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState<Record<string, string>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const raw = window.localStorage.getItem(TERMS_ACCEPTANCE_STORAGE_KEY);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw) as unknown;
-      if (parsed && typeof parsed === 'object') {
-        return Object.entries(parsed as Record<string, unknown>).reduce(
-          (acc, [key, value]) => {
-            if (typeof value === 'string') acc[key] = value;
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
-      }
-    } catch {
-      /* ignore malformed storage */
-    }
-    return {};
-  });
+  const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
 
   const hasAcceptedTerms = useCallback(
     (item: CatalogueDisplayItem | null) => {
       if (!item || !item.termsActive) return true;
-      const signature = item.termsSignature ?? item.termsText ?? '';
-      if (!signature) return false;
-      return acceptedTerms[item.id] === signature;
+      return item.id === termsAcceptedItemId;
     },
-    [acceptedTerms],
+    [termsAcceptedItemId],
   );
-
-  const rememberTermsAcceptance = useCallback((item: CatalogueDisplayItem) => {
-    if (!item.termsActive) return;
-    const signature = item.termsSignature ?? item.termsText ?? '';
-    if (!signature) return;
-    setAcceptedTerms((prev) => {
-      if (prev[item.id] === signature) return prev;
-      return { ...prev, [item.id]: signature };
-    });
-  }, [setAcceptedTerms]);
 
   const beginRedeem = useCallback(
     (item: CatalogueDisplayItem, allocation: CatalogueUnitAllocation | null) => {
@@ -316,7 +284,8 @@ export function DashboardClient({
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
-      if (item.termsActive && !hasAcceptedTerms(item)) {
+      if (item.termsActive) {
+        setTermsAcceptedItemId(null);
         setPendingRedeemItem(item);
         setTermsDialogItem(item);
         setTermsDialogMode('redeem');
@@ -324,7 +293,7 @@ export function DashboardClient({
       }
       startRedeemFlow(item);
     },
-    [hasAcceptedTerms, startRedeemFlow],
+    [startRedeemFlow],
   );
 
   const handleShowTerms = useCallback((item: CatalogueDisplayItem) => {
@@ -335,7 +304,7 @@ export function DashboardClient({
 
   const handleTermsAccept = useCallback(
     (item: CatalogueDisplayItem) => {
-      rememberTermsAcceptance(item);
+      setTermsAcceptedItemId(item.id);
       if (termsDialogMode === 'redeem') {
         const target = pendingRedeemItem ?? item;
         setTermsDialogItem(null);
@@ -348,7 +317,7 @@ export function DashboardClient({
         setPendingRedeemItem(null);
       }
     },
-    [rememberTermsAcceptance, termsDialogMode, pendingRedeemItem, startRedeemFlow],
+    [pendingRedeemItem, startRedeemFlow, termsDialogMode],
   );
 
   const handleTermsClose = useCallback(() => {
@@ -357,14 +326,6 @@ export function DashboardClient({
     setPendingRedeemItem(null);
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(TERMS_ACCEPTANCE_STORAGE_KEY, JSON.stringify(acceptedTerms));
-    } catch {
-      /* storage might be unavailable */
-    }
-  }, [acceptedTerms]);
   const isMountedRef = useRef(true);
   const currentTab: 'dashboard' | 'store' | 'learn' =
     activeView === 'catalogue' ? 'store' : activeView === 'learn' ? 'learn' : 'dashboard';
@@ -1169,6 +1130,7 @@ export function DashboardClient({
             setRedeemStatus('idle');
             setRedeemMessage(null);
             setSelectedUnitAllocation(null);
+            setTermsAcceptedItemId(null);
           }}
         />
       ) : null}
