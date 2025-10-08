@@ -7,6 +7,8 @@ type AgentProfileRow = {
   display_name: string | null;
   investor_promo_code: string | null;
   investor_whatsapp_link: string | null;
+  p1_referral_link: string | null;
+  p1_whatsapp_link: string | null;
   updated_at: string | null;
   created_at: string | null;
 };
@@ -33,6 +35,8 @@ export type SupabaseAgentProfile = {
   displayName: string | null;
   investorPromoCode: string | null;
   investorWhatsappLink: string | null;
+  referralLink: string | null;
+  referralWhatsappLink: string | null;
   code: string | null;
   id: string;
 };
@@ -61,7 +65,9 @@ function normaliseCode(value: string): string {
 export async function fetchAgentProfileById(id: string): Promise<SupabaseAgentProfile | null> {
   const { data, error } = await supabase
     .from('agent_profiles')
-    .select('id, code, display_name, investor_promo_code, investor_whatsapp_link, updated_at, created_at')
+    .select(
+      'id, code, display_name, investor_promo_code, investor_whatsapp_link, p1_referral_link, p1_whatsapp_link, updated_at, created_at',
+    )
     .eq('id', id)
     .limit(1)
     .maybeSingle();
@@ -75,7 +81,9 @@ export async function fetchAgentProfileByCode(code: string): Promise<SupabaseAge
   const trimmed = normaliseCode(code);
   const { data, error } = await supabase
     .from('agent_profiles')
-    .select('id, code, display_name, investor_promo_code, investor_whatsapp_link, updated_at, created_at')
+    .select(
+      'id, code, display_name, investor_promo_code, investor_whatsapp_link, p1_referral_link, p1_whatsapp_link, updated_at, created_at',
+    )
     .ilike('code', trimmed)
     .order('updated_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false, nullsFirst: false })
@@ -94,6 +102,8 @@ function mapAgentProfileRow(row: AgentProfileRow): SupabaseAgentProfile {
     displayName: row.display_name,
     investorPromoCode: row.investor_promo_code,
     investorWhatsappLink: row.investor_whatsapp_link,
+    referralLink: row.p1_referral_link,
+    referralWhatsappLink: row.p1_whatsapp_link,
   };
 }
 

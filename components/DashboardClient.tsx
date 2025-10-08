@@ -33,6 +33,8 @@ type LedgerResponse = {
   displayName?: string | null;
   investorPromoCode?: string | null;
   investorWhatsappLink?: string | null;
+  agentReferralLink?: string | null;
+  agentReferralWhatsappLink?: string | null;
 };
 
 type CatalogueResponseItem = {
@@ -55,6 +57,62 @@ type CatalogueResponse = {
 
 const MAX_RETRIES = 3;
 const TERMS_ACCEPTANCE_STORAGE_KEY = 'collect:terms-acceptance';
+
+const LEARN_FAQ_ITEMS: Array<{ question: string; answer: ReactNode }> = [
+  {
+    question: 'Can I buy points, or do I only earn them through the app?',
+    answer: (
+      <p>
+        Yes, you can both earn points through the app and buy extra points. You can top up your balance anytime in the Collect
+        Dashboard.
+      </p>
+    ),
+  },
+  {
+    question: 'Do my points expire?',
+    answer: (
+      <p>
+        Yes. Points expire 1 year after they are earned. For example, if you earn 6,000 points on 18 September 2025, they will
+        expire on 18 September 2026.
+      </p>
+    ),
+  },
+  {
+    question: 'How fast will I get my points after buying them?',
+    answer: <p>Purchased points are credited instantly and will appear directly in your dashboard.</p>,
+  },
+  {
+    question: 'Is there a limit to how many points I can buy?',
+    answer: (
+      <p>
+        Yes. The minimum purchase is AED 250 (500 points), and the maximum purchase is AED 500,000 (1,000,000 points).
+      </p>
+    ),
+  },
+  {
+    question: 'How do I earn points on transactions and referrals?',
+    answer: (
+      <div className="space-y-2">
+        <p>
+          <strong>Property Transactions:</strong> 3,000 points per AED 1M. Example: A AED 2.1M property transaction = 6,300
+          points (credited once the deal is closed).
+        </p>
+        <p>
+          <strong>Mortgage Referrals:</strong> 1,500 points per AED 1M. Example: A AED 3.3M mortgage = 4,950 points (credited once
+          the mortgage is disbursed).
+        </p>
+        <p>
+          <strong>Golden Visa Referrals (VIP/VVIP only):</strong> 1,500 points per successful case. Example: 2 Golden Visa referrals =
+          3,000 points.
+        </p>
+      </div>
+    ),
+  },
+  {
+    question: 'Can I track how many points I’ve earned?',
+    answer: <p>Yes. You can track and redeem your points directly from your Collect Dashboard on the PRYPCO One app.</p>,
+  },
+];
 
 function monthKey(dateIso: string): string {
   const d = new Date(dateIso);
@@ -154,6 +212,8 @@ export function DashboardClient({
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [investorPromoCodeState, setInvestorPromoCodeState] = useState<string | null>(null);
   const [investorWhatsappLinkState, setInvestorWhatsappLinkState] = useState<string | null>(null);
+  const [agentReferralLinkState, setAgentReferralLinkState] = useState<string | null>(null);
+  const [agentReferralWhatsappLinkState, setAgentReferralWhatsappLinkState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryDelay, setRetryDelay] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -373,8 +433,15 @@ export function DashboardClient({
   }, []);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://collect.prypco.com';
-  const agentReferralLink = `${appUrl}/refer/agent`;
+  const agentReferralLinkTrimmed = agentReferralLinkState?.trim();
+  const agentReferralLink = agentReferralLinkTrimmed && agentReferralLinkTrimmed.length > 0
+    ? agentReferralLinkTrimmed
+    : `${appUrl}/refer/agent`;
   const agentReferralDisplay = agentReferralLink.replace(/^https?:\/\//, '');
+  const agentReferralWhatsappHrefTrimmed = agentReferralWhatsappLinkState?.trim();
+  const agentReferralWhatsappHref = agentReferralWhatsappHrefTrimmed && agentReferralWhatsappHrefTrimmed.length > 0
+    ? agentReferralWhatsappHrefTrimmed
+    : null;
   const fallbackInvestorPromoCode = 'COLLECT2025';
   const fallbackInvestorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent(
     'Hi! I would like to chat about the Prypco investor programme.'
@@ -389,18 +456,23 @@ export function DashboardClient({
   }, []);
 
   const shareAgentReferral = useCallback(async () => {
-    if (!agentReferralLink) return;
-    const shareText = `Join me on Prypco One — use my link: ${agentReferralLink}`;
+    const link = agentReferralLink;
+    if (!link) return;
+    const shareText = `Join me on Prypco One — use my link: ${link}`;
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ title: 'Prypco One', text: shareText, url: agentReferralLink });
+        await navigator.share({ title: 'Prypco One', text: shareText, url: link });
         return;
       }
     } catch {
       /* ignore share errors and fall back to copy */
     }
-    await copyToClipboard(agentReferralLink);
-  }, [agentReferralLink, copyToClipboard]);
+    if (agentReferralWhatsappHref) {
+      openWhatsapp(agentReferralWhatsappHref);
+      return;
+    }
+    await copyToClipboard(link);
+  }, [agentReferralLink, agentReferralWhatsappHref, copyToClipboard, openWhatsapp]);
 
   useEffect(() => {
     if (!topupVisible && topupMounted) {
@@ -707,7 +779,7 @@ export function DashboardClient({
       description="Invite a colleague to Prypco One and earn bonus points."
       primaryLabel="Share referral link"
       onPrimaryClick={shareAgentReferral}
-      codeValue={agentReferralDisplay}
+      codeValue={agentReferralDisplay || undefined}
       codeCopySuccessLabel="Link copied!"
       onCodeCopy={() => copyToClipboard(agentReferralLink)}
     />,
@@ -764,6 +836,32 @@ export function DashboardClient({
               sizes="(max-width: 768px) 90vw, (max-width: 1200px) 80vw, 1024px"
               priority
             />
+          </div>
+        </section>
+
+        <section className="view-transition">
+          <div className="mx-auto w-full max-w-5xl space-y-6 rounded-[32px] border border-[#d1b7fb]/70 bg-white/90 px-5 py-8 shadow-[0_20px_55px_-45px_rgba(13,9,59,0.35)] sm:px-10 sm:py-10">
+            <div className="space-y-2 text-left sm:text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-outer-space)]/60">
+                Common questions
+              </p>
+              <h2 className="text-[26px] font-semibold leading-snug sm:text-[38px]">
+                Everything you need to know about Collect points
+              </h2>
+            </div>
+            <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-6">
+              {LEARN_FAQ_ITEMS.map((item) => (
+                <article
+                  key={item.question}
+                  className="flex h-full flex-col gap-2 rounded-[22px] border border-[var(--color-electric-purple)]/20 bg-white px-4 py-4 text-left text-[var(--color-outer-space)] sm:gap-3 sm:px-5 sm:py-5"
+                >
+                  <h3 className="text-sm font-medium leading-snug sm:text-[15px]">{item.question}</h3>
+                  <div className="text-sm leading-relaxed text-[var(--color-outer-space)]/70 sm:text-[15px]">
+                    {item.answer}
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
       </div>
@@ -930,6 +1028,8 @@ export function DashboardClient({
               setDisplayName(null);
               setInvestorPromoCodeState(null);
               setInvestorWhatsappLinkState(null);
+              setAgentReferralLinkState(null);
+              setAgentReferralWhatsappLinkState(null);
               router.refresh();
             }}
             className="mt-4 rounded-md border border-rose-400 px-4 py-2 text-xs font-semibold uppercase tracking-wide"

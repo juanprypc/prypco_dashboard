@@ -25,6 +25,8 @@ type CachedBody = {
   displayName?: string | null;
   investorPromoCode?: string | null;
   investorWhatsappLink?: string | null;
+  agentReferralLink?: string | null;
+  agentReferralWhatsappLink?: string | null;
   monthlySummary?: LoyaltyMonthlySummary[];
   totals?: LoyaltyTotals;
   summaryGeneratedAt?: string;
@@ -80,14 +82,24 @@ export async function GET(req: Request) {
     let displayName = agentProfile?.displayName ?? null;
     let investorPromoCode = agentProfile?.investorPromoCode ?? null;
     let investorWhatsappLink = agentProfile?.investorWhatsappLink ?? null;
+    let agentReferralLink = agentProfile?.referralLink ?? null;
+    let agentReferralWhatsappLink = agentProfile?.referralWhatsappLink ?? null;
     let profileByCode: SupabaseAgentProfile | null = null;
 
-    if ((!displayName || !investorPromoCode || !investorWhatsappLink) && agentCode) {
+    if ((
+      !displayName ||
+      !investorPromoCode ||
+      !investorWhatsappLink ||
+      !agentReferralLink ||
+      !agentReferralWhatsappLink
+    ) && agentCode) {
       profileByCode = await fetchSupabaseAgentProfileByCode(agentCode).catch(() => null);
       if (profileByCode) {
         displayName = displayName ?? profileByCode.displayName ?? profileByCode.code ?? null;
         investorPromoCode = investorPromoCode ?? profileByCode.investorPromoCode ?? null;
         investorWhatsappLink = investorWhatsappLink ?? profileByCode.investorWhatsappLink ?? null;
+        agentReferralLink = agentReferralLink ?? profileByCode.referralLink ?? null;
+        agentReferralWhatsappLink = agentReferralWhatsappLink ?? profileByCode.referralWhatsappLink ?? null;
       }
     }
 
@@ -134,6 +146,8 @@ export async function GET(req: Request) {
         displayName?: string | null;
         investorPromoCode?: string | null;
         investorWhatsappLink?: string | null;
+        agentReferralLink?: string | null;
+        agentReferralWhatsappLink?: string | null;
         monthlySummary?: LoyaltyMonthlySummary[];
         totals?: LoyaltyTotals;
         summaryGeneratedAt?: string;
@@ -146,6 +160,8 @@ export async function GET(req: Request) {
         displayName,
         investorPromoCode,
         investorWhatsappLink,
+        agentReferralLink,
+        agentReferralWhatsappLink,
         monthlySummary,
         totals,
         summaryGeneratedAt,
@@ -159,6 +175,8 @@ export async function GET(req: Request) {
       displayName,
       investorPromoCode,
       investorWhatsappLink,
+      agentReferralLink,
+      agentReferralWhatsappLink,
       monthlySummary,
       totals,
       summaryGeneratedAt,
