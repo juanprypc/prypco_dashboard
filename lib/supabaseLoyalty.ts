@@ -7,8 +7,8 @@ type AgentProfileRow = {
   display_name: string | null;
   investor_promo_code: string | null;
   investor_whatsapp_link: string | null;
-  p1_referral_link: string | null;
-  p1_whatsapp_link: string | null;
+  'P1_referral_Link'?: string | null;
+  'P1_whatsapp_link'?: string | null;
   updated_at: string | null;
   created_at: string | null;
 };
@@ -66,7 +66,7 @@ export async function fetchAgentProfileById(id: string): Promise<SupabaseAgentPr
   const { data, error } = await supabase
     .from('agent_profiles')
     .select(
-      'id, code, display_name, investor_promo_code, investor_whatsapp_link, p1_referral_link, p1_whatsapp_link, updated_at, created_at',
+      'id, code, display_name, investor_promo_code, investor_whatsapp_link, "P1_referral_Link", "P1_whatsapp_link", updated_at, created_at',
     )
     .eq('id', id)
     .limit(1)
@@ -82,7 +82,7 @@ export async function fetchAgentProfileByCode(code: string): Promise<SupabaseAge
   const { data, error } = await supabase
     .from('agent_profiles')
     .select(
-      'id, code, display_name, investor_promo_code, investor_whatsapp_link, p1_referral_link, p1_whatsapp_link, updated_at, created_at',
+      'id, code, display_name, investor_promo_code, investor_whatsapp_link, "P1_referral_Link", "P1_whatsapp_link", updated_at, created_at',
     )
     .ilike('code', trimmed)
     .order('updated_at', { ascending: false, nullsFirst: false })
@@ -96,15 +96,25 @@ export async function fetchAgentProfileByCode(code: string): Promise<SupabaseAge
 }
 
 function mapAgentProfileRow(row: AgentProfileRow): SupabaseAgentProfile {
+  const extendedRow = row as AgentProfileRow & {
+    p1_referral_link?: string | null;
+    p1_whatsapp_link?: string | null;
+  };
   return {
     id: row.id,
     code: row.code,
     displayName: row.display_name,
     investorPromoCode: row.investor_promo_code,
     investorWhatsappLink: row.investor_whatsapp_link,
-    referralLink: row.p1_referral_link,
-    referralWhatsappLink: row.p1_whatsapp_link,
+    referralLink: normaliseNullableUrl(row['P1_referral_Link'] ?? extendedRow.p1_referral_link),
+    referralWhatsappLink: normaliseNullableUrl(row['P1_whatsapp_link'] ?? extendedRow.p1_whatsapp_link),
   };
+}
+
+function normaliseNullableUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
 }
 
 type FetchLoyaltyOptions = {

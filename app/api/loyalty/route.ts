@@ -33,9 +33,10 @@ type CachedBody = {
 };
 
 const DEFAULT_TTL_SECONDS = Number(process.env.LOYALTY_CACHE_TTL ?? 60);
+const CACHE_VERSION = 'v2';
 
 function cacheKeyFor(agentId?: string, agentCode?: string): string {
-  return `loyalty:${agentId ?? ''}:${agentCode ?? ''}`;
+  return `loyalty:${CACHE_VERSION}:${agentId ?? ''}:${agentCode ?? ''}`;
 }
 
 const kv = getKvClient();
@@ -79,11 +80,17 @@ export async function GET(req: Request) {
 
     const agentProfile = agentId ? await fetchSupabaseAgentProfileById(agentId).catch(() => null) : null;
 
-    let displayName = agentProfile?.displayName ?? null;
-    let investorPromoCode = agentProfile?.investorPromoCode ?? null;
-    let investorWhatsappLink = agentProfile?.investorWhatsappLink ?? null;
-    let agentReferralLink = agentProfile?.referralLink ?? null;
-    let agentReferralWhatsappLink = agentProfile?.referralWhatsappLink ?? null;
+    const clean = (value?: string | null): string | null => {
+      if (!value) return null;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    };
+
+    let displayName = clean(agentProfile?.displayName);
+    let investorPromoCode = clean(agentProfile?.investorPromoCode);
+    let investorWhatsappLink = clean(agentProfile?.investorWhatsappLink);
+    let agentReferralLink = clean(agentProfile?.referralLink);
+    let agentReferralWhatsappLink = clean(agentProfile?.referralWhatsappLink);
     let profileByCode: SupabaseAgentProfile | null = null;
 
     if ((
@@ -95,11 +102,11 @@ export async function GET(req: Request) {
     ) && agentCode) {
       profileByCode = await fetchSupabaseAgentProfileByCode(agentCode).catch(() => null);
       if (profileByCode) {
-        displayName = displayName ?? profileByCode.displayName ?? profileByCode.code ?? null;
-        investorPromoCode = investorPromoCode ?? profileByCode.investorPromoCode ?? null;
-        investorWhatsappLink = investorWhatsappLink ?? profileByCode.investorWhatsappLink ?? null;
-        agentReferralLink = agentReferralLink ?? profileByCode.referralLink ?? null;
-        agentReferralWhatsappLink = agentReferralWhatsappLink ?? profileByCode.referralWhatsappLink ?? null;
+        displayName = displayName ?? clean(profileByCode.displayName ?? profileByCode.code);
+        investorPromoCode = investorPromoCode ?? clean(profileByCode.investorPromoCode);
+        investorWhatsappLink = investorWhatsappLink ?? clean(profileByCode.investorWhatsappLink);
+        agentReferralLink = agentReferralLink ?? clean(profileByCode.referralLink);
+        agentReferralWhatsappLink = agentReferralWhatsappLink ?? clean(profileByCode.referralWhatsappLink);
       }
     }
 

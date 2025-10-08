@@ -638,10 +638,18 @@ export function DashboardClient({
 
         const ledgerJson = (await ledgerRes.json()) as LedgerResponse;
         if (cancelled) return;
+        const clean = (value: unknown): string | null => {
+          if (typeof value !== 'string') return null;
+          const trimmed = value.trim();
+          return trimmed.length ? trimmed : null;
+        };
+
         setRows(ledgerJson.records);
-        setDisplayName(ledgerJson.displayName ?? null);
-        setInvestorPromoCodeState(ledgerJson.investorPromoCode ?? null);
-        setInvestorWhatsappLinkState(ledgerJson.investorWhatsappLink ?? null);
+        setDisplayName(clean(ledgerJson.displayName) ?? null);
+        setInvestorPromoCodeState(clean(ledgerJson.investorPromoCode));
+        setInvestorWhatsappLinkState(clean(ledgerJson.investorWhatsappLink));
+        setAgentReferralLinkState(clean(ledgerJson.agentReferralLink));
+        setAgentReferralWhatsappLinkState(clean(ledgerJson.agentReferralWhatsappLink));
 
         setLastUpdated(new Date());
         setLoading(false);
