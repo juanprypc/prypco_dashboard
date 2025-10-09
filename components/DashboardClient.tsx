@@ -1301,7 +1301,9 @@ type TermsDialogProps = {
 
 function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogProps) {
   const requireAcceptance = item.termsActive && !accepted;
+  const requiresAgencyConfirmation = requiresDamacAgencyConfirmation(item);
   const [checked, setChecked] = useState(accepted);
+  const [agencyConfirmed, setAgencyConfirmed] = useState(() => accepted || !requiresAgencyConfirmation);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const titleId = `reward-terms-${item.id}`;
@@ -1309,6 +1311,10 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
   useEffect(() => {
     setChecked(accepted);
   }, [accepted, item.id]);
+
+  useEffect(() => {
+    setAgencyConfirmed(accepted || !requiresAgencyConfirmation);
+  }, [accepted, item.id, requiresAgencyConfirmation]);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -1337,7 +1343,7 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
     : [];
 
   const handleAccept = () => {
-    if (requireAcceptance && !checked) return;
+    if (requireAcceptance && (!checked || (requiresAgencyConfirmation && !agencyConfirmed))) return;
     onAccept(item);
   };
 
@@ -1385,15 +1391,28 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
         </div>
 
         {requireAcceptance ? (
-          <label className="mt-3 flex items-start gap-2 text-xs text-[var(--color-outer-space)]/80">
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={(event) => setChecked(event.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border border-[var(--color-outer-space)]/40"
-            />
-            <span>I’ve read and accept the terms.</span>
-          </label>
+          <div className="mt-3 space-y-2 text-xs text-[var(--color-outer-space)]/80">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => setChecked(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border border-[var(--color-outer-space)]/40"
+              />
+              <span>I’ve read and accept the terms.</span>
+            </label>
+            {requiresAgencyConfirmation ? (
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={agencyConfirmed}
+                  onChange={(event) => setAgencyConfirmed(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border border-[var(--color-outer-space)]/40"
+                />
+                <span>I confirm that my Agency is registered with DAMAC.</span>
+              </label>
+            ) : null}
+          </div>
         ) : (
           <p className="mt-3 text-[11px] text-[var(--color-outer-space)]/60">You have already accepted these terms.</p>
         )}
@@ -1412,7 +1431,7 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
               ref={confirmRef}
               type="button"
               onClick={handleAccept}
-              disabled={!checked}
+              disabled={!checked || (requiresAgencyConfirmation && !agencyConfirmed)}
               className="rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {mode === 'redeem' ? 'Accept & continue' : 'Accept terms'}
@@ -1422,6 +1441,23 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
       </div>
     </div>
   );
+}
+
+function requiresDamacAgencyConfirmation(item: CatalogueDisplayItem): boolean {
+  const parts: string[] = [];
+  if (item.name) parts.push(item.name);
+  if (typeof item.termsText === 'string') parts.push(item.termsText);
+  for (const allocation of item.unitAllocations ?? []) {
+    if (allocation?.unitType) parts.push(allocation.unitType);
+  }
+  const text = parts
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (!text) return false;
+  if (text.includes('damac island allocation')) return true;
+  if (text.includes('damac island')) return true;
+  return text.includes('damac') && text.includes('island');
 }
 
 type RedeemDialogProps = {
