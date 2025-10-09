@@ -7,6 +7,11 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 export const metadata: Metadata = {
   title: "Prypco Collect",
   description: "Track your points, redeem rewards, and explore Prypco Collect rewards.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 export default function RootLayout({
