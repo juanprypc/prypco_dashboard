@@ -86,6 +86,79 @@ Notes:
 2. In Stripe (test mode), create a Checkout webhook endpoint targeting your Airtable automation URL and subscribe to `checkout.session.completed` events.
 3. From the dashboard, agents can launch Checkout via the “Buy points” card. Metadata sent to Stripe includes `agentId`, `amountAED`, `pointsPerAED`, and `expectedPoints` so Airtable can post the ledger row when the webhook fires.
 
+### Receipt Generation API
+
+- **Endpoint:** `POST /api/receipts`
+- **Runtime:** Node.js (PDFKit)
+- **Auth:** Optional bearer token (`RECEIPT_WEBHOOK_SECRET`). When set, requests must include `Authorization: Bearer <secret>`.
+
+Send this payload from your Airtable automation once a top-up row is created:
+
+```json
+{
+  "agentCode": "AG12345",
+  "amount": 2500,
+  "points": 5000,
+  "paidAt": "2025-02-01T09:45:12Z",
+  "reference": "cs_live_123",
+  "memo": "Optional note to show on the receipt"
+}
+```
+
+Provide either `agentProfileId` (Supabase `agent_profiles.id`) or `agentCode`. `amount` and `points` are required. `paidAt` defaults to “now” when omitted. `reference` becomes the receipt number (a UUID is generated when missing). The endpoint looks up the agent in Supabase to populate the “Received from Ms./Mr.” line; you can optionally supply `agentName` in the payload to override that lookup.
+
+The response body contains a base64-encoded PDF and the resolved metadata:
+
+```json
+{
+  "ok": true,
+  "receipt": {
+    "filename": "receipt-cs_live_123.pdf",
+    "base64": "<PDF bytes>",
+    "receiptNumber": "cs_live_123",
+    "agentName": "Alex Agent",
+    "issuedAt": "2025-02-01T09:45:12.000Z",
+    "amount": 2500,
+    "points": 5000
+  }
+}
+```
+
+Example Airtable script snippet:
+
+```js
+const secret = 'REPLACE_WITH_RECEIPT_WEBHOOK_SECRET';
+const payload = {
+  agentCode: input.config().agentCode,
+  amount: input.config().amount,
+  points: input.config().points,
+  paidAt: input.config().paidAt,
+  reference: input.config().reference
+};
+
+const res = await fetch('https://your-deploy.vercel.app/api/receipts', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${secret}`
+  },
+  body: JSON.stringify(payload)
+});
+
+const json = await res.json();
+if (!res.ok || !json.ok) {
+  throw new Error(json.error || `Receipt API failed with ${res.status}`);
+}
+
+const { filename, base64 } = json.receipt;
+// Upload back to Airtable
+await table.updateRecordAsync(recordId, {
+  Receipt: [{ filename, data: base64, typecast: true }]
+});
+```
+
+The last `updateRecordAsync` call assumes your table has a single “Receipt” attachment field. Adjust the field name as needed.
+
 ## Getting Started
 
 First, run the development server:
