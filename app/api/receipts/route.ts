@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
-import PDFDocument from 'pdfkit';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const PDFDocument = require('pdfkit');
 import { fetchAgentProfileByCode, fetchAgentProfileById } from '@/lib/supabaseLoyalty';
 
 export const runtime = 'nodejs';
@@ -162,9 +164,9 @@ function renderReceiptPdf({
     const doc = new PDFDocument({ size: 'A4', margin: 56 });
     const chunks: Buffer[] = [];
 
-    doc.on('data', (chunk) => chunks.push(chunk as Buffer));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', (err) => reject(err));
+    doc.on('error', (err: unknown) => reject(err));
 
     const formattedDate = DATE_FORMATTER.format(issuedAt);
     const formattedAmount = CURRENCY_FORMATTER.format(amount);

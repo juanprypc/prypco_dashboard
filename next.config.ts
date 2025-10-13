@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   images: {
     domains: ['v5.airtableusercontent.com', 'dl.airtable.com'],
   },
+  serverExternalPackages: [
+    'pdfkit',
+    'fontkit',
+    'unicode-properties',
+    'linebreak',
+    'iconv-lite',
+  ],
   async headers() {
     return [
       {
