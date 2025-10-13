@@ -250,13 +250,14 @@ function renderReceiptPdf({
     const detailBoxX = pageWidth - margin - detailBoxWidth;
     const detailBoxY = headerY;
     doc.lineWidth(0.8).rect(detailBoxX, detailBoxY + 24, detailBoxWidth, 70).stroke('#d9d9d9');
-    doc.font('Helvetica-Bold').fontSize(10).text('Tax Reg No : 104936517200003', detailBoxX, detailBoxY, {
-      align: 'right',
-    });
-    doc.font('Helvetica-Bold').fontSize(11).text('Receipt No', detailBoxX + 12, detailBoxY + 36);
-    doc.font('Helvetica').fontSize(11).text(receiptNumber, detailBoxX + 12, detailBoxY + 52);
-    doc.font('Helvetica-Bold').fontSize(11).text('Receipt Date', detailBoxX + 12, detailBoxY + 70);
-    doc.font('Helvetica').fontSize(11).text(formattedDate, detailBoxX + 12, detailBoxY + 86);
+  doc.font('Helvetica-Bold').fontSize(10).text('Tax Reg No : 104936517200003', detailBoxX, detailBoxY, {
+    align: 'right',
+  });
+  const receiptCardTop = detailBoxY + 32;
+  doc.font('Helvetica-Bold').fontSize(11).text('Receipt No', detailBoxX + 12, receiptCardTop);
+  doc.font('Helvetica').fontSize(11).text(receiptNumber, detailBoxX + 12, receiptCardTop + 16);
+  doc.font('Helvetica-Bold').fontSize(11).text('Receipt Date', detailBoxX + 12, receiptCardTop + 34);
+  doc.font('Helvetica').fontSize(11).text(formattedDate, detailBoxX + 12, receiptCardTop + 50);
 
     // Separator line
     const separatorY = headerY + 110;
