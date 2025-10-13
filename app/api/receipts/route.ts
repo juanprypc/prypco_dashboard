@@ -288,8 +288,8 @@ async function syncReceiptToAirtable({
   base64,
   contentType,
 }: SyncReceiptArgs) {
-  const pat = process.env.AIRTABLE_PAT;
-  const resolvedBaseId = baseId || process.env.AIRTABLE_BASE_ID;
+  const pat = process.env.AIRTABLE_PAT || process.env.AIRTABLE_API_KEY;
+  const resolvedBaseId = baseId || process.env.AIRTABLE_BASE_ID || process.env.AIRTABLE_BASE;
   const resolvedTableId = tableId || process.env.AIRTABLE_RECEIPT_TABLE_ID || process.env.AIRTABLE_TABLE_ID;
   const resolvedFieldId =
     receiptFieldId ||

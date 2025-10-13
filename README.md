@@ -109,8 +109,8 @@ Provide either `agentProfileId` (Supabase `agent_profiles.id`) or `agentCode`. `
 
 By default the API uploads the generated PDF straight to Airtable using the following environment variables:
 
-- `AIRTABLE_PAT` – personal access token with write access to the base.
-- `AIRTABLE_BASE_ID` – Airtable base ID (e.g. `appfpvMsWzOFxl8ug`).
+- `AIRTABLE_API_KEY` (or `AIRTABLE_PAT`) – personal access token with write access to the base.
+- `AIRTABLE_BASE` (or `AIRTABLE_BASE_ID`) – Airtable base ID (e.g. `appfpvMsWzOFxl8ug`).
 - `AIRTABLE_RECEIPT_TABLE_ID` – table ID or name containing the ledger rows (defaults to `AIRTABLE_TABLE_ID`).
 - `AIRTABLE_RECEIPT_FIELD_ID` – attachment field ID (recommended).  
   Optionally set `AIRTABLE_RECEIPT_FIELD_NAME` if you prefer to update by field name.
@@ -137,7 +137,7 @@ The response payload still includes the PDF metadata (and base64) for convenienc
 Example Airtable script snippet:
 
 ```js
-const secret = 'REPLACE_WITH_RECEIPT_WEBHOOK_SECRET';
+const secret = 'REPLACE_WITH_RECEIPT_SECRET';
 const response = await fetch('https://your-deploy.vercel.app/api/receipts', {
   method: 'POST',
   headers: {
