@@ -92,7 +92,13 @@ export async function POST(request: Request) {
     };
     console.log('[receipts] Incoming request', debugContext);
 
-    if (!agentProfileId && !rawAgentCode) {
+    const agentCodeInput = Array.isArray(rawAgentCode)
+      ? rawAgentCode.find((value) => typeof value === 'string' && value.trim())
+      : typeof rawAgentCode === 'string'
+        ? rawAgentCode
+        : undefined;
+
+    if (!agentProfileId && !agentCodeInput) {
       console.error('[receipts] Missing agent identifier');
       return badRequest('agentProfileId or agentCode is required');
     }
@@ -125,15 +131,15 @@ export async function POST(request: Request) {
 
     try {
       let profile = agentProfileId ? await fetchAgentProfileById(agentProfileId) : null;
-      if (!profile && rawAgentCode) {
-        profile = await fetchAgentProfileByCode(rawAgentCode).catch(() => null);
+      if (!profile && agentCodeInput) {
+        profile = await fetchAgentProfileByCode(agentCodeInput).catch(() => null);
       }
 
       if (profile) {
         agentName ||= profile.displayName ?? null;
         agentCode = profile.code ?? null;
-      } else if (rawAgentCode) {
-        agentCode = rawAgentCode.trim();
+      } else if (agentCodeInput) {
+        agentCode = agentCodeInput.trim();
       }
     } catch {
       // fall back to provided values when Supabase lookup fails
@@ -323,6 +329,15 @@ async function syncReceiptToAirtable({
     throw new Error('Airtable integration is not configured (missing env vars).');
   }
 
+  console.log('[receipts] Airtable targets', {
+    recordId,
+    baseId: resolvedBaseId,
+    tableId: resolvedTableId,
+    receiptFieldId: resolvedFieldId,
+    receiptFieldName: resolvedFieldName,
+    replaceExisting,
+  });
+
   const upload = await uploadAttachmentToAirtable({
     pat,
     baseId: resolvedBaseId,
@@ -407,6 +422,16 @@ async function uploadAttachmentToAirtable({
     };
     if (keyType === 'fieldId') body.fieldId = field;
     else body.fieldName = field;
+
+    console.log('[receipts] Uploading attachment', {
+      baseId,
+      tableId,
+      recordId,
+      keyType,
+      field,
+      filename,
+      sizeBytes: Math.round((base64.length * 3) / 4),
+    });
 
     const resp = await fetch(url, {
       method: 'POST',
