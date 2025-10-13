@@ -125,7 +125,8 @@ export async function POST(request: Request) {
       }
     }
 
-    const receiptNumber = reference?.trim() || randomUUID();
+    const receiptNumberBase = reference?.trim() || randomUUID();
+    const receiptNumber = receiptNumberBase.length > 16 ? receiptNumberBase.slice(0, 8) + '-' + receiptNumberBase.slice(-4) : receiptNumberBase;
 
     let agentName = providedAgentName?.trim() || null;
     let agentCode: string | null = null;
