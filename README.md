@@ -107,13 +107,16 @@ Send this payload from your Airtable automation once a top-up row is created:
 
 Provide either `agentProfileId` (Supabase `agent_profiles.id`) or `agentCode`. `amount`, `points`, and `recordId` are required. `paidAt` defaults to “now” when omitted. `reference` becomes the receipt number (a UUID is generated when missing). The endpoint looks up the agent in Supabase to populate the “Received from Ms./Mr.” line; you can optionally supply `agentName` in the payload to override that lookup.
 
-By default the API uploads the generated PDF straight to Airtable using the following environment variables:
+By default the API uploads the generated PDF to Supabase Storage and then instructs Airtable to fetch it. Configure these variables:
 
 - `AIRTABLE_API_KEY` (or `AIRTABLE_PAT`) – personal access token with write access to the base.
 - `AIRTABLE_BASE` (or `AIRTABLE_BASE_ID`) – Airtable base ID (e.g. `appfpvMsWzOFxl8ug`).
 - `AIRTABLE_RECEIPT_TABLE_ID` – table ID or name containing the ledger rows (defaults to `AIRTABLE_TABLE_ID`).
 - `AIRTABLE_RECEIPT_FIELD_ID` – attachment field ID (recommended).  
   Optionally set `AIRTABLE_RECEIPT_FIELD_NAME` if you prefer to update by field name.
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` – already required for the rest of the project.
+- `SUPABASE_RECEIPTS_BUCKET` – private Supabase Storage bucket where PDFs are written (defaults to `receipts`).
+- `SUPABASE_SIGNED_URL_TTL_SECONDS` (optional) – lifetime of the signed download URL Airtable uses (defaults to 300 seconds).
 
 You can override any of these per request with `baseId`, `tableId`, `receiptFieldId`, `receiptFieldName`, or disable replacement by passing `replaceExisting: false`.
 
