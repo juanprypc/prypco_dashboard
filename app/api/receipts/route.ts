@@ -376,23 +376,28 @@ async function uploadAttachmentToAirtable({
   base64,
   contentType,
 }: UploadArgs) {
-  const tryUpload = async (field: string) => {
+  const tryUpload = async (field: string, keyType: 'fieldId' | 'fieldName') => {
     const url = `https://api.airtable.com/v0/bases/${encodeURIComponent(baseId)}/tables/${encodeURIComponent(
       tableId
-    )}/records/${encodeURIComponent(recordId)}/fields/${encodeURIComponent(field)}/attachments`;
+    )}/attachments`;
+    const body: Record<string, unknown> = {
+      recordId,
+      attachment: {
+        filename,
+        data: base64,
+        contentType,
+      },
+    };
+    if (keyType === 'fieldId') body.fieldId = field;
+    else body.fieldName = field;
+
     const resp = await fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${pat}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        attachment: {
-          filename,
-          data: base64,
-          contentType,
-        },
-      }),
+      body: JSON.stringify(body),
     });
     const json = (await resp.json().catch(() => ({}))) as {
       attachment?: { id?: string };
@@ -401,19 +406,22 @@ async function uploadAttachmentToAirtable({
     if (!resp.ok) {
       const message =
         json?.error?.message ||
-        (resp.status === 404
-          ? 'uploadAttachment endpoint not found for provided field identifier'
-          : `uploadAttachment failed with HTTP ${resp.status}`);
+        (resp.status === 404 ? 'Attachment upload endpoint returned 404' : `uploadAttachment failed with HTTP ${resp.status}`);
       throw new Error(message);
     }
     return json;
   };
 
   try {
-    return await tryUpload(fieldKey);
+    return await tryUpload(fieldKey, 'fieldId');
   } catch (error) {
-    if (fallbackFieldKey && fieldKey !== fallbackFieldKey && error instanceof Error && /not found/.test(error.message)) {
-      return await tryUpload(fallbackFieldKey);
+    if (
+      fallbackFieldKey &&
+      fieldKey !== fallbackFieldKey &&
+      error instanceof Error &&
+      /404|not found/i.test(error.message)
+    ) {
+      return await tryUpload(fallbackFieldKey, 'fieldName');
     }
     throw error;
   }
