@@ -57,6 +57,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => null)) as ReceiptRequest | null;
     if (!body) {
+      console.error('[receipts] Missing JSON body');
       return badRequest('Invalid JSON payload');
     }
 
@@ -77,11 +78,27 @@ export async function POST(request: Request) {
       memo,
     } = body;
 
+    const debugContext = {
+      recordId,
+      agentProfileId,
+      rawAgentCode,
+      amount,
+      points,
+      paidAt,
+      baseId: overrideBaseId,
+      tableId: overrideTableId,
+      receiptFieldId: overrideReceiptFieldId,
+      receiptFieldName: overrideReceiptFieldName,
+    };
+    console.log('[receipts] Incoming request', debugContext);
+
     if (!agentProfileId && !rawAgentCode) {
+      console.error('[receipts] Missing agent identifier');
       return badRequest('agentProfileId or agentCode is required');
     }
 
     if (!recordId || typeof recordId !== 'string') {
+      console.error('[receipts] Missing recordId');
       return badRequest('recordId is required');
     }
 
@@ -482,6 +499,7 @@ async function patchAirtableRecord({ pat, baseId, tableId, recordId, fieldKey, a
   const url = `https://api.airtable.com/v0/${encodeURIComponent(baseId)}/${encodeURIComponent(tableId)}/${encodeURIComponent(
     recordId
   )}`;
+  console.log('[receipts] Updating Airtable record', { baseId, tableId, recordId, fieldKey, attachmentsCount: attachments.length });
   const resp = await fetch(url, {
     method: 'PATCH',
     headers: {
@@ -498,6 +516,7 @@ async function patchAirtableRecord({ pat, baseId, tableId, recordId, fieldKey, a
   if (!resp.ok) {
     const json = (await resp.json().catch(() => ({}))) as { error?: { message?: string } };
     const message = json?.error?.message || `Failed to update Airtable record (${resp.status})`;
+    console.error('[receipts] Airtable record update failed', { baseId, tableId, recordId, fieldKey, message, status: resp.status });
     throw new Error(message);
   }
 }
