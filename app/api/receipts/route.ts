@@ -152,7 +152,6 @@ export async function POST(request: Request) {
 
     const pdfBuffer = await renderReceiptPdf({
       agentName,
-      agentCode,
       amount,
       points,
       issuedAt,
@@ -203,7 +202,6 @@ export async function POST(request: Request) {
 
 type RenderReceiptParams = {
   agentName: string;
-  agentCode: string | null;
   amount: number;
   points: number;
   issuedAt: Date;
@@ -213,7 +211,6 @@ type RenderReceiptParams = {
 
 function renderReceiptPdf({
   agentName,
-  agentCode,
   amount,
   points,
   issuedAt,
@@ -221,7 +218,7 @@ function renderReceiptPdf({
   memo,
 }: RenderReceiptParams): Promise<Buffer> {
   return new Promise<Buffer>((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 56 });
+    const doc = new PDFDocument({ size: 'A4', margin: 48 });
     const chunks: Buffer[] = [];
 
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -230,67 +227,98 @@ function renderReceiptPdf({
 
     const formattedDate = DATE_FORMATTER.format(issuedAt);
     const formattedAmount = CURRENCY_FORMATTER.format(amount);
+    const amountWords = convertAmountToWords(amount);
+    const margin = 48;
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
 
-    doc.font('Helvetica-Bold').fontSize(20).text('Receipt Voucher', { align: 'center' });
+    // Border
+    doc.lineWidth(1).rect(margin / 2, margin / 2, pageWidth - margin, pageHeight - margin).stroke('#1f1f1f');
 
-    doc.moveDown(0.5);
-    doc
-      .font('Helvetica')
-      .fontSize(10)
-      .text(`Receipt No.: ${receiptNumber}`, { align: 'right' })
-      .text(`Receipt Date: ${formattedDate}`, { align: 'right' });
+    const headerY = margin;
 
-    doc.moveDown(1.2);
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(12)
-      .text('Received from Ms./Mr.:', { continued: true })
-      .font('Helvetica')
-      .text(` ${agentName}`);
+    // Header Branding
+    doc.fillColor('#000');
+    doc.font('Helvetica-Bold').fontSize(26).text('PRYPCO', margin, headerY);
+    doc.font('Helvetica-Bold').fontSize(11).text('PRYPCO Real Estate LLC.', margin, headerY + 30);
+    doc.font('Helvetica').fontSize(9).text('Office 02-03-04, Damac Mall, Damac Hills,', margin, headerY + 45);
+    doc.text('Dubai, United Arab Emirates', margin, headerY + 58);
+    doc.text('prypco.com', margin, headerY + 71);
 
-    if (agentCode) {
-      doc.moveDown(0.3);
-      doc.font('Helvetica').fontSize(10).text(`Agent Code: ${agentCode}`);
-    }
+    // Header detail box (Tax, Receipt No, Date)
+    const detailBoxWidth = 180;
+    const detailBoxX = pageWidth - margin - detailBoxWidth;
+    const detailBoxY = headerY;
+    doc.lineWidth(0.8).rect(detailBoxX, detailBoxY + 24, detailBoxWidth, 70).stroke('#d9d9d9');
+    doc.font('Helvetica-Bold').fontSize(10).text('Tax Reg No : 104936517200003', detailBoxX, detailBoxY, {
+      align: 'right',
+    });
+    doc.font('Helvetica-Bold').fontSize(11).text('Receipt No', detailBoxX + 12, detailBoxY + 36);
+    doc.font('Helvetica').fontSize(11).text(receiptNumber, detailBoxX + 12, detailBoxY + 52);
+    doc.font('Helvetica-Bold').fontSize(11).text('Receipt Date', detailBoxX + 12, detailBoxY + 70);
+    doc.font('Helvetica').fontSize(11).text(formattedDate, detailBoxX + 12, detailBoxY + 86);
 
-    doc.moveDown(0.8);
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(12)
-      .text('The sum of amount:', { continued: true })
-      .font('Helvetica')
-      .text(` ${formattedAmount}`);
+    // Separator line
+    const separatorY = headerY + 110;
+    doc.lineWidth(2).moveTo(margin, separatorY).lineTo(pageWidth - margin, separatorY).stroke('#000');
 
-    doc.moveDown(0.5);
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(12)
-      .text('By:', { continued: true })
-      .font('Helvetica')
-      .text(' Stripe payment link');
+    // Title
+    doc.font('Helvetica-Bold').fontSize(18).text('RECEIPT VOUCHER', margin, separatorY + 16, {
+      align: 'center',
+    });
 
-    doc.moveDown(0.5);
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(12)
-      .text('Being:', { continued: true })
-      .font('Helvetica')
-      .text(` ${points.toLocaleString('en-US')} Collect points`);
+    // Amount Highlight
+    const amountBoxX = margin;
+    const amountBoxY = separatorY + 50;
+    const amountBoxWidth = 160;
+    const amountBoxHeight = 52;
+    doc.save();
+    doc.rect(amountBoxX, amountBoxY, amountBoxWidth, amountBoxHeight).fill('#000');
+    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(11).text('Amount AED', amountBoxX + 12, amountBoxY + 12);
+    doc.font('Helvetica-Bold').fontSize(18).text(formattedAmount.replace('AED', '').trim(), amountBoxX + 12, amountBoxY + 26);
+    doc.restore();
 
+    // Receipt body
+    const bodyX = margin;
+    let cursorY = amountBoxY + amountBoxHeight + 20;
+    const bodyLabelFont = 'Helvetica-Bold';
+    const bodyValueFont = 'Helvetica';
+
+    const lineGap = 18;
+
+    const writeLine = (label: string, value: string) => {
+      doc.font(bodyLabelFont).fontSize(11).fillColor('#000').text(`${label}`, bodyX, cursorY, { continued: true });
+      doc.font(bodyValueFont).fontSize(11).fillColor('#1f1f1f').text(` ${value}`);
+      cursorY += lineGap;
+    };
+
+    writeLine('Received from Ms./Mr.:', agentName);
+    writeLine('The sum of amount:', `${amountWords} only.`);
+    writeLine('By:', 'Stripe payment link');
+    writeLine('Being:', `${points.toLocaleString('en-US')} Collect points`);
+    writeLine('Dated:', formattedDate);
     if (memo) {
-      doc.moveDown(0.5);
-      doc.font('Helvetica-Bold').fontSize(12).text('Notes:');
-      doc.font('Helvetica').fontSize(10).text(memo);
+      doc.font(bodyLabelFont).fontSize(11).text('Notes:', bodyX, cursorY);
+      doc.font(bodyValueFont).fontSize(10).fillColor('#1f1f1f').text(memo, bodyX, cursorY + 12, { width: pageWidth - margin * 2 });
+      cursorY += 40;
+    } else {
+      cursorY += 10;
     }
 
-    doc.moveDown(1.2);
-    doc
-      .font('Helvetica')
-      .fontSize(10)
-      .text('For and on behalf of Prypco', { align: 'left' })
-      .moveDown(2)
-      .text('__________________________', { align: 'left' })
-      .text('Authorized Signature', { align: 'left' });
+    // Signature area
+    const signatureY = Math.max(cursorY + 40, pageHeight - 170);
+    doc.font('Helvetica').fontSize(11).fillColor('#000').text('For and on behalf of Prypco', bodyX, signatureY);
+    doc.moveTo(bodyX, signatureY + 28).lineTo(bodyX + 160, signatureY + 28).stroke('#000');
+    doc.font('Helvetica').fontSize(10).text('Authorised Signature', bodyX, signatureY + 34);
+
+    // Footer note
+    const footerY = pageHeight - margin - 40;
+    doc.rect(margin, footerY, pageWidth - margin * 2, 36).fill('#f5f5f5');
+    doc.fillColor('#000').font('Helvetica').fontSize(9).text(
+      'This is a computer generated receipt and no signature is required. Cheques / drafts are subject to realisation.',
+      margin + 12,
+      footerY + 12
+    );
 
     doc.end();
   });
@@ -333,6 +361,77 @@ async function uploadReceiptToSupabase({ buffer, filename, recordId, contentType
   }
 
   return { signedUrl: signedRes.data.signedUrl, path: storagePath };
+}
+
+const SMALL_NUMBERS = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+];
+
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+const SCALES = [
+  { value: 1_000_000_000, name: 'billion' },
+  { value: 1_000_000, name: 'million' },
+  { value: 1_000, name: 'thousand' },
+  { value: 100, name: 'hundred' },
+];
+
+function convertAmountToWords(amount: number): string {
+  const integerPart = Math.floor(amount);
+  const fractionalPart = Math.round((amount - integerPart) * 100);
+
+  const integerWords = integerPart === 0 ? 'zero' : convertIntegerToWords(integerPart);
+  const filsWords =
+    fractionalPart > 0 ? ` and ${convertIntegerToWords(fractionalPart)} Fils` : '';
+
+  return `${capitaliseFirst(integerWords)} Dirhams${filsWords}`;
+}
+
+function convertIntegerToWords(num: number): string {
+  if (num < 20) {
+    return SMALL_NUMBERS[num];
+  }
+  if (num < 100) {
+    const tens = Math.floor(num / 10);
+    const units = num % 10;
+    return `${TENS[tens]}${units ? ` ${SMALL_NUMBERS[units]}` : ''}`;
+  }
+
+  for (const scale of SCALES) {
+    if (num >= scale.value) {
+      const quotient = Math.floor(num / scale.value);
+      const remainder = num % scale.value;
+      const quotientWords = convertIntegerToWords(quotient);
+      const remainderWords = remainder ? ` ${convertIntegerToWords(remainder)}` : '';
+      const scaleName = scale.name;
+      return `${quotientWords} ${scaleName}${remainderWords ? ` ${remainderWords}` : ''}`;
+    }
+  }
+
+  return '';
+}
+
+function capitaliseFirst(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 type SyncReceiptArgs = {
