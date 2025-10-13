@@ -105,9 +105,19 @@ Send this payload from your Airtable automation once a top-up row is created:
 }
 ```
 
-Provide either `agentProfileId` (Supabase `agent_profiles.id`) or `agentCode`. `amount` and `points` are required. `paidAt` defaults to “now” when omitted. `reference` becomes the receipt number (a UUID is generated when missing). The endpoint looks up the agent in Supabase to populate the “Received from Ms./Mr.” line; you can optionally supply `agentName` in the payload to override that lookup.
+Provide either `agentProfileId` (Supabase `agent_profiles.id`) or `agentCode`. `amount`, `points`, and `recordId` are required. `paidAt` defaults to “now” when omitted. `reference` becomes the receipt number (a UUID is generated when missing). The endpoint looks up the agent in Supabase to populate the “Received from Ms./Mr.” line; you can optionally supply `agentName` in the payload to override that lookup.
 
-The response body contains a base64-encoded PDF and the resolved metadata:
+By default the API uploads the generated PDF straight to Airtable using the following environment variables:
+
+- `AIRTABLE_PAT` – personal access token with write access to the base.
+- `AIRTABLE_BASE_ID` – Airtable base ID (e.g. `appfpvMsWzOFxl8ug`).
+- `AIRTABLE_RECEIPT_TABLE_ID` – table ID or name containing the ledger rows (defaults to `AIRTABLE_TABLE_ID`).
+- `AIRTABLE_RECEIPT_FIELD_ID` – attachment field ID (recommended).  
+  Optionally set `AIRTABLE_RECEIPT_FIELD_NAME` if you prefer to update by field name.
+
+You can override any of these per request with `baseId`, `tableId`, `receiptFieldId`, `receiptFieldName`, or disable replacement by passing `replaceExisting: false`.
+
+The response payload still includes the PDF metadata (and base64) for convenience:
 
 ```json
 {
@@ -128,36 +138,31 @@ Example Airtable script snippet:
 
 ```js
 const secret = 'REPLACE_WITH_RECEIPT_WEBHOOK_SECRET';
-const payload = {
-  agentCode: input.config().agentCode,
-  amount: input.config().amount,
-  points: input.config().points,
-  paidAt: input.config().paidAt,
-  reference: input.config().reference
-};
-
-const res = await fetch('https://your-deploy.vercel.app/api/receipts', {
+const response = await fetch('https://your-deploy.vercel.app/api/receipts', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${secret}`
   },
-  body: JSON.stringify(payload)
+  body: JSON.stringify({
+    recordId: input.config().recordId,
+    amount: Number(input.config().amount),
+    points: Number(input.config().points),
+    paidAt: input.config().paidAt,
+    agentCode: input.config().agentCode,
+    reference: input.config().reference
+  })
 });
 
-const json = await res.json();
-if (!res.ok || !json.ok) {
-  throw new Error(json.error || `Receipt API failed with ${res.status}`);
+const json = await response.json();
+if (!response.ok || !json.ok) {
+  throw new Error(json.error || `Receipt API failed with ${response.status}`);
 }
 
-const { filename, base64 } = json.receipt;
-// Upload back to Airtable
-await table.updateRecordAsync(recordId, {
-  Receipt: [{ filename, data: base64, typecast: true }]
-});
+output.markdown(`✅ Receipt stored for record \`${input.config().recordId}\``);
 ```
 
-The last `updateRecordAsync` call assumes your table has a single “Receipt” attachment field. Adjust the field name as needed.
+No extra attachment handling is needed—the API uploads the PDF to Airtable and updates the `receipt` field automatically.
 
 ## Getting Started
 

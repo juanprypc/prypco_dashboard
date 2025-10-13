@@ -10,6 +10,12 @@ export const runtime = 'nodejs';
 type ReceiptRequest = {
   agentProfileId?: string;
   agentCode?: string;
+  recordId?: string;
+  baseId?: string;
+  tableId?: string;
+  receiptFieldId?: string;
+  receiptFieldName?: string;
+  replaceExisting?: boolean;
   amount: number;
   points: number;
   paidAt?: string;
@@ -57,6 +63,12 @@ export async function POST(request: Request) {
     const {
       agentProfileId,
       agentCode: rawAgentCode,
+      recordId,
+      baseId: overrideBaseId,
+      tableId: overrideTableId,
+      receiptFieldId: overrideReceiptFieldId,
+      receiptFieldName: overrideReceiptFieldName,
+      replaceExisting = true,
       amount,
       points,
       paidAt,
@@ -67,6 +79,10 @@ export async function POST(request: Request) {
 
     if (!agentProfileId && !rawAgentCode) {
       return badRequest('agentProfileId or agentCode is required');
+    }
+
+    if (!recordId || typeof recordId !== 'string') {
+      return badRequest('recordId is required');
     }
 
     if (typeof amount !== 'number' || Number.isNaN(amount) || !Number.isFinite(amount) || amount <= 0) {
@@ -123,6 +139,18 @@ export async function POST(request: Request) {
     const base64 = pdfBuffer.toString('base64');
     const filename = `receipt-${receiptNumber}.pdf`;
 
+    const airtableResult = await syncReceiptToAirtable({
+      recordId,
+      baseId: overrideBaseId,
+      tableId: overrideTableId,
+      receiptFieldId: overrideReceiptFieldId,
+      receiptFieldName: overrideReceiptFieldName,
+      replaceExisting,
+      filename,
+      base64,
+      contentType: 'application/pdf',
+    });
+
     return NextResponse.json({
       ok: true,
       receipt: {
@@ -133,6 +161,7 @@ export async function POST(request: Request) {
         points,
         agentName,
         issuedAt: issuedAt.toISOString(),
+        airtable: airtableResult,
       },
     });
   } catch (error) {
@@ -234,4 +263,233 @@ function renderReceiptPdf({
 
     doc.end();
   });
+}
+
+type SyncReceiptArgs = {
+  recordId: string;
+  baseId?: string | null;
+  tableId?: string | null;
+  receiptFieldId?: string | null;
+  receiptFieldName?: string | null;
+  replaceExisting?: boolean;
+  filename: string;
+  base64: string;
+  contentType: string;
+};
+
+async function syncReceiptToAirtable({
+  recordId,
+  baseId,
+  tableId,
+  receiptFieldId,
+  receiptFieldName,
+  replaceExisting = true,
+  filename,
+  base64,
+  contentType,
+}: SyncReceiptArgs) {
+  const pat = process.env.AIRTABLE_PAT;
+  const resolvedBaseId = baseId || process.env.AIRTABLE_BASE_ID;
+  const resolvedTableId = tableId || process.env.AIRTABLE_RECEIPT_TABLE_ID || process.env.AIRTABLE_TABLE_ID;
+  const resolvedFieldId =
+    receiptFieldId ||
+    process.env.AIRTABLE_RECEIPT_FIELD_ID ||
+    process.env.AIRTABLE_RECEIPT_FIELD ||
+    process.env.AIRTABLE_RECEIPT_FIELD_NAME;
+  const resolvedFieldName =
+    receiptFieldName ||
+    process.env.AIRTABLE_RECEIPT_FIELD_NAME ||
+    process.env.AIRTABLE_RECEIPT_FIELD ||
+    resolvedFieldId;
+
+  if (!pat || !resolvedBaseId || !resolvedTableId || !resolvedFieldId || !resolvedFieldName) {
+    throw new Error('Airtable integration is not configured (missing env vars).');
+  }
+
+  const upload = await uploadAttachmentToAirtable({
+    pat,
+    baseId: resolvedBaseId,
+    tableId: resolvedTableId,
+    recordId,
+    fieldKey: resolvedFieldId,
+    filename,
+    base64,
+    contentType,
+    fallbackFieldKey: resolvedFieldName,
+  });
+
+  const attachmentId = upload.attachment?.id;
+  if (!attachmentId) {
+    throw new Error('Airtable attachment upload did not return an attachment id.');
+  }
+
+  const attachments = replaceExisting
+    ? [{ id: attachmentId }]
+    : await appendExistingAttachments({
+        pat,
+        baseId: resolvedBaseId,
+        tableId: resolvedTableId,
+        recordId,
+        fieldName: resolvedFieldName,
+        newAttachmentId: attachmentId,
+      });
+
+  await patchAirtableRecord({
+    pat,
+    baseId: resolvedBaseId,
+    tableId: resolvedTableId,
+    recordId,
+    fieldKey: resolvedFieldName,
+    attachments,
+  });
+
+  return {
+    recordId,
+    attachmentId,
+    baseId: resolvedBaseId,
+    tableId: resolvedTableId,
+    field: resolvedFieldName,
+    replaceExisting,
+  };
+}
+
+type UploadArgs = {
+  pat: string;
+  baseId: string;
+  tableId: string;
+  recordId: string;
+  fieldKey: string;
+  fallbackFieldKey: string;
+  filename: string;
+  base64: string;
+  contentType: string;
+};
+
+async function uploadAttachmentToAirtable({
+  pat,
+  baseId,
+  tableId,
+  recordId,
+  fieldKey,
+  fallbackFieldKey,
+  filename,
+  base64,
+  contentType,
+}: UploadArgs) {
+  const tryUpload = async (field: string) => {
+    const url = `https://api.airtable.com/v0/bases/${encodeURIComponent(baseId)}/tables/${encodeURIComponent(
+      tableId
+    )}/records/${encodeURIComponent(recordId)}/fields/${encodeURIComponent(field)}/attachments`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        attachment: {
+          filename,
+          data: base64,
+          contentType,
+        },
+      }),
+    });
+    const json = (await resp.json().catch(() => ({}))) as {
+      attachment?: { id?: string };
+      error?: { message?: string };
+    };
+    if (!resp.ok) {
+      const message =
+        json?.error?.message ||
+        (resp.status === 404
+          ? 'uploadAttachment endpoint not found for provided field identifier'
+          : `uploadAttachment failed with HTTP ${resp.status}`);
+      throw new Error(message);
+    }
+    return json;
+  };
+
+  try {
+    return await tryUpload(fieldKey);
+  } catch (error) {
+    if (fallbackFieldKey && fieldKey !== fallbackFieldKey && error instanceof Error && /not found/.test(error.message)) {
+      return await tryUpload(fallbackFieldKey);
+    }
+    throw error;
+  }
+}
+
+type AppendArgs = {
+  pat: string;
+  baseId: string;
+  tableId: string;
+  recordId: string;
+  fieldName: string;
+  newAttachmentId: string;
+};
+
+async function appendExistingAttachments({
+  pat,
+  baseId,
+  tableId,
+  recordId,
+  fieldName,
+  newAttachmentId,
+}: AppendArgs) {
+  const url = `https://api.airtable.com/v0/${encodeURIComponent(baseId)}/${encodeURIComponent(tableId)}/${encodeURIComponent(
+    recordId
+  )}?fields[]=${encodeURIComponent(fieldName)}`;
+
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${pat}` },
+  });
+
+  if (!resp.ok) {
+    return [{ id: newAttachmentId }];
+  }
+
+  const json = (await resp.json().catch(() => ({}))) as {
+    fields?: Record<string, Array<{ id?: string }>>;
+  };
+
+  const existing = Array.isArray(json.fields?.[fieldName]) ? json.fields?.[fieldName] : [];
+  const attachments: Array<{ id: string }> = [];
+  for (const item of existing) {
+    if (item?.id) attachments.push({ id: item.id });
+  }
+  attachments.push({ id: newAttachmentId });
+  return attachments;
+}
+
+type PatchArgs = {
+  pat: string;
+  baseId: string;
+  tableId: string;
+  recordId: string;
+  fieldKey: string;
+  attachments: Array<{ id: string }>;
+};
+
+async function patchAirtableRecord({ pat, baseId, tableId, recordId, fieldKey, attachments }: PatchArgs) {
+  const url = `https://api.airtable.com/v0/${encodeURIComponent(baseId)}/${encodeURIComponent(tableId)}/${encodeURIComponent(
+    recordId
+  )}`;
+  const resp = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${pat}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fields: {
+        [fieldKey]: attachments,
+      },
+    }),
+  });
+
+  if (!resp.ok) {
+    const json = (await resp.json().catch(() => ({}))) as { error?: { message?: string } };
+    const message = json?.error?.message || `Failed to update Airtable record (${resp.status})`;
+    throw new Error(message);
+  }
 }
