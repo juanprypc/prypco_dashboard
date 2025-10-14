@@ -80,11 +80,6 @@ Notes:
 - In production, replace the `?agent=` dev parameter with auth middleware that injects `agentId`.
 - Stripe Checkout is exposed at `/api/stripe/checkout`. Configure a Stripe webhook (e.g., `checkout.session.completed`) to post directly to your Airtable automation webhook so points can be credited server-side.
 
-### Admin Analytics Dashboard
-
-- An internal analytics dashboard is available under `/admin/analytics` (protected by the same basic auth credentials used for the Damac tools).  
-- The dashboard pulls aggregated loyalty metrics directly from Supabase using the service role key. Ensure `POINTS_PER_AED` reflects the live conversion so AED costs are calculated accurately.
-
 ### Stripe Top-up Flow
 
 1. Populate Stripe env vars (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `MIN_TOPUP_AED`, `POINTS_PER_AED`, `NEXT_PUBLIC_APP_URL`).

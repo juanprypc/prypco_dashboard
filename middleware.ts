@@ -10,10 +10,6 @@ function requiresAuth(pathname: string): boolean {
   if (pathname.startsWith('/damac/')) return true;
   if (pathname === '/api/damac') return true;
   if (pathname.startsWith('/api/damac/')) return true;
-  if (pathname === '/admin') return true;
-  if (pathname.startsWith('/admin/')) return true;
-  if (pathname === '/api/admin') return true;
-  if (pathname.startsWith('/api/admin/')) return true;
   return false;
 }
 
@@ -50,5 +46,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/damac', '/damac/:path*', '/api/damac', '/api/damac/:path*', '/admin', '/admin/:path*', '/api/admin', '/api/admin/:path*'],
+  matcher: ['/damac', '/damac/:path*', '/api/damac', '/api/damac/:path*'],
 };
