@@ -57,9 +57,11 @@ function normaliseNumber(value: unknown): number {
 export async function getAdminAnalytics(pointsPerAed: number, months = 12): Promise<AdminAnalyticsPayload> {
   const supabase = getSupabaseAdminClient();
 
-  const { data: overviewData, error: overviewError } = await supabase.rpc('loyalty_admin_overview', {
-    points_per_aed: pointsPerAed,
-  });
+  const overviewPayload = { points_per_aed: pointsPerAed };
+  const { data: overviewData, error: overviewError } = await supabase.rpc(
+    'loyalty_admin_overview',
+    overviewPayload as never
+  );
   if (overviewError) throw overviewError;
   const overviewRow = (overviewData?.[0] ?? {}) as Partial<AdminOverview>;
 
@@ -84,9 +86,11 @@ export async function getAdminAnalytics(pointsPerAed: number, months = 12): Prom
         : null,
   };
 
-  const { data: channelData, error: channelError } = await supabase.rpc('loyalty_admin_channel_breakdown', {
-    points_per_aed: pointsPerAed,
-  });
+  const channelPayload = { points_per_aed: pointsPerAed };
+  const { data: channelData, error: channelError } = await supabase.rpc(
+    'loyalty_admin_channel_breakdown',
+    channelPayload as never
+  );
   if (channelError) throw channelError;
 
   const channels: AdminChannelBreakdown[] =
@@ -105,10 +109,11 @@ export async function getAdminAnalytics(pointsPerAed: number, months = 12): Prom
         row.deal_value_aed !== undefined && row.deal_value_aed !== null ? normaliseNumber(row.deal_value_aed) : null,
     })) ?? [];
 
-  const { data: monthlyData, error: monthlyError } = await supabase.rpc('loyalty_admin_monthly', {
-    points_per_aed: pointsPerAed,
-    months,
-  });
+  const monthlyPayload = { points_per_aed: pointsPerAed, months };
+  const { data: monthlyData, error: monthlyError } = await supabase.rpc(
+    'loyalty_admin_monthly',
+    monthlyPayload as never
+  );
   if (monthlyError) throw monthlyError;
 
   const monthly: AdminMonthlyRow[] =
