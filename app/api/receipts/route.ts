@@ -307,11 +307,9 @@ function renderReceiptPdf({
       cursorY += 10;
     }
 
-    // Signature area
+    // Signature attribution (without signature line/label)
     const signatureY = Math.max(cursorY + 40, pageHeight - 170);
     doc.font('Helvetica').fontSize(11).fillColor('#000').text('For and on behalf of Prypco', bodyX, signatureY);
-    doc.moveTo(bodyX, signatureY + 28).lineTo(bodyX + 160, signatureY + 28).stroke('#000');
-    doc.font('Helvetica').fontSize(10).text('Authorised Signature', bodyX, signatureY + 34);
 
     // Footer note
     const footerY = pageHeight - margin - 40;
