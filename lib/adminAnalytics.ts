@@ -56,45 +56,43 @@ function normaliseNumber(value: unknown): number {
 
 export async function getAdminAnalytics(pointsPerAed: number, months = 12): Promise<AdminAnalyticsPayload> {
   const supabase = getSupabaseAdminClient();
+  type Payload = Record<string, unknown>;
 
-  const overviewPayload = { points_per_aed: pointsPerAed };
-  const { data: overviewData, error: overviewError } = await supabase.rpc(
+  const { data: overviewRaw, error: overviewError } = await supabase.rpc(
     'loyalty_admin_overview',
-    overviewPayload as never
+    { points_per_aed: pointsPerAed } as Payload
   );
   if (overviewError) throw overviewError;
-  const overviewRow = (overviewData?.[0] ?? {}) as Partial<AdminOverview>;
+  const overviewRow = ((overviewRaw ?? []) as unknown[])[0] as Partial<AdminOverview> | undefined;
 
   const overview: AdminOverview = {
-    total_positive_points: normaliseNumber(overviewRow.total_positive_points),
-    total_negative_points: normaliseNumber(overviewRow.total_negative_points),
-    net_points: normaliseNumber(overviewRow.net_points),
-    issued_this_month: normaliseNumber(overviewRow.issued_this_month),
-    redeemed_this_month: normaliseNumber(overviewRow.redeemed_this_month),
-    liability_expiring_30: normaliseNumber(overviewRow.liability_expiring_30),
-    liability_expiring_60: normaliseNumber(overviewRow.liability_expiring_60),
-    liability_expiring_90: normaliseNumber(overviewRow.liability_expiring_90),
-    total_cost_aed: normaliseNumber(overviewRow.total_cost_aed),
-    issued_this_month_cost_aed: normaliseNumber(overviewRow.issued_this_month_cost_aed),
+    total_positive_points: normaliseNumber(overviewRow?.total_positive_points),
+    total_negative_points: normaliseNumber(overviewRow?.total_negative_points),
+    net_points: normaliseNumber(overviewRow?.net_points),
+    issued_this_month: normaliseNumber(overviewRow?.issued_this_month),
+    redeemed_this_month: normaliseNumber(overviewRow?.redeemed_this_month),
+    liability_expiring_30: normaliseNumber(overviewRow?.liability_expiring_30),
+    liability_expiring_60: normaliseNumber(overviewRow?.liability_expiring_60),
+    liability_expiring_90: normaliseNumber(overviewRow?.liability_expiring_90),
+    total_cost_aed: normaliseNumber(overviewRow?.total_cost_aed),
+    issued_this_month_cost_aed: normaliseNumber(overviewRow?.issued_this_month_cost_aed),
     total_deal_value_aed:
-      overviewRow.total_deal_value_aed !== undefined && overviewRow.total_deal_value_aed !== null
+      overviewRow?.total_deal_value_aed !== undefined && overviewRow?.total_deal_value_aed !== null
         ? normaliseNumber(overviewRow.total_deal_value_aed)
         : null,
     issued_this_month_deal_value_aed:
-      overviewRow.issued_this_month_deal_value_aed !== undefined && overviewRow.issued_this_month_deal_value_aed !== null
+      overviewRow?.issued_this_month_deal_value_aed !== undefined && overviewRow?.issued_this_month_deal_value_aed !== null
         ? normaliseNumber(overviewRow.issued_this_month_deal_value_aed)
         : null,
   };
 
-  const channelPayload = { points_per_aed: pointsPerAed };
-  const { data: channelData, error: channelError } = await supabase.rpc(
-    'loyalty_admin_channel_breakdown',
-    channelPayload as never
-  );
+  const { data: channelRaw, error: channelError } = await supabase.rpc('loyalty_admin_channel_breakdown', {
+    points_per_aed: pointsPerAed,
+  } as Payload);
   if (channelError) throw channelError;
 
   const channels: AdminChannelBreakdown[] =
-    channelData?.map((row: Partial<AdminChannelBreakdown>) => ({
+    ((channelRaw ?? []) as unknown[]).map((row) => row as Partial<AdminChannelBreakdown>).map((row) => ({
       channel: row.channel ?? 'Unattributed',
       positive_points: normaliseNumber(row.positive_points),
       negative_points: normaliseNumber(row.negative_points),
@@ -109,20 +107,21 @@ export async function getAdminAnalytics(pointsPerAed: number, months = 12): Prom
         row.deal_value_aed !== undefined && row.deal_value_aed !== null ? normaliseNumber(row.deal_value_aed) : null,
     })) ?? [];
 
-  const monthlyPayload = { points_per_aed: pointsPerAed, months };
-  const { data: monthlyData, error: monthlyError } = await supabase.rpc(
-    'loyalty_admin_monthly',
-    monthlyPayload as never
-  );
+  const { data: monthlyRaw, error: monthlyError } = await supabase.rpc('loyalty_admin_monthly', {
+    points_per_aed: pointsPerAed,
+    months,
+  } as Payload);
   if (monthlyError) throw monthlyError;
 
   const monthly: AdminMonthlyRow[] =
-    monthlyData?.map((row: Partial<AdminMonthlyRow>) => ({
-      month_start: row.month_start ?? '',
-      channel: row.channel ?? 'Unattributed',
-      positive_points: normaliseNumber(row.positive_points),
-      negative_points: normaliseNumber(row.negative_points),
-      net_points: normaliseNumber(row.net_points),
+    ((monthlyRaw ?? []) as unknown[])
+      .map((row) => row as Partial<AdminMonthlyRow>)
+      .map((row) => ({
+        month_start: row.month_start ?? '',
+        channel: row.channel ?? 'Unattributed',
+        positive_points: normaliseNumber(row.positive_points),
+        negative_points: normaliseNumber(row.negative_points),
+        net_points: normaliseNumber(row.net_points),
       points_cost_aed: normaliseNumber(row.points_cost_aed),
       deal_value_aed: row.deal_value_aed !== undefined && row.deal_value_aed !== null ? normaliseNumber(row.deal_value_aed) : null,
     })) ?? [];
