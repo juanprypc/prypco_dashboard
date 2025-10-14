@@ -24,7 +24,6 @@ export default function AdminAnalyticsPage() {
         </div>
       }
     >
-      {/* @ts-expect-error Async Server Component */}
       <AnalyticsContent />
     </Suspense>
   );

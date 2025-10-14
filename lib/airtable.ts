@@ -12,12 +12,6 @@ function env(name: string): string {
   return v;
 }
 
-function normalise(value?: string | null): string | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : undefined;
-}
-
 function toMaybeString(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
   if (typeof value === 'string') return value.trim() || undefined;
