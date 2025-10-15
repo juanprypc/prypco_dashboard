@@ -1523,8 +1523,9 @@ function RedeemDialog({
   const termsSatisfied = !item.termsActive || termsAccepted;
   const trimmedFirstName = customerFirstName.trim();
   const trimmedPhone = customerPhoneLast4.trim();
-  const firstNameValid = trimmedFirstName.length > 0;
-  const phoneValid = /^\d{4}$/.test(trimmedPhone);
+  const requiresBuyerVerification = !!unitAllocation;
+  const firstNameValid = !requiresBuyerVerification || trimmedFirstName.length > 0;
+  const phoneValid = !requiresBuyerVerification || /^\d{4}$/.test(trimmedPhone);
   const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
   const confirmDisabled =
     busy ||
@@ -1702,52 +1703,54 @@ function RedeemDialog({
               </p>
             )}
 
-            <div className="space-y-3 rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
-                Buyer verification
-              </p>
-              <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
-                Buyer first name
-                <input
-                  type="text"
-                  value={customerFirstName}
-                  onChange={(event) => setCustomerFirstName(event.target.value)}
-                  onBlur={() => setFirstNameTouched(true)}
-                  className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                  placeholder="Customer first name"
-                  autoComplete="off"
-                />
-              </label>
-              {firstNameTouched && !firstNameValid ? (
-                <p className="text-[11px] text-rose-500">Enter the customer’s first name.</p>
-              ) : null}
-              <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
-                Buyer phone · last 4 digits
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\\d*"
-                  maxLength={4}
-                  value={customerPhoneLast4}
-                  onChange={(event) => {
-                    const digits = event.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-                    setCustomerPhoneLast4(digits);
-                  }}
-                  onBlur={() => setPhoneTouched(true)}
-                  className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                  placeholder="1234"
-                  autoComplete="off"
-                />
-              </label>
-              {phoneTouched && !phoneValid ? (
-                <p className="text-[11px] text-rose-500">Enter the last four digits from the buyer’s phone number.</p>
-              ) : null}
-              {!firstNameValid || !phoneValid ? (
-                <p className="text-[11px] text-[var(--color-outer-space)]/60">
-                  We’ll store these details with the redemption so the RM team can verify the unit allocation.
+            {requiresBuyerVerification ? (
+              <div className="space-y-3 rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
+                  Buyer verification
                 </p>
-              ) : null}
-            </div>
+                <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
+                  Buyer first name
+                  <input
+                    type="text"
+                    value={customerFirstName}
+                    onChange={(event) => setCustomerFirstName(event.target.value)}
+                    onBlur={() => setFirstNameTouched(true)}
+                    className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
+                    placeholder="Customer first name"
+                    autoComplete="off"
+                  />
+                </label>
+                {firstNameTouched && !firstNameValid ? (
+                  <p className="text-[11px] text-rose-500">Enter the customer’s first name.</p>
+                ) : null}
+                <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
+                  Buyer phone · last 4 digits
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\\d*"
+                    maxLength={4}
+                    value={customerPhoneLast4}
+                    onChange={(event) => {
+                      const digits = event.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                      setCustomerPhoneLast4(digits);
+                    }}
+                    onBlur={() => setPhoneTouched(true)}
+                    className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
+                    placeholder="1234"
+                    autoComplete="off"
+                  />
+                </label>
+                {phoneTouched && !phoneValid ? (
+                  <p className="text-[11px] text-rose-500">Enter the last four digits from the buyer’s phone number.</p>
+                ) : null}
+                {(!firstNameValid || !phoneValid) && requiresBuyerVerification ? (
+                  <p className="text-[11px] text-[var(--color-outer-space)]/60">
+                    We’ll store these details with the redemption so the RM team can verify the unit allocation.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {item.termsActive ? (
               <div className="rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3 text-xs text-[var(--color-outer-space)]/80">
