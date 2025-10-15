@@ -132,12 +132,13 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
   };
 
   const toStatus = (value: unknown): CatalogueDisplayItem['status'] => {
-    if (typeof value !== 'string') return 'active';
+    if (typeof value !== 'string') return null;
     const normalised = value.trim().toLowerCase();
     if (normalised === 'coming soon' || normalised === 'coming_soon') return 'coming_soon';
     if (normalised === 'last units' || normalised === 'last_units') return 'last_units';
     if (normalised === 'sold out' || normalised === 'sold_out') return 'sold_out';
-    return 'active';
+    if (normalised === 'active') return 'active';
+    return null;
   };
 
   return items.map((item) => {
@@ -298,8 +299,10 @@ export function DashboardClient({
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
-      const statusConfig = getCatalogueStatusConfig(item.status);
-      if (statusConfig.redeemDisabled) return;
+      if (item.status) {
+        const statusConfig = getCatalogueStatusConfig(item.status);
+        if (statusConfig.redeemDisabled) return;
+      }
       if (item.termsActive) {
         setTermsAcceptedItemId(null);
         setPendingRedeemItem(item);
@@ -1169,12 +1172,13 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const allocations = item.unitAllocations;
-  const statusConfig = getCatalogueStatusConfig(item.status);
+  const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
   const isOutOfStock = (allocation: CatalogueUnitAllocation): boolean =>
     typeof allocation.maxStock === 'number' ? allocation.maxStock <= 0 : false;
   const hasSelectable = allocations.some((allocation) => !isOutOfStock(allocation));
   const selectedAllocation = allocations.find((allocation) => allocation.id === selectedId) ?? null;
-  const confirmDisabled = !selectedAllocation || isOutOfStock(selectedAllocation) || statusConfig.redeemDisabled;
+  const confirmDisabled =
+    !selectedAllocation || isOutOfStock(selectedAllocation) || !!statusConfig?.redeemDisabled;
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -1215,18 +1219,17 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
               <h3 id={`unit-allocation-${item.id}`} className="text-lg font-semibold">
                 Choose property type
               </h3>
-              <span
-                className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
-              >
-                {statusConfig.label}
-              </span>
+              {statusConfig ? (
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
+                >
+                  {statusConfig.label}
+                </span>
+              ) : null}
             </div>
             <p className="mt-1 text-xs text-[var(--color-outer-space)]/70">
               Select the exact property option you want to redeem.
             </p>
-            {statusConfig.helperText ? (
-              <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">{statusConfig.helperText}</p>
-            ) : null}
           </div>
           <button
             ref={closeRef}
@@ -1332,7 +1335,7 @@ type TermsDialogProps = {
 function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogProps) {
   const requireAcceptance = item.termsActive && !accepted;
   const requiresAgencyConfirmation = !!item.requiresAgencyConfirmation;
-  const statusConfig = getCatalogueStatusConfig(item.status);
+  const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
   const [checked, setChecked] = useState(accepted);
   const [agencyConfirmed, setAgencyConfirmed] = useState(() => accepted || !requiresAgencyConfirmation);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
@@ -1396,18 +1399,17 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
           <h4 id={titleId} className="text-base font-semibold">
             Reward terms
           </h4>
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
-          >
-            {statusConfig.label}
-          </span>
+          {statusConfig ? (
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
+            >
+              {statusConfig.label}
+            </span>
+          ) : null}
         </div>
         <p className="mt-1 text-xs leading-snug text-[var(--color-outer-space)]/70">
           Please review the reward terms before proceeding.
         </p>
-        {statusConfig.helperText ? (
-          <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">{statusConfig.helperText}</p>
-        ) : null}
         {item.termsUrl ? (
           <a
             href={item.termsUrl}
@@ -1539,8 +1541,9 @@ function RedeemDialog({
   const trimmedPhone = customerPhoneLast4.trim();
   const firstNameValid = trimmedFirstName.length > 0;
   const phoneValid = /^\d{4}$/.test(trimmedPhone);
-  const statusConfig = getCatalogueStatusConfig(item.status);
-  const confirmDisabled = busy || !termsSatisfied || !firstNameValid || !phoneValid || statusConfig.redeemDisabled;
+  const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
+  const confirmDisabled =
+    busy || !termsSatisfied || !firstNameValid || !phoneValid || !!statusConfig?.redeemDisabled;
   const selectedPriceLabel = formatAedCompact(unitAllocation?.priceAed ?? null);
 
   const extraPointsNeeded = insufficient ? requiredPoints - availablePoints : 0;
@@ -1604,16 +1607,15 @@ function RedeemDialog({
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-lg font-semibold">Redeem reward</h3>
-              <span
-                className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
-              >
-                {statusConfig.label}
-              </span>
+              {statusConfig ? (
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
+                >
+                  {statusConfig.label}
+                </span>
+              ) : null}
             </div>
             <p className="text-sm text-[var(--color-outer-space)]/70">{item.name}</p>
-            {statusConfig.helperText ? (
-              <p className="mt-1 text-xs text-[var(--color-outer-space)]/60">{statusConfig.helperText}</p>
-            ) : null}
           </div>
           <button onClick={onClose} className="cursor-pointer text-sm text-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]">Close</button>
         </div>
