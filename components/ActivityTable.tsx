@@ -1,15 +1,20 @@
 import React from 'react';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
-import { EmptyState } from './EmptyState';
 import { formatDate, formatPoints } from '@/lib/format';
 
 export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
   if (!rows.length) {
     return (
-      <EmptyState
-        title="Start building your trail"
-        description="Close your first deal, redeem a reward, or invite an investor to see your activity light up here."
-      />
+      <div className="overflow-hidden rounded-[28px] border border-[#d1b7fb]/60 bg-white p-8 md:p-10 text-center shadow-[0_18px_60px_-45px_rgba(13,9,59,0.45)]">
+        <h3 className="text-lg font-semibold text-[var(--color-outer-space)]">Start building your trail</h3>
+        <p className="mt-2 text-sm text-[var(--color-outer-space)]/65">
+          Close your first deal, redeem a reward, or invite an investor to see your activity spring to life here.
+        </p>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--color-hero)]/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-outer-space)]/70">
+          <span>Tip</span>
+          <span>Share your referral link to kick-start your points</span>
+        </div>
+      </div>
     );
   }
 
