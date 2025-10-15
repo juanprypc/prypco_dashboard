@@ -18,7 +18,6 @@ export type CatalogueDisplayItem = {
   name: string;
   priceAED: number | null;
   points: number | null;
-  imageFit?: 'cover' | 'contain';
   status?: CatalogueProjectStatus | null;
   requiresAgencyConfirmation?: boolean;
   imageUrl?: string | null;
@@ -57,8 +56,6 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
       {items.map((item) => {
         const imageUrl = item.imageUrl;
         const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
-        const imageFitClass =
-          item.imageFit === 'cover' ? 'object-cover object-center sm:object-contain' : 'object-contain';
         return (
           <div
             key={item.id}
@@ -82,7 +79,7 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
                   alt={item.name}
                   fill
                   sizes="(max-width: 768px) 30vw, 380px"
-                  className={imageFitClass}
+                  className="object-contain"
                   onError={() => onImageError?.(item)}
                 />
               ) : (

@@ -143,12 +143,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
 
   return items.map((item) => {
     const imagesRaw = item.fields?.image as
-      | Array<{
-          url?: string;
-          width?: number;
-          height?: number;
-          thumbnails?: { large?: { url?: string; width?: number; height?: number } };
-        }>
+      | Array<{ url?: string; thumbnails?: { large?: { url?: string } } }>
       | undefined;
     const image = Array.isArray(imagesRaw) ? imagesRaw[0] : undefined;
     const descriptionRaw = item.fields?.description as unknown;
@@ -173,24 +168,6 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       : null;
     const requiresAgencyConfirmation = toBoolean(item.fields?.unit_allocation);
     const status = toStatus(item.fields?.status_project_allocation);
-
-    const imageFit = (() => {
-      const source = image?.thumbnails?.large ?? image;
-      const width =
-        typeof source?.width === 'number'
-          ? source.width
-          : typeof image?.width === 'number'
-            ? image.width
-            : null;
-      const height =
-        typeof source?.height === 'number'
-          ? source.height
-          : typeof image?.height === 'number'
-            ? image.height
-            : null;
-      if (!width || !height) return 'contain';
-      return width >= height ? 'cover' : 'contain';
-    })();
 
     const unitAllocations = Array.isArray(item.unitAllocations)
       ? item.unitAllocations
@@ -217,7 +194,6 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       points: typeof item.fields?.points === 'number' ? item.fields?.points : null,
       link: typeof item.fields?.Link === 'string' && item.fields?.Link.trim() ? item.fields?.Link.trim() : null,
       imageUrl: typeof image?.thumbnails?.large?.url === 'string' ? image.thumbnails.large.url : image?.url || null,
-      imageFit,
       status,
       requiresAgencyConfirmation,
       termsActive: tcActive,
