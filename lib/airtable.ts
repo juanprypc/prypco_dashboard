@@ -73,7 +73,16 @@ export type CatalogueFields = {
     | 'sold out'
     | string;
   unit_allocation?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
-  image?: Array<{ url: string; filename?: string; thumbnails?: { large?: { url: string }; small?: { url: string } } }>;
+  image?: Array<{
+    url: string;
+    width?: number;
+    height?: number;
+    filename?: string;
+    thumbnails?: {
+      large?: { url: string; width?: number; height?: number };
+      small?: { url: string; width?: number; height?: number };
+    };
+  }>;
   description?: string;
   is_active?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   'T&C'?: string;
@@ -90,7 +99,12 @@ export type UnitAllocationFields = {
   max_stock?: number;
   Points?: number;
   price_aed?: number;
-  Picture?: Array<{ url: string; thumbnails?: { large?: { url?: string }; small?: { url?: string } } }>;
+  Picture?: Array<{
+    url: string;
+    width?: number;
+    height?: number;
+    thumbnails?: { large?: { url?: string; width?: number; height?: number }; small?: { url?: string } };
+  }>;
 };
 
 export type CatalogueUnitAllocation = {
