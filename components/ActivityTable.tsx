@@ -10,7 +10,7 @@ export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
         <p className="mt-2 text-sm text-[var(--color-outer-space)]/65">
           Close your first deal, redeem a reward, or invite an investor to see your activity spring to life here.
         </p>
-        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--color-hero)]/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-outer-space)]/70">
+        <div className="mt-4 inline-flex items-center gap-2 rounded-[18px] border border-[#d1b7fb]/60 bg-[rgba(234,213,254,0.32)] px-5 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-outer-space)]">
           <span>Tip</span>
           <span>Share your referral link to kick-start your points</span>
         </div>
