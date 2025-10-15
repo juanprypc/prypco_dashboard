@@ -4,27 +4,29 @@ export type CatalogueStatusConfig = {
   label: string;
   badgeClass: string;
   redeemDisabled: boolean;
+  hidden?: boolean;
 };
 
 const STATUS_CONFIG: Record<CatalogueProjectStatus, CatalogueStatusConfig> = {
   active: {
     label: 'Active',
-    badgeClass: 'bg-[#E6F7F0] text-[#107457] border border-[#B5E4CF]',
+    badgeClass: 'border border-[var(--color-outer-space)]/20 text-[var(--color-outer-space)] bg-white',
     redeemDisabled: false,
+    hidden: true,
   },
   coming_soon: {
     label: 'Coming Soon',
-    badgeClass: 'bg-[#FFF4E5] text-[#B45309] border border-[#F5C78B]',
+    badgeClass: 'border border-[var(--color-sunrise)]/80 bg-[var(--color-sunrise)] text-[var(--color-outer-space)]',
     redeemDisabled: true,
   },
   last_units: {
     label: 'Last Units',
-    badgeClass: 'bg-[#F4E8FF] text-[var(--color-electric-purple)] border border-[#D5B7FF]',
+    badgeClass: 'border border-[var(--color-electric-purple)] text-[var(--color-electric-purple)] bg-white',
     redeemDisabled: false,
   },
   sold_out: {
     label: 'Sold Out',
-    badgeClass: 'bg-[#FEECEC] text-[#B91C1C] border border-[#F5B5B5]',
+    badgeClass: 'border border-[var(--color-rose)] bg-[var(--color-rose)] text-white',
     redeemDisabled: true,
   },
 };
