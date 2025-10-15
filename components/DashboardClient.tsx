@@ -13,6 +13,7 @@ import { LoadingOverlay } from './LoadingOverlay';
 import { NavigationTabs } from './NavigationTabs';
 import { ReferralCard, REFERRAL_CARD_BASE_CLASS } from './ReferralCard';
 import LearnMoreGraphic from '@/image_assets/Frame 1.png';
+import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
 
 type Props = {
   agentId?: string;
@@ -130,6 +131,15 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
     return false;
   };
 
+  const toStatus = (value: unknown): CatalogueDisplayItem['status'] => {
+    if (typeof value !== 'string') return 'active';
+    const normalised = value.trim().toLowerCase();
+    if (normalised === 'coming soon' || normalised === 'coming_soon') return 'coming_soon';
+    if (normalised === 'last units' || normalised === 'last_units') return 'last_units';
+    if (normalised === 'sold out' || normalised === 'sold_out') return 'sold_out';
+    return 'active';
+  };
+
   return items.map((item) => {
     const imagesRaw = item.fields?.image as
       | Array<{ url?: string; thumbnails?: { large?: { url?: string } } }>
@@ -156,6 +166,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       ? tcVersion || `${tcText.length}:${tcText.slice(0, 64)}`
       : null;
     const requiresAgencyConfirmation = toBoolean(item.fields?.unit_allocation);
+    const status = toStatus(item.fields?.status_project_allocation);
 
     const unitAllocations = Array.isArray(item.unitAllocations)
       ? item.unitAllocations
@@ -182,6 +193,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       points: typeof item.fields?.points === 'number' ? item.fields?.points : null,
       link: typeof item.fields?.Link === 'string' && item.fields?.Link.trim() ? item.fields?.Link.trim() : null,
       imageUrl: typeof image?.thumbnails?.large?.url === 'string' ? image.thumbnails.large.url : image?.url || null,
+      status,
       requiresAgencyConfirmation,
       termsActive: tcActive,
       termsText: tcText,
@@ -286,6 +298,8 @@ export function DashboardClient({
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
+      const statusConfig = getCatalogueStatusConfig(item.status);
+      if (statusConfig.redeemDisabled) return;
       if (item.termsActive) {
         setTermsAcceptedItemId(null);
         setPendingRedeemItem(item);
@@ -1155,11 +1169,12 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const allocations = item.unitAllocations;
+  const statusConfig = getCatalogueStatusConfig(item.status);
   const isOutOfStock = (allocation: CatalogueUnitAllocation): boolean =>
     typeof allocation.maxStock === 'number' ? allocation.maxStock <= 0 : false;
   const hasSelectable = allocations.some((allocation) => !isOutOfStock(allocation));
   const selectedAllocation = allocations.find((allocation) => allocation.id === selectedId) ?? null;
-  const confirmDisabled = !selectedAllocation || isOutOfStock(selectedAllocation);
+  const confirmDisabled = !selectedAllocation || isOutOfStock(selectedAllocation) || statusConfig.redeemDisabled;
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -1195,13 +1210,23 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 id={`unit-allocation-${item.id}`} className="text-lg font-semibold">
-              Choose property type
-            </h3>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 id={`unit-allocation-${item.id}`} className="text-lg font-semibold">
+                Choose property type
+              </h3>
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
+              >
+                {statusConfig.label}
+              </span>
+            </div>
             <p className="mt-1 text-xs text-[var(--color-outer-space)]/70">
               Select the exact property option you want to redeem.
             </p>
+            {statusConfig.helperText ? (
+              <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">{statusConfig.helperText}</p>
+            ) : null}
           </div>
           <button
             ref={closeRef}
@@ -1307,6 +1332,7 @@ type TermsDialogProps = {
 function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogProps) {
   const requireAcceptance = item.termsActive && !accepted;
   const requiresAgencyConfirmation = !!item.requiresAgencyConfirmation;
+  const statusConfig = getCatalogueStatusConfig(item.status);
   const [checked, setChecked] = useState(accepted);
   const [agencyConfirmed, setAgencyConfirmed] = useState(() => accepted || !requiresAgencyConfirmation);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
@@ -1366,12 +1392,22 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
         className="relative w-full max-w-lg rounded-[28px] border border-[#d1b7fb] bg-white px-4 pb-5 pt-4 text-[var(--color-outer-space)] shadow-xl sm:px-6 sm:py-6 max-h-[85vh] overflow-y-auto"
         onClick={(event) => event.stopPropagation()}
       >
-        <h4 id={titleId} className="text-base font-semibold">
-          Reward terms
-        </h4>
+        <div className="flex flex-wrap items-center gap-2">
+          <h4 id={titleId} className="text-base font-semibold">
+            Reward terms
+          </h4>
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
+          >
+            {statusConfig.label}
+          </span>
+        </div>
         <p className="mt-1 text-xs leading-snug text-[var(--color-outer-space)]/70">
           Please review the reward terms before proceeding.
         </p>
+        {statusConfig.helperText ? (
+          <p className="mt-1 text-[11px] text-[var(--color-outer-space)]/60">{statusConfig.helperText}</p>
+        ) : null}
         {item.termsUrl ? (
           <a
             href={item.termsUrl}
@@ -1503,7 +1539,8 @@ function RedeemDialog({
   const trimmedPhone = customerPhoneLast4.trim();
   const firstNameValid = trimmedFirstName.length > 0;
   const phoneValid = /^\d{4}$/.test(trimmedPhone);
-  const confirmDisabled = busy || !termsSatisfied || !firstNameValid || !phoneValid;
+  const statusConfig = getCatalogueStatusConfig(item.status);
+  const confirmDisabled = busy || !termsSatisfied || !firstNameValid || !phoneValid || statusConfig.redeemDisabled;
   const selectedPriceLabel = formatAedCompact(unitAllocation?.priceAed ?? null);
 
   const extraPointsNeeded = insufficient ? requiredPoints - availablePoints : 0;
@@ -1564,9 +1601,19 @@ function RedeemDialog({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-4 py-6 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-[28px] border border-[#d1b7fb] bg-white p-6 text-[var(--color-outer-space)] shadow-xl">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold">Redeem reward</h3>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-semibold">Redeem reward</h3>
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${statusConfig.badgeClass}`}
+              >
+                {statusConfig.label}
+              </span>
+            </div>
             <p className="text-sm text-[var(--color-outer-space)]/70">{item.name}</p>
+            {statusConfig.helperText ? (
+              <p className="mt-1 text-xs text-[var(--color-outer-space)]/60">{statusConfig.helperText}</p>
+            ) : null}
           </div>
           <button onClick={onClose} className="cursor-pointer text-sm text-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]">Close</button>
         </div>

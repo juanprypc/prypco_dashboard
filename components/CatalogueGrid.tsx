@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import React from 'react';
 import { formatNumber } from '@/lib/format';
+import type { CatalogueProjectStatus } from '@/lib/airtable';
+import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
 
 export type CatalogueUnitAllocation = {
   id: string;
@@ -16,6 +18,7 @@ export type CatalogueDisplayItem = {
   name: string;
   priceAED: number | null;
   points: number | null;
+  status: CatalogueProjectStatus;
   requiresAgencyConfirmation?: boolean;
   imageUrl?: string | null;
   link?: string | null;
@@ -52,6 +55,7 @@ export function CatalogueGrid({ items, onRedeem, onImageError, onShowTerms }: Pr
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 xl:gap-8">
       {items.map((item) => {
         const imageUrl = item.imageUrl;
+        const statusConfig = getCatalogueStatusConfig(item.status);
         return (
           <div
             key={item.id}
@@ -59,15 +63,11 @@ export function CatalogueGrid({ items, onRedeem, onImageError, onShowTerms }: Pr
           >
             <div className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)] leading-[1.15] sm:text-[18px]">
               <span>{getPoints(item.points)} points</span>
-              {item.termsActive ? (
-                <button
-                  type="button"
-                  onClick={() => onShowTerms?.(item)}
-                  className="whitespace-nowrap px-1.5 py-0.5 text-[7px] font-semibold tracking-[0.2em] text-[var(--color-electric-purple)] transition hover:text-[var(--color-outer-space)] hover:underline sm:px-2 sm:text-[10px]"
-                >
-                  Terms apply
-                </button>
-              ) : null}
+              <span
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-[7px] font-semibold tracking-[0.2em] sm:px-2 sm:text-[10px] ${statusConfig.badgeClass}`}
+              >
+                {statusConfig.label}
+              </span>
             </div>
 
             <div className="relative mt-3 flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-[18px] bg-[#F6F3F8] sm:mt-6 sm:aspect-auto sm:h-[260px] sm:rounded-[28px]">
@@ -94,14 +94,26 @@ export function CatalogueGrid({ items, onRedeem, onImageError, onShowTerms }: Pr
                   {item.unitAllocations.length} property option{item.unitAllocations.length === 1 ? '' : 's'} available
                 </p>
               ) : null}
+              {statusConfig.helperText ? (
+                <p className="mt-2 text-[10px] text-[var(--color-outer-space)]/60 sm:text-xs">{statusConfig.helperText}</p>
+              ) : null}
               <button
                 type="button"
                 onClick={() => onRedeem?.(item)}
-                disabled={!onRedeem}
-                className="mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border border-[var(--color-outer-space)] bg-white/80 text-[11px] font-medium text-[var(--color-outer-space)] transition hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white cursor-pointer disabled:cursor-not-allowed disabled:border-[var(--color-outer-space)]/30 disabled:text-[var(--color-outer-space)]/40 sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px]"
+                disabled={!onRedeem || statusConfig.redeemDisabled}
+                className="mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border border-[var(--color-outer-space)] bg-white/80 text-[11px] font-medium text-[var(--color-outer-space)] transition hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white cursor-pointer disabled:cursor-not-allowed disabled:border-[var(--color-outer-space)]/30 disabled:text-[var(--color-outer-space)]/40 disabled:hover:border-[var(--color-outer-space)]/30 disabled:hover:bg-white disabled:hover:text-[var(--color-outer-space)]/40 sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px]"
               >
                 Redeem
               </button>
+              {item.termsActive ? (
+                <button
+                  type="button"
+                  onClick={() => onShowTerms?.(item)}
+                  className="mt-2 text-[9px] font-semibold text-[var(--color-electric-purple)] underline-offset-2 hover:underline sm:text-[11px]"
+                >
+                  View terms
+                </button>
+              ) : null}
             </div>
           </div>
         );

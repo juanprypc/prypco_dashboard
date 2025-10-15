@@ -62,6 +62,16 @@ export type CatalogueFields = {
   points?: number;
   Link?: string;
   display_rank?: number;
+  status_project_allocation?:
+    | 'Active'
+    | 'Coming Soon'
+    | 'Last Units'
+    | 'Sold Out'
+    | 'active'
+    | 'coming soon'
+    | 'last units'
+    | 'sold out'
+    | string;
   unit_allocation?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   image?: Array<{ url: string; filename?: string; thumbnails?: { large?: { url: string }; small?: { url: string } } }>;
   description?: string;
@@ -96,6 +106,8 @@ export type CatalogueUnitAllocation = {
 export type CatalogueItemWithAllocations = CatalogueItem & {
   unitAllocations: CatalogueUnitAllocation[];
 };
+
+export type CatalogueProjectStatus = 'active' | 'coming_soon' | 'last_units' | 'sold_out';
 
 
 async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
