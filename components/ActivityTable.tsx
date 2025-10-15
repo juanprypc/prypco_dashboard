@@ -5,7 +5,12 @@ import { formatDate, formatPoints } from '@/lib/format';
 
 export function ActivityTable({ rows }: { rows: PublicLoyaltyRow[] }) {
   if (!rows.length) {
-    return <EmptyState title="No ledger rows yet" description="Once Airtable automations post points, the trail will appear here." />;
+    return (
+      <EmptyState
+        title="Start building your trail"
+        description="Close your first deal, redeem a reward, or invite an investor to see your activity light up here."
+      />
+    );
   }
 
   return (

@@ -730,8 +730,11 @@ export function DashboardClient({
     if (!topHighlightItems.length) {
       return [
         <div key="top-empty" className={`${REFERRAL_CARD_BASE_CLASS} text-xs text-[var(--color-outer-space)]/70`}>
-          <p className="text-sm font-semibold">No earnings yet</p>
-          <p>Your activity will appear here soon.</p>
+          <p className="text-sm font-semibold">Your top categories await</p>
+          <p>
+            Close a deal or share your referral links to unlock your first earning badge. Every transaction moves you up
+            the leaderboard.
+          </p>
         </div>,
       ];
     }
