@@ -61,11 +61,11 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
             key={item.id}
             className="mx-auto flex h-full w-full max-w-[170px] flex-col rounded-[18px] bg-white px-3 pb-4 pt-4 text-center shadow-[0_18px_45px_-40px_rgba(13,9,59,0.35)] sm:mx-0 sm:h-[520px] sm:max-w-none sm:px-6 sm:pt-10 sm:pb-10 sm:text-left"
           >
-            <div className="flex items-center justify-between gap-1 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)] leading-[1.15] sm:text-[18px]">
+            <div className="flex items-center justify-between gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--color-outer-space)] leading-[1.15] sm:text-[18px]">
               <span>{getPoints(item.points)} points</span>
               {statusConfig && !statusConfig.hidden ? (
                 <span
-                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-full border border-transparent px-1.5 py-[2px] text-[7px] font-semibold tracking-[0.18em] leading-none uppercase transition-colors sm:px-2 sm:text-[9px] ${statusConfig.badgeClass}`}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-[7px] font-semibold tracking-[0.2em] sm:px-2 sm:text-[10px] ${statusConfig.badgeClass}`}
                 >
                   {statusConfig.label}
                 </span>

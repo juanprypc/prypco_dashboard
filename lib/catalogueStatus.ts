@@ -10,23 +10,23 @@ export type CatalogueStatusConfig = {
 const STATUS_CONFIG: Record<CatalogueProjectStatus, CatalogueStatusConfig> = {
   active: {
     label: 'Active',
-    badgeClass: 'border border-[var(--color-outer-space)]/20 text-[var(--color-outer-space)] bg-white',
+    badgeClass: 'bg-[#E6F7F0] text-[#107457] border border-[#B5E4CF]',
     redeemDisabled: false,
     hidden: true,
   },
   coming_soon: {
     label: 'Coming Soon',
-    badgeClass: 'border border-[var(--color-sunrise)]/80 bg-[var(--color-sunrise)] text-[var(--color-outer-space)]',
+    badgeClass: 'bg-[#FFF4E5] text-[#B45309] border border-[#F5C78B]',
     redeemDisabled: true,
   },
   last_units: {
     label: 'Last Units',
-    badgeClass: 'border border-[var(--color-electric-purple)] text-[var(--color-electric-purple)] bg-white',
+    badgeClass: 'bg-[#F4E8FF] text-[var(--color-electric-purple)] border border-[#D5B7FF]',
     redeemDisabled: false,
   },
   sold_out: {
     label: 'Sold Out',
-    badgeClass: 'border border-[var(--color-rose)] bg-[var(--color-rose)] text-white',
+    badgeClass: 'bg-[#FEECEC] text-[#B91C1C] border border-[#F5B5B5]',
     redeemDisabled: true,
   },
 };
