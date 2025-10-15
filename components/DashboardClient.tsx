@@ -155,6 +155,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
     const tcSignature = tcActive
       ? tcVersion || `${tcText.length}:${tcText.slice(0, 64)}`
       : null;
+    const requiresAgencyConfirmation = toBoolean(item.fields?.unit_allocation);
 
     const unitAllocations = Array.isArray(item.unitAllocations)
       ? item.unitAllocations
@@ -181,6 +182,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       points: typeof item.fields?.points === 'number' ? item.fields?.points : null,
       link: typeof item.fields?.Link === 'string' && item.fields?.Link.trim() ? item.fields?.Link.trim() : null,
       imageUrl: typeof image?.thumbnails?.large?.url === 'string' ? image.thumbnails.large.url : image?.url || null,
+      requiresAgencyConfirmation,
       termsActive: tcActive,
       termsText: tcText,
       termsVersion: tcVersion,
@@ -1304,7 +1306,7 @@ type TermsDialogProps = {
 
 function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogProps) {
   const requireAcceptance = item.termsActive && !accepted;
-  const requiresAgencyConfirmation = requiresDamacAgencyConfirmation(item);
+  const requiresAgencyConfirmation = !!item.requiresAgencyConfirmation;
   const [checked, setChecked] = useState(accepted);
   const [agencyConfirmed, setAgencyConfirmed] = useState(() => accepted || !requiresAgencyConfirmation);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
@@ -1444,23 +1446,6 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
       </div>
     </div>
   );
-}
-
-function requiresDamacAgencyConfirmation(item: CatalogueDisplayItem): boolean {
-  const parts: string[] = [];
-  if (item.name) parts.push(item.name);
-  if (typeof item.termsText === 'string') parts.push(item.termsText);
-  for (const allocation of item.unitAllocations ?? []) {
-    if (allocation?.unitType) parts.push(allocation.unitType);
-  }
-  const text = parts
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  if (!text) return false;
-  if (text.includes('damac island allocation')) return true;
-  if (text.includes('damac island')) return true;
-  return text.includes('damac') && text.includes('island');
 }
 
 type RedeemDialogProps = {

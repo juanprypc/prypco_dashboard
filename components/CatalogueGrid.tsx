@@ -16,6 +16,7 @@ export type CatalogueDisplayItem = {
   name: string;
   priceAED: number | null;
   points: number | null;
+  requiresAgencyConfirmation?: boolean;
   imageUrl?: string | null;
   link?: string | null;
   termsActive?: boolean;

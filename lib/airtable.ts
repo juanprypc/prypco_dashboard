@@ -62,6 +62,7 @@ export type CatalogueFields = {
   points?: number;
   Link?: string;
   display_rank?: number;
+  unit_allocation?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   image?: Array<{ url: string; filename?: string; thumbnails?: { large?: { url: string }; small?: { url: string } } }>;
   description?: string;
   is_active?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
