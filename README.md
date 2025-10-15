@@ -86,6 +86,11 @@ Notes:
 2. In Stripe (test mode), create a Checkout webhook endpoint targeting your Airtable automation URL and subscribe to `checkout.session.completed` events.
 3. From the dashboard, agents can launch Checkout via the “Buy points” card. Metadata sent to Stripe includes `agentId`, `amountAED`, `pointsPerAED`, and `expectedPoints` so Airtable can post the ledger row when the webhook fires.
 
+### Admin Analytics Dashboard
+
+- The internal analytics dashboard lives at `/admin/analytics` and is protected by the same basic auth credentials used for the Damac tooling.
+- Aggregated metrics are computed in Supabase via the `loyalty_admin_*` functions. Make sure `POINTS_PER_AED` reflects the live conversion so AED costs are reported accurately.
+
 ### Receipt Generation API
 
 - **Endpoint:** `POST /api/receipts`
