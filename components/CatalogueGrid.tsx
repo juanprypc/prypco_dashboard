@@ -56,6 +56,7 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
       {items.map((item) => {
         const imageUrl = item.imageUrl;
         const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
+        const hasAllocations = item.unitAllocations.length > 0;
         return (
           <div
             key={item.id}
@@ -79,7 +80,7 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
                   alt={item.name}
                   fill
                   sizes="(max-width: 768px) 30vw, 380px"
-                  className="object-contain"
+                  className={hasAllocations ? 'object-cover object-center sm:object-contain' : 'object-contain'}
                   onError={() => onImageError?.(item)}
                 />
               ) : (
