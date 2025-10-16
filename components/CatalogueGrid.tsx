@@ -59,6 +59,10 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
         const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
         const isComingSoon = item.status === 'coming_soon';
         const disableButton = !onRedeem || (!!statusConfig?.redeemDisabled && !isComingSoon);
+        const imageClassName =
+          item.unitAllocations.length > 0
+            ? 'object-cover scale-110 sm:scale-100 sm:object-contain'
+            : 'object-contain';
         return (
           <div
             key={item.id}
@@ -82,7 +86,7 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
                   alt={item.name}
                   fill
                   sizes="(max-width: 768px) 30vw, 380px"
-                  className="object-contain"
+                  className={imageClassName}
                   onError={() => onImageError?.(item)}
                 />
               ) : (
