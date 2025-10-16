@@ -9,7 +9,7 @@ import {
 
 const kv = getKvClient();
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;

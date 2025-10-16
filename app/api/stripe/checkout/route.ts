@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const stripe = new Stripe(secretKey, { apiVersion: '2025-08-27.basil' });
+    const stripe = new Stripe(secretKey);
 
     const baseParams = new URLSearchParams(body.baseQuery || '');
     if (agentId && !baseParams.has('agent')) baseParams.set('agent', agentId);
