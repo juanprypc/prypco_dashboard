@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import React from 'react';
 import { formatNumber } from '@/lib/format';
+import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
 import type { CatalogueProjectStatus } from '@/lib/airtable';
 import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
 
@@ -98,7 +99,23 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
               ) : null}
               <button
                 type="button"
-                onClick={() => onRedeem?.(item)}
+                onClick={() => {
+                  if (onRedeem) {
+                    const metaParts: string[] = [];
+                    metaParts.push(`alloc=${item.unitAllocations.length > 0 ? 1 : 0}`);
+                    if (typeof item.points === 'number') {
+                      metaParts.push(`pts=${item.points}`);
+                    }
+                    if (item.name) {
+                      metaParts.push(`name=${item.name}`);
+                    }
+                    emitAnalyticsEvent('reward_redeem_clicked', {
+                      reward_id: item.id,
+                      reward_label: metaParts.join('|').slice(0, 255),
+                    });
+                    onRedeem(item);
+                  }
+                }}
                 disabled={!onRedeem || !!statusConfig?.redeemDisabled}
                 className="mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border border-[var(--color-outer-space)] bg-white/80 text-[11px] font-medium text-[var(--color-outer-space)] transition hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white cursor-pointer disabled:cursor-not-allowed disabled:border-[var(--color-outer-space)]/30 disabled:text-[var(--color-outer-space)]/40 disabled:hover:border-[var(--color-outer-space)]/30 disabled:hover:bg-white disabled:hover:text-[var(--color-outer-space)]/40 sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px]"
               >

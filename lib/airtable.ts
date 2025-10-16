@@ -187,10 +187,12 @@ export async function fetchLoyaltyCatalogue(): Promise<CatalogueItemWithAllocati
     params.set('sort[0][direction]', 'asc');
     if (offset) params.set('offset', offset);
 
-    const res = await fetch(`${urlBase}?${params.toString()}`, {
-      headers,
-      cache: 'no-store',
-    });
+    const res = await scheduleAirtableRequest(() =>
+      fetch(`${urlBase}?${params.toString()}`, {
+        headers,
+        cache: 'no-store',
+      }),
+    );
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Airtable catalogue error ${res.status}: ${text}`);

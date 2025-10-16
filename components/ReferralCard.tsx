@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
 
 type Props = {
   title: string;
@@ -13,6 +14,9 @@ type Props = {
   codeCopySuccessLabel?: string;
   onCodeCopy?: () => Promise<void> | void;
   className?: string;
+  analyticsAgentId?: string;
+  analyticsShareVariant?: string;
+  analyticsCopyVariant?: string;
 };
 
 export const REFERRAL_CARD_BASE_CLASS =
@@ -29,25 +33,36 @@ export function ReferralCard({
   codeCopySuccessLabel = 'Copied!',
   onCodeCopy,
   className,
+  analyticsAgentId,
+  analyticsShareVariant,
+  analyticsCopyVariant,
 }: Props) {
   const [primaryCopied, setPrimaryCopied] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
 
   const handlePrimary = useCallback(async () => {
     if (!onPrimaryClick) return;
+    emitAnalyticsEvent('referral_link_clicked', {
+      agent_id: analyticsAgentId ?? 'unknown',
+      referral_variant: analyticsShareVariant ?? 'primary',
+    });
     await onPrimaryClick();
     if (!primarySuccessLabel) return;
     setPrimaryCopied(true);
     setTimeout(() => setPrimaryCopied(false), 1500);
-  }, [onPrimaryClick, primarySuccessLabel]);
+  }, [analyticsAgentId, analyticsShareVariant, onPrimaryClick, primarySuccessLabel]);
 
   const handleCodeCopy = useCallback(async () => {
     if (!onCodeCopy) return;
+    emitAnalyticsEvent('referral_code_copied', {
+      agent_id: analyticsAgentId ?? 'unknown',
+      referral_variant: analyticsCopyVariant ?? 'code',
+    });
     await onCodeCopy();
     if (!codeCopySuccessLabel) return;
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 1500);
-  }, [onCodeCopy, codeCopySuccessLabel]);
+  }, [analyticsAgentId, analyticsCopyVariant, codeCopySuccessLabel, onCodeCopy]);
 
   const shareButtonClasses =
     'inline-flex w-full min-h-[38px] items-center justify-center rounded-[14px] border border-[var(--color-outer-space)] bg-white/75 px-4 py-2 text-sm font-semibold text-[var(--color-outer-space)] shadow-[0_12px_28px_-18px_rgba(13,9,59,0.35)] transition hover:bg-[var(--color-panel)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-electric-purple)] focus-visible:ring-offset-2 focus-visible:ring-offset-white min-[420px]:py-2.5';

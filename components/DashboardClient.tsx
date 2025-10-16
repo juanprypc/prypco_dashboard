@@ -14,6 +14,7 @@ import { NavigationTabs } from './NavigationTabs';
 import { ReferralCard, REFERRAL_CARD_BASE_CLASS } from './ReferralCard';
 import LearnMoreGraphic from '@/image_assets/Frame 1.png';
 import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
+import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
 
 type Props = {
   agentId?: string;
@@ -236,6 +237,7 @@ export function DashboardClient({
   const router = useRouter();
   const cataloguePrefetchedRef = useRef(false);
   const catalogueFetchPromiseRef = useRef<Promise<void> | null>(null);
+  const catalogueTrackedRef = useRef(false);
   const [redeemItem, setRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [redeemStatus, setRedeemStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
@@ -763,6 +765,18 @@ export function DashboardClient({
     ));
   }, [rows, topHighlightItems]);
 
+  const analyticsAgentId = agentId ?? agentCode ?? 'unknown';
+
+  useEffect(() => {
+    if (activeView !== 'catalogue') return;
+    if (!catalogue || catalogueTrackedRef.current) return;
+    emitAnalyticsEvent('catalogue_view', {
+      agent_id: analyticsAgentId,
+      item_count: catalogue.length,
+    });
+    catalogueTrackedRef.current = true;
+  }, [activeView, analyticsAgentId, catalogue]);
+
   const referralCards: ReactNode[] = [
     <ReferralCard
       key="ref-agent"
@@ -773,6 +787,9 @@ export function DashboardClient({
       codeValue={agentReferralDisplay || undefined}
       codeCopySuccessLabel="Link copied!"
       onCodeCopy={() => copyToClipboard(agentReferralLink)}
+      analyticsAgentId={analyticsAgentId}
+      analyticsShareVariant="agent_share"
+      analyticsCopyVariant="agent_copy"
     />,
     <ReferralCard
       key="ref-investor"
@@ -783,6 +800,9 @@ export function DashboardClient({
       codeValue={investorPromoCodeValue ?? undefined}
       codeCopySuccessLabel="Code copied!"
       onCodeCopy={() => copyToClipboard(investorPromoCodeValue)}
+      analyticsAgentId={analyticsAgentId}
+      analyticsShareVariant="investor_share"
+      analyticsCopyVariant="investor_copy"
     />,
   ];
 
@@ -1247,6 +1267,10 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
                 type="button"
                 onClick={() => {
                   if (disabled) return;
+                  emitAnalyticsEvent('reward_allocation_selected', {
+                    reward_id: item.id,
+                    allocation_id: allocation.id,
+                  });
                   onSelect(allocation.id);
                 }}
                 className={`w-full rounded-[22px] border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)] focus:ring-offset-2 focus:ring-offset-white sm:px-5 sm:py-4 ${
