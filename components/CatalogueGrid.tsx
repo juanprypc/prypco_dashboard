@@ -57,6 +57,8 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
       {items.map((item) => {
         const imageUrl = item.imageUrl;
         const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
+        const isComingSoon = item.status === 'coming_soon';
+        const disableButton = !onRedeem || (!!statusConfig?.redeemDisabled && !isComingSoon);
         return (
           <div
             key={item.id}
@@ -116,10 +118,10 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
                     onRedeem(item);
                   }
                 }}
-                disabled={!onRedeem || !!statusConfig?.redeemDisabled}
-                className="mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border border-[var(--color-outer-space)] bg-white/80 text-[11px] font-medium text-[var(--color-outer-space)] transition hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white cursor-pointer disabled:cursor-not-allowed disabled:border-[var(--color-outer-space)]/30 disabled:text-[var(--color-outer-space)]/40 disabled:hover:border-[var(--color-outer-space)]/30 disabled:hover:bg-white disabled:hover:text-[var(--color-outer-space)]/40 sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px]"
+                disabled={disableButton}
+                className={`mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border text-[11px] font-medium transition sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px] ${disableButton ? 'cursor-not-allowed border-[var(--color-outer-space)]/30 text-[var(--color-outer-space)]/40 bg-white/80' : 'cursor-pointer border-[var(--color-outer-space)] bg-white/80 text-[var(--color-outer-space)] hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white'}`}
               >
-                Redeem
+                {isComingSoon ? 'Join waitlist' : 'Redeem'}
               </button>
             </div>
           </div>
