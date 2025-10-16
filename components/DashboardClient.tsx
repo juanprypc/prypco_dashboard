@@ -246,10 +246,12 @@ export function DashboardClient({
   const [termsDialogMode, setTermsDialogMode] = useState<'view' | 'redeem'>('view');
   const [unitAllocationDialogItem, setUnitAllocationDialogItem] = useState<CatalogueDisplayItem | null>(null);
   const [unitAllocationSelection, setUnitAllocationSelection] = useState<string | null>(null);
+  const [unitAllocationMode, setUnitAllocationMode] = useState<'redeem' | 'waitlist'>('redeem');
   const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
   const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
+  const analyticsAgentId = agentId ?? agentCode ?? 'unknown';
 
   const hasAcceptedTerms = useCallback(
     (item: CatalogueDisplayItem | null) => {
@@ -274,6 +276,7 @@ export function DashboardClient({
       const allocations = item.unitAllocations;
       setSelectedUnitAllocation(null);
       if (allocations.length > 0) {
+        setUnitAllocationMode('redeem');
         setUnitAllocationDialogItem(item);
         setUnitAllocationSelection(null);
         return;
@@ -284,9 +287,10 @@ export function DashboardClient({
   );
 
   const closeUnitAllocationDialog = useCallback(() => {
-    setUnitAllocationDialogItem(null);
-    setUnitAllocationSelection(null);
-  }, []);
+        setUnitAllocationDialogItem(null);
+        setUnitAllocationSelection(null);
+        setUnitAllocationMode('redeem');
+      }, []);
 
   const confirmUnitAllocation = useCallback(() => {
     if (!unitAllocationDialogItem) return;
@@ -295,15 +299,37 @@ export function DashboardClient({
     const allocations = unitAllocationDialogItem.unitAllocations;
     const chosen = allocations.find((allocation) => allocation.id === selectionId) ?? null;
     if (!chosen) return;
+    if (unitAllocationMode === 'waitlist') {
+      emitAnalyticsEvent('coming_soon_interest', {
+        allocation_id: chosen.id,
+        agent_id: analyticsAgentId,
+      });
+      closeUnitAllocationDialog();
+      return;
+    }
     closeUnitAllocationDialog();
     beginRedeem(unitAllocationDialogItem, chosen);
-  }, [beginRedeem, closeUnitAllocationDialog, unitAllocationDialogItem, unitAllocationSelection]);
+  }, [
+    analyticsAgentId,
+    beginRedeem,
+    closeUnitAllocationDialog,
+    unitAllocationDialogItem,
+    unitAllocationMode,
+    unitAllocationSelection,
+  ]);
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
       if (item.status) {
         const statusConfig = getCatalogueStatusConfig(item.status);
-        if (statusConfig.redeemDisabled) return;
+        if (statusConfig.redeemDisabled) {
+          if (item.status === 'coming_soon') {
+            setUnitAllocationMode('waitlist');
+            setUnitAllocationDialogItem(item);
+            setUnitAllocationSelection(null);
+          }
+          return;
+        }
       }
       if (item.termsActive) {
         setTermsAcceptedItemId(null);
@@ -765,8 +791,6 @@ export function DashboardClient({
     ));
   }, [rows, topHighlightItems]);
 
-  const analyticsAgentId = agentId ?? agentCode ?? 'unknown';
-
   useEffect(() => {
     if (activeView !== 'catalogue') return;
     if (!catalogue || catalogueTrackedRef.current) return;
@@ -777,7 +801,7 @@ export function DashboardClient({
     catalogueTrackedRef.current = true;
   }, [activeView, analyticsAgentId, catalogue]);
 
-  const referralCards: ReactNode[] = [
+const referralCards: ReactNode[] = [
     <ReferralCard
       key="ref-agent"
       title="Refer an Agent"
@@ -1109,6 +1133,8 @@ export function DashboardClient({
           onSelect={(value) => setUnitAllocationSelection(value)}
           onConfirm={confirmUnitAllocation}
           onClose={closeUnitAllocationDialog}
+          mode={unitAllocationMode}
+          agentId={analyticsAgentId}
         />
       ) : null}
 
@@ -1186,9 +1212,11 @@ type UnitAllocationDialogProps = {
   onSelect: (value: string) => void;
   onConfirm: () => void;
   onClose: () => void;
+  mode: 'redeem' | 'waitlist';
+  agentId: string;
 };
 
-function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }: UnitAllocationDialogProps) {
+function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose, mode, agentId }: UnitAllocationDialogProps) {
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const allocations = item.unitAllocations;
@@ -1199,7 +1227,7 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
   const confirmDisabled =
     !selectedAllocation ||
     isOutOfStock(selectedAllocation) ||
-    (!!item.status && getCatalogueStatusConfig(item.status)?.redeemDisabled);
+    (mode !== 'waitlist' && !!item.status && getCatalogueStatusConfig(item.status)?.redeemDisabled);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -1268,8 +1296,8 @@ function UnitAllocationDialog({ item, selectedId, onSelect, onConfirm, onClose }
                 onClick={() => {
                   if (disabled) return;
                   emitAnalyticsEvent('reward_allocation_selected', {
-                    reward_id: item.id,
                     allocation_id: allocation.id,
+                    agent_id: agentId,
                   });
                   onSelect(allocation.id);
                 }}
