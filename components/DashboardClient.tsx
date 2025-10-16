@@ -1104,12 +1104,6 @@ const referralCards: ReactNode[] = [
             </p>
           </div>
 
-          {waitlistMessage ? (
-            <div className="mx-auto w-full max-w-3xl rounded-[18px] border border-[var(--color-electric-purple)]/30 bg-white/90 px-4 py-3 text-sm text-[var(--color-outer-space)]/80 shadow-sm">
-              {waitlistMessage}
-            </div>
-          ) : null}
-
           <CatalogueGrid
             items={catalogue ?? []}
             onRedeem={handleRequestRedeem}
@@ -1126,6 +1120,28 @@ const referralCards: ReactNode[] = [
           onAccept={handleTermsAccept}
           onClose={handleTermsClose}
         />
+      ) : null}
+
+      {waitlistMessage ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setWaitlistMessage(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-[26px] border border-[var(--color-electric-purple)]/30 bg-white px-5 py-6 text-center text-[var(--color-outer-space)] shadow-[0_18px_45px_-40px_rgba(13,9,59,0.45)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-outer-space)]">You&apos;re on the list</h3>
+            <p className="mt-2 text-sm text-[var(--color-outer-space)]/70">{waitlistMessage}</p>
+            <button
+              type="button"
+              onClick={() => setWaitlistMessage(null)}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-[var(--color-outer-space)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)]/80"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {unitAllocationDialogItem ? (
