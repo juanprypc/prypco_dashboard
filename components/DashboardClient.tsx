@@ -829,11 +829,16 @@ const referralCards: ReactNode[] = [
   const lastUpdatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
-  const greetingName = displayName && displayName.trim()
-    ? displayName.trim()
-    : identifierLabel && identifierLabel !== '—'
-      ? identifierLabel
-      : 'there';
+  const greetingName = (() => {
+    const cleaned = displayName?.trim();
+    if (cleaned) return cleaned;
+    const identifier = identifierLabel?.trim();
+    if (identifier && identifier !== '—') {
+      const looksLikeId = /^[a-f0-9-]{20,}$/i.test(identifier);
+      if (!looksLikeId) return identifier;
+    }
+    return 'there';
+  })();
 
   if (activeView === 'learn') {
     return (
