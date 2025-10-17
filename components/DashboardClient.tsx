@@ -456,6 +456,12 @@ export function DashboardClient({
   const shareAgentReferral = useCallback(async () => {
     const link = agentReferralLink;
     if (!link) return;
+
+    if (agentReferralWhatsappHref) {
+      openWhatsapp(agentReferralWhatsappHref);
+      return;
+    }
+
     const shareText = `Join me on Prypco One — use my link: ${link}`;
     try {
       if (typeof navigator !== 'undefined' && navigator.share) {
@@ -465,10 +471,7 @@ export function DashboardClient({
     } catch {
       /* ignore share errors and fall back to copy */
     }
-    if (agentReferralWhatsappHref) {
-      openWhatsapp(agentReferralWhatsappHref);
-      return;
-    }
+
     await copyToClipboard(link);
   }, [agentReferralLink, agentReferralWhatsappHref, copyToClipboard, openWhatsapp]);
 
