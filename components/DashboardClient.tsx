@@ -829,7 +829,23 @@ const referralCards: ReactNode[] = [
   const lastUpdatedLabel = lastUpdated
     ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : null;
-  const greetingName = displayName?.trim() ? displayName.trim() : 'there';
+  const looksLikeAccountId = (value?: string | null) => {
+    if (!value) return false;
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    // treat UUID or long hex strings as ids
+    return /^[0-9a-f-]{20,}$/i.test(trimmed);
+  };
+
+  const preferName = (value?: string | null) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '—') return null;
+    if (looksLikeAccountId(trimmed)) return null;
+    return trimmed;
+  };
+
+  const greetingName = preferName(displayName) ?? preferName(identifierLabel) ?? 'there';
 
   if (activeView === 'learn') {
     return (
