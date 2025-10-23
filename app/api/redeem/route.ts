@@ -31,14 +31,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing reward identifier' }, { status: 400 });
     }
 
+    const rawUnitAllocationId =
+      typeof body?.unitAllocationId === 'string' ? body.unitAllocationId.trim() : '';
+    const unitAllocationId = rawUnitAllocationId.length > 0 ? rawUnitAllocationId : null;
+    const hasUnitAllocation = unitAllocationId !== null;
     const customerFirstName = typeof body?.customerFirstName === 'string' ? body.customerFirstName.trim() : '';
     const customerPhoneLast4 = typeof body?.customerPhoneLast4 === 'string' ? body.customerPhoneLast4.trim() : '';
+    const phoneProvided = customerPhoneLast4.length > 0;
+    const phoneLooksValid = /^\d{4}$/.test(customerPhoneLast4);
 
-    if (!customerFirstName) {
+    if (hasUnitAllocation && !customerFirstName) {
       return NextResponse.json({ error: 'Buyer first name is required' }, { status: 400 });
     }
 
-    if (!/^\d{4}$/.test(customerPhoneLast4)) {
+    if ((hasUnitAllocation || phoneProvided) && !phoneLooksValid) {
       return NextResponse.json({ error: 'Buyer phone last four digits are invalid' }, { status: 400 });
     }
 
@@ -49,9 +55,7 @@ export async function POST(request: Request) {
       rewardName: body.rewardName ?? null,
       rewardPoints: typeof body.rewardPoints === 'number' ? body.rewardPoints : null,
       priceAed: typeof body.priceAed === 'number' ? body.priceAed : null,
-      unitAllocationId: typeof body.unitAllocationId === 'string' && body.unitAllocationId.trim()
-        ? body.unitAllocationId.trim()
-        : null,
+      unitAllocationId,
       unitAllocationLabel:
         typeof body.unitAllocationLabel === 'string' && body.unitAllocationLabel.trim()
           ? body.unitAllocationLabel.trim()
@@ -60,8 +64,8 @@ export async function POST(request: Request) {
         typeof body.unitAllocationPoints === 'number' && Number.isFinite(body.unitAllocationPoints)
           ? body.unitAllocationPoints
           : null,
-      customerFirstName,
-      customerPhoneLast4,
+      customerFirstName: customerFirstName || null,
+      customerPhoneLast4: phoneLooksValid ? customerPhoneLast4 || null : null,
       requestedAt: new Date().toISOString(),
     };
 
