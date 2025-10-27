@@ -12,6 +12,7 @@ type RedemptionRecord = {
   agentEmail: string | null;
   agentName: string | null;
   agentCode: string | null;
+  agencyName: string | null;
   unitAllocationFirstName: string | null;
   unitAllocationPhoneLast4: string | null;
   unitAllocationLabel: string | null;
@@ -190,6 +191,7 @@ export default function DamacOperationsPage() {
               <InfoItem label="Agent name" value={record.agentName ?? '—'} />
               <InfoItem label="Agent email" value={record.agentEmail ?? '—'} />
               <InfoItem label="Agent code" value={record.agentCode ?? '—'} />
+              <InfoItem label="Agency name" value={record.agencyName ?? '—'} />
               <InfoItem label="Buyer first name" value={record.unitAllocationFirstName ?? '—'} />
               <InfoItem label="Buyer phone" value={record.unitAllocationPhoneLast4 ? `•••• ${record.unitAllocationPhoneLast4}` : '—'} />
               <InfoItem label="Unit type" value={record.unitType ?? record.unitAllocationLabel ?? '—'} />

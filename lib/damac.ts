@@ -37,6 +37,7 @@ type DamacRawFields = Record<string, unknown> & {
   agent_email?: string;
   agent_fname?: string;
   agent_code?: string;
+  agency_name?: string;
   unit_allocation_fname?: string;
   unit_allocation_phonelast4digit?: string;
   loyalty_unit_allocation?: string;
@@ -52,6 +53,7 @@ export type DamacRedemptionRecord = {
   agentEmail: string | null;
   agentName: string | null;
   agentCode: string | null;
+  agencyName: string | null;
   unitAllocationFirstName: string | null;
   unitAllocationPhoneLast4: string | null;
   unitAllocationLabel: string | null;
@@ -68,6 +70,7 @@ const DAMAC_FIELDS = [
   'agent_email',
   'agent_fname',
   'agent_code',
+  'agency_name',
   'unit_allocation_fname',
   'unit_allocation_phonelast4digit',
   'loyalty_unit_allocation',
@@ -106,6 +109,7 @@ function mapRecord(
     agentEmail: toMaybeString(fields.agent_email) ?? null,
     agentName: toMaybeString(fields.agent_fname) ?? null,
     agentCode: toMaybeString(fields.agent_code) ?? null,
+    agencyName: toMaybeString(fields.agency_name) ?? null,
     unitAllocationFirstName: toMaybeString(fields.unit_allocation_fname) ?? null,
     unitAllocationPhoneLast4: toMaybeString(fields.unit_allocation_phonelast4digit) ?? null,
     unitAllocationLabel: toMaybeString(fields.loyalty_unit_allocation) ?? null,
