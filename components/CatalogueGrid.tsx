@@ -87,6 +87,7 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
                   alt={item.name}
                   fill
                   sizes="(max-width: 768px) 30vw, 380px"
+                  loading="lazy"
                   className={imageClassName}
                   onError={() => onImageError?.(item)}
                 />
