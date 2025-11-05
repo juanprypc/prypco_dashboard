@@ -29,6 +29,7 @@ export type CatalogueDisplayItem = {
   termsUrl?: string | null;
   termsSignature?: string | null;
   unitAllocations: CatalogueUnitAllocation[];
+  category?: 'token' | 'reward';
 };
 
 type Props = {

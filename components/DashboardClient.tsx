@@ -188,6 +188,8 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
           .filter((allocation): allocation is CatalogueUnitAllocation => allocation !== null)
       : [];
 
+    const category: 'token' | 'reward' = unitAllocations.length > 0 ? 'token' : 'reward';
+
     return {
       id: item.id,
       name,
@@ -204,6 +206,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       termsUrl: tcUrl,
       termsSignature: tcSignature,
       unitAllocations,
+      category,
     };
   });
 }
@@ -251,6 +254,7 @@ export function DashboardClient({
   const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
   const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
+  const [catalogueFilter, setCatalogueFilter] = useState<'all' | 'token' | 'reward'>('all');
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
   const analyticsAgentId = agentId ?? agentCode ?? 'unknown';
 
@@ -261,6 +265,25 @@ export function DashboardClient({
     },
     [termsAcceptedItemId],
   );
+
+  // Filter catalogue items based on selected category
+  const filteredCatalogue = useMemo(() => {
+    if (!catalogue) return null;
+    if (catalogueFilter === 'all') return catalogue;
+    return catalogue.filter((item) => item.category === catalogueFilter);
+  }, [catalogue, catalogueFilter]);
+
+  // Calculate counts for each category
+  const catalogueCounts = useMemo(() => {
+    if (!catalogue) return { all: 0, token: 0, reward: 0 };
+    const tokenCount = catalogue.filter((item) => item.category === 'token').length;
+    const rewardCount = catalogue.filter((item) => item.category === 'reward').length;
+    return {
+      all: catalogue.length,
+      token: tokenCount,
+      reward: rewardCount,
+    };
+  }, [catalogue]);
 
   const beginRedeem = useCallback(
     (item: CatalogueDisplayItem, allocation: CatalogueUnitAllocation | null) => {
@@ -1154,8 +1177,54 @@ const referralCards: ReactNode[] = [
             </p>
           </div>
 
+          {/* Category filter pills */}
+          <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+            <button
+              type="button"
+              onClick={() => {
+                setCatalogueFilter('all');
+                emitAnalyticsEvent('catalogue_filter_changed', { filter: 'all' });
+              }}
+              className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
+                catalogueFilter === 'all'
+                  ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
+                  : 'border border-[var(--color-outer-space)]/15 bg-white/60 text-[var(--color-outer-space)]/70 backdrop-blur-sm hover:bg-white/80 hover:text-[var(--color-outer-space)]'
+              }`}
+            >
+              All ({catalogueCounts.all})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCatalogueFilter('token');
+                emitAnalyticsEvent('catalogue_filter_changed', { filter: 'token' });
+              }}
+              className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
+                catalogueFilter === 'token'
+                  ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
+                  : 'border border-[var(--color-outer-space)]/15 bg-white/60 text-[var(--color-outer-space)]/70 backdrop-blur-sm hover:bg-white/80 hover:text-[var(--color-outer-space)]'
+              }`}
+            >
+              Token Allocations ({catalogueCounts.token})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCatalogueFilter('reward');
+                emitAnalyticsEvent('catalogue_filter_changed', { filter: 'reward' });
+              }}
+              className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
+                catalogueFilter === 'reward'
+                  ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
+                  : 'border border-[var(--color-outer-space)]/15 bg-white/60 text-[var(--color-outer-space)]/70 backdrop-blur-sm hover:bg-white/80 hover:text-[var(--color-outer-space)]'
+              }`}
+            >
+              Items ({catalogueCounts.reward})
+            </button>
+          </div>
+
           <CatalogueGrid
-            items={catalogue ?? []}
+            items={filteredCatalogue ?? []}
             onRedeem={handleRequestRedeem}
             onShowTerms={handleShowTerms}
             onImageError={handleCatalogueImageError}
