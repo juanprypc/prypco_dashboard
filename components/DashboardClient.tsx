@@ -12,6 +12,7 @@ import { TopupBanner } from './TopupBanner';
 import { LoadingOverlay } from './LoadingOverlay';
 import { NavigationTabs } from './NavigationTabs';
 import { ReferralCard, REFERRAL_CARD_BASE_CLASS } from './ReferralCard';
+import { BackToAppButton } from './BackToAppButton';
 import LearnMoreGraphic from '@/image_assets/Frame 1.png';
 import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
 import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
@@ -854,14 +855,31 @@ const referralCards: ReactNode[] = [
     return (
       <div className="space-y-8 text-[var(--color-outer-space)]">
         <div className="relative overflow-hidden rounded-[31px] border border-transparent bg-[var(--color-hero)] px-4 py-6 sm:px-10 sm:py-12">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <Image src="/logo.png" alt="Collect" width={195} height={48} priority />
-            <NavigationTabs
-              activeTab="learn"
-              dashboardHref={ledgerHref}
-              storeHref={catalogueHref}
-              learnHref={learnHref}
-            />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3">
+              <Image
+                src="/logo.png"
+                alt="Collect"
+                width={195}
+                height={48}
+                priority
+                className="h-[32px] w-auto sm:h-[40px] md:h-[48px]"
+              />
+              <div className="sm:hidden">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:block">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
+              </div>
+              <NavigationTabs
+                activeTab="learn"
+                dashboardHref={ledgerHref}
+                storeHref={catalogueHref}
+                learnHref={learnHref}
+              />
+            </div>
           </div>
 
           <div className="mt-8 space-y-4 text-center">
@@ -931,14 +949,31 @@ const referralCards: ReactNode[] = [
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_10%,rgba(234,213,254,0.65)_0%,rgba(206,174,255,0.45)_45%,rgba(150,130,255,0.2)_75%,transparent_100%)]" />
 
         <div className="relative z-10 flex flex-col gap-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <Image src="/logo.png" alt="Collect" width={195} height={48} priority />
-            <NavigationTabs
-              activeTab={currentTab}
-              dashboardHref={ledgerHref}
-              storeHref={catalogueHref}
-              learnHref={learnHref}
-            />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3">
+              <Image
+                src="/logo.png"
+                alt="Collect"
+                width={195}
+                height={48}
+                priority
+                className="h-[32px] w-auto sm:h-[40px] md:h-[48px]"
+              />
+              <div className="sm:hidden">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:block">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
+              </div>
+              <NavigationTabs
+                activeTab={currentTab}
+                dashboardHref={ledgerHref}
+                storeHref={catalogueHref}
+                learnHref={learnHref}
+              />
+            </div>
           </div>
 
           <div className="space-y-4 text-center">
