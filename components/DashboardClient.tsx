@@ -256,6 +256,9 @@ export function DashboardClient({
   const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
   const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
+  const [buyerVerificationDialogItem, setBuyerVerificationDialogItem] = useState<CatalogueDisplayItem | null>(null);
+  const [buyerVerificationAllocation, setBuyerVerificationAllocation] = useState<CatalogueUnitAllocation | null>(null);
+  const [preFilledBuyerDetails, setPreFilledBuyerDetails] = useState<{ firstName: string; phoneLast4: string } | null>(null);
   const searchParams = useSearchParams();
 
   // Initialize filter from URL or default to 'all'
@@ -317,12 +320,20 @@ export function DashboardClient({
 
   const beginRedeem = useCallback(
     (item: CatalogueDisplayItem, allocation: CatalogueUnitAllocation | null) => {
+      const requiresBuyerVerification = !!allocation || (item.requiresBuyerVerification === true);
+
+      if (requiresBuyerVerification && !preFilledBuyerDetails) {
+        setBuyerVerificationDialogItem(item);
+        setBuyerVerificationAllocation(allocation);
+        return;
+      }
+
       setRedeemItem(item);
       setSelectedUnitAllocation(allocation);
       setRedeemStatus('idle');
       setRedeemMessage(null);
     },
-    [],
+    [preFilledBuyerDetails],
   );
 
   const startRedeemFlow = useCallback(
@@ -359,6 +370,23 @@ export function DashboardClient({
     unitAllocationDialogItem,
     unitAllocationSelection,
   ]);
+
+  const handleBuyerVerificationSubmit = useCallback(
+    (details: { firstName: string; phoneLast4: string }) => {
+      if (!buyerVerificationDialogItem) return;
+
+      setPreFilledBuyerDetails(details);
+      setBuyerVerificationDialogItem(null);
+
+      beginRedeem(buyerVerificationDialogItem, buyerVerificationAllocation);
+    },
+    [buyerVerificationDialogItem, buyerVerificationAllocation, beginRedeem],
+  );
+
+  const closeBuyerVerificationDialog = useCallback(() => {
+    setBuyerVerificationDialogItem(null);
+    setBuyerVerificationAllocation(null);
+  }, []);
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
@@ -1330,6 +1358,15 @@ const referralCards: ReactNode[] = [
         />
       ) : null}
 
+      {buyerVerificationDialogItem ? (
+        <BuyerVerificationDialog
+          item={buyerVerificationDialogItem}
+          unitAllocation={buyerVerificationAllocation}
+          onSubmit={handleBuyerVerificationSubmit}
+          onClose={closeBuyerVerificationDialog}
+        />
+      ) : null}
+
       {redeemItem ? (
         <RedeemDialog
           item={redeemItem}
@@ -1344,6 +1381,7 @@ const referralCards: ReactNode[] = [
           baseQuery={baseQuery}
           termsAccepted={hasAcceptedTerms(redeemItem)}
           onShowTerms={handleShowTerms}
+          preFilledDetails={preFilledBuyerDetails}
           onSubmit={async ({ customerFirstName, customerPhoneLast4 }) => {
             if (!redeemItem) return;
             setRedeemStatus('submitting');
@@ -1392,6 +1430,7 @@ const referralCards: ReactNode[] = [
             setRedeemMessage(null);
             setSelectedUnitAllocation(null);
             setTermsAcceptedItemId(null);
+            setPreFilledBuyerDetails(null);
           }}
         />
       ) : null}
@@ -1713,6 +1752,131 @@ function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDialogPro
   );
 }
 
+type BuyerVerificationDialogProps = {
+  item: CatalogueDisplayItem;
+  unitAllocation: CatalogueUnitAllocation | null;
+  onSubmit: (details: { firstName: string; phoneLast4: string }) => void;
+  onClose: () => void;
+};
+
+function BuyerVerificationDialog({ item, unitAllocation, onSubmit, onClose }: BuyerVerificationDialogProps) {
+  const [firstName, setFirstName] = useState('');
+  const [phoneLast4, setPhoneLast4] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      setError(null);
+
+      const trimmedFirstName = firstName.trim();
+      const trimmedPhone = phoneLast4.trim();
+
+      if (!trimmedFirstName) {
+        setError('First name is required');
+        return;
+      }
+
+      if (!/^\d{4}$/.test(trimmedPhone)) {
+        setError('Phone last 4 digits must be exactly 4 digits');
+        return;
+      }
+
+      onSubmit({ firstName: trimmedFirstName, phoneLast4: trimmedPhone });
+    },
+    [firstName, phoneLast4, onSubmit],
+  );
+
+  const requiredPoints = (unitAllocation?.points ?? 0) + (item.points ?? 0);
+
+  return (
+    <div className="fixed inset-0 z-[62] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full p-1 hover:bg-gray-100"
+        >
+          <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <h2 className="mb-4 text-xl font-bold text-[var(--color-outer-space)]">Buyer Verification</h2>
+
+        <div className="mb-4 rounded-lg bg-[var(--color-panel)] p-4">
+          <p className="text-sm text-[var(--color-outer-space)]">
+            <strong>{item.name}</strong>
+          </p>
+          {unitAllocation && (
+            <p className="text-xs text-gray-600 mt-1">{unitAllocation.unitType}</p>
+          )}
+          <p className="mt-2 text-sm font-semibold text-[var(--color-outer-space)]">
+            {requiredPoints.toLocaleString()} points required
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="buyerFirstName" className="block text-sm font-medium text-gray-700 mb-1">
+              Buyer First Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="buyerFirstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Enter buyer's first name"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[var(--color-outer-space)] focus:outline-none focus:ring-1 focus:ring-[var(--color-outer-space)]"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label htmlFor="buyerPhone" className="block text-sm font-medium text-gray-700 mb-1">
+              Buyer Phone Last 4 Digits <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="buyerPhone"
+              type="text"
+              value={phoneLast4}
+              onChange={(e) => setPhoneLast4(e.target.value)}
+              placeholder="1234"
+              maxLength={4}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[var(--color-outer-space)] focus:outline-none focus:ring-1 focus:ring-[var(--color-outer-space)]"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-outer-space)]/90"
+            >
+              Continue
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 type RedeemDialogProps = {
   item: CatalogueDisplayItem;
   unitAllocation?: CatalogueUnitAllocation | null;
@@ -1728,6 +1892,7 @@ type RedeemDialogProps = {
   onClose: () => void;
   onShowTerms?: (item: CatalogueDisplayItem) => void;
   termsAccepted?: boolean;
+  preFilledDetails?: { firstName: string; phoneLast4: string } | null;
 };
 
 function RedeemDialog({
@@ -1745,9 +1910,10 @@ function RedeemDialog({
   baseQuery,
   onShowTerms,
   termsAccepted = true,
+  preFilledDetails,
 }: RedeemDialogProps) {
-  const [customerFirstName, setCustomerFirstName] = useState('');
-  const [customerPhoneLast4, setCustomerPhoneLast4] = useState('');
+  const [customerFirstName, setCustomerFirstName] = useState(preFilledDetails?.firstName || '');
+  const [customerPhoneLast4, setCustomerPhoneLast4] = useState(preFilledDetails?.phoneLast4 || '');
   const [firstNameTouched, setFirstNameTouched] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
   const rawRequiredPoints =
