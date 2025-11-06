@@ -2013,12 +2013,15 @@ function RedeemDialog({
   }
 
   useEffect(() => {
-    if (!preFilledDetails) {
+    if (preFilledDetails) {
+      setCustomerFirstName(preFilledDetails.firstName);
+      setCustomerPhoneLast4(preFilledDetails.phoneLast4);
+    } else {
       setCustomerFirstName('');
       setCustomerPhoneLast4('');
-      setFirstNameTouched(false);
-      setPhoneTouched(false);
     }
+    setFirstNameTouched(false);
+    setPhoneTouched(false);
   }, [item.id, unitAllocation?.id, preFilledDetails]);
 
 
