@@ -1138,25 +1138,28 @@ const referralCards: ReactNode[] = [
             } sm:p-6`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 id="topup-heading" className="text-base font-semibold sm:text-lg">
-                  Top up balance
+            <div className="flex items-start justify-between gap-3 sm:gap-4">
+              <div className="flex-1">
+                <h2 id="topup-heading" className="text-lg font-bold text-[var(--color-outer-space)] sm:text-xl">
+                  Add Points
                 </h2>
-                <p className="mt-1 text-xs text-[var(--color-outer-space)]/70 sm:text-sm">
-                  Add more points instantly. We’ll launch Stripe Checkout when you confirm.
+                <p className="mt-1 text-xs leading-relaxed text-[var(--color-outer-space)]/60 sm:text-sm">
+                  Purchase points securely with Stripe
                 </p>
               </div>
               <button
                 ref={topupCloseButtonRef}
                 type="button"
                 onClick={closeTopup}
-                className="rounded-full border border-transparent bg-[var(--color-panel)] px-3 py-1 text-xs font-medium text-[var(--color-outer-space)]/60 transition hover:border-[var(--color-outer-space)]/20 hover:bg-white hover:text-[var(--color-outer-space)] sm:text-sm"
+                aria-label="Close dialog"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--color-outer-space)]/10 bg-white text-[var(--color-outer-space)]/50 transition-all hover:border-[var(--color-electric-purple)]/30 hover:bg-[var(--color-electric-purple)]/5 hover:text-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/30 sm:h-10 sm:w-10"
               >
-                Close
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
-            <div className="mt-5 max-h-[65vh] overflow-y-auto rounded-[24px] border border-[#d1b7fb]/60 bg-white/95 p-4 shadow-[0_28px_70px_-60px_rgba(13,9,59,0.45)] sm:mt-6">
+            <div className="mt-5 max-h-[70vh] overflow-y-auto sm:mt-6">
               <BuyPointsButton
                 agentId={agentId}
                 agentCode={agentCode}
