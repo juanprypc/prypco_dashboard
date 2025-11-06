@@ -652,7 +652,13 @@ export function DashboardClient({
         const params = new URLSearchParams(identifierParams);
         if (forceFreshLoyalty) params.set('fresh', '1');
         const loyaltyUrl = `/api/loyalty?${params.toString()}`;
-        const ledgerRes = await fetch(loyaltyUrl, { cache: 'no-store' });
+
+        // Load both loyalty and catalogue APIs in parallel for faster page load
+        // Catalogue failure is non-blocking since it's only needed on Store tab
+        const [ledgerRes] = await Promise.all([
+          fetch(loyaltyUrl, { cache: 'no-store' }),
+          loadCatalogue().catch(() => null), // Graceful catalogue failure
+        ]);
 
         if (ledgerRes.status === 429) {
           throw { retryable: true, message: 'Airtable is busy' };
@@ -701,12 +707,9 @@ export function DashboardClient({
       cancelled = true;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [identifierParams, forceFreshLoyalty]);
+  }, [identifierParams, forceFreshLoyalty, loadCatalogue]);
 
-  useEffect(() => {
-    loadCatalogue().catch(() => {});
-  }, [loadCatalogue]);
-
+  // Force fresh catalogue when switching to catalogue view
   useEffect(() => {
     if (activeView !== 'catalogue') return;
     loadCatalogue({ forceFresh: true }).catch(() => {});
