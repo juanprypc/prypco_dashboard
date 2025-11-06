@@ -1944,8 +1944,8 @@ function RedeemDialog({
   const trimmedFirstName = customerFirstName.trim();
   const trimmedPhone = customerPhoneLast4.trim();
   const requiresBuyerVerification = !!unitAllocation || (item.requiresBuyerVerification === true);
-  const firstNameValid = !requiresBuyerVerification || trimmedFirstName.length > 0;
-  const phoneValid = !requiresBuyerVerification || /^\d{4}$/.test(trimmedPhone);
+  const firstNameValid = !requiresBuyerVerification || (preFilledDetails ? true : trimmedFirstName.length > 0);
+  const phoneValid = !requiresBuyerVerification || (preFilledDetails ? true : /^\d{4}$/.test(trimmedPhone));
   const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
   const confirmDisabled =
     busy ||
