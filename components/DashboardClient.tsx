@@ -715,6 +715,31 @@ export function DashboardClient({
     loadCatalogue({ forceFresh: true }).catch(() => {});
   }, [activeView, loadCatalogue]);
 
+  // Prefetch catalogue after 2 seconds of idle time on Dashboard
+  // This makes Store tab feel instant when user clicks it
+  useEffect(() => {
+    // Only prefetch when on Dashboard view
+    if (activeView !== 'loyalty') return;
+
+    // Skip if catalogue already loaded or loading
+    if (catalogue !== null) return;
+    if (cataloguePrefetchedRef.current) return;
+    if (catalogueFetchPromiseRef.current) return;
+
+    // Wait 2 seconds before prefetching (user is likely reading dashboard)
+    const prefetchTimer = setTimeout(() => {
+      // Double-check conditions before prefetching
+      if (activeView === 'loyalty' && catalogue === null) {
+        loadCatalogue().catch(() => {
+          // Silent failure - don't disrupt user experience
+        });
+      }
+    }, 2000);
+
+    // Critical: Clean up timer on unmount or view change
+    return () => clearTimeout(prefetchTimer);
+  }, [activeView, catalogue, loadCatalogue]);
+
   const metrics = useMemo(() => {
     if (!rows?.length) {
       return {
