@@ -709,11 +709,16 @@ export function DashboardClient({
     };
   }, [identifierParams, forceFreshLoyalty, loadCatalogue]);
 
-  // Force fresh catalogue when switching to catalogue view
+  // Ensure catalogue is loaded when switching to catalogue view
+  // Uses prefetched data if available for instant rendering
   useEffect(() => {
     if (activeView !== 'catalogue') return;
-    loadCatalogue({ forceFresh: true }).catch(() => {});
-  }, [activeView, loadCatalogue]);
+
+    // Only load if not already loaded (leverages prefetch optimization)
+    if (!catalogue) {
+      loadCatalogue().catch(() => {});
+    }
+  }, [activeView, catalogue, loadCatalogue]);
 
   // Prefetch catalogue after 2 seconds of idle time on Dashboard
   // This makes Store tab feel instant when user clicks it

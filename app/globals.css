@@ -59,6 +59,7 @@ a {
 
 .view-transition {
   animation: fade-in-up 180ms ease-out both;
+  will-change: opacity, transform;
 }
 
 @keyframes fade-in-up {
