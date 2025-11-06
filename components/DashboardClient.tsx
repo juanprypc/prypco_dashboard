@@ -2,7 +2,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { PublicLoyaltyRow } from '@/lib/airtable';
 import { formatNumber, formatPoints, formatAedCompact } from '@/lib/format';
 import { KpiCard } from './KpiCard';
@@ -254,9 +254,37 @@ export function DashboardClient({
   const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
   const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
-  const [catalogueFilter, setCatalogueFilter] = useState<'all' | 'token' | 'reward'>('all');
+  const searchParams = useSearchParams();
+
+  // Initialize filter from URL or default to 'all'
+  const [catalogueFilter, setCatalogueFilter] = useState<'all' | 'token' | 'reward'>(() => {
+    const filterParam = searchParams.get('filter');
+    if (filterParam === 'token' || filterParam === 'reward') {
+      return filterParam;
+    }
+    return 'all';
+  });
+
   const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
   const analyticsAgentId = agentId ?? agentCode ?? 'unknown';
+
+  // Helper to update filter and sync URL
+  const updateCatalogueFilter = useCallback(
+    (filter: 'all' | 'token' | 'reward') => {
+      setCatalogueFilter(filter);
+      emitAnalyticsEvent('catalogue_filter_changed', { filter });
+
+      // Update URL without page reload
+      const params = new URLSearchParams(searchParams.toString());
+      if (filter === 'all') {
+        params.delete('filter'); // Clean URL when "all"
+      } else {
+        params.set('filter', filter);
+      }
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [searchParams, router],
+  );
 
   const hasAcceptedTerms = useCallback(
     (item: CatalogueDisplayItem | null) => {
@@ -1214,10 +1242,7 @@ const referralCards: ReactNode[] = [
           <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
             <button
               type="button"
-              onClick={() => {
-                setCatalogueFilter('all');
-                emitAnalyticsEvent('catalogue_filter_changed', { filter: 'all' });
-              }}
+              onClick={() => updateCatalogueFilter('all')}
               className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
                 catalogueFilter === 'all'
                   ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
@@ -1228,10 +1253,7 @@ const referralCards: ReactNode[] = [
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCatalogueFilter('token');
-                emitAnalyticsEvent('catalogue_filter_changed', { filter: 'token' });
-              }}
+              onClick={() => updateCatalogueFilter('token')}
               className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
                 catalogueFilter === 'token'
                   ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
@@ -1242,10 +1264,7 @@ const referralCards: ReactNode[] = [
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCatalogueFilter('reward');
-                emitAnalyticsEvent('catalogue_filter_changed', { filter: 'reward' });
-              }}
+              onClick={() => updateCatalogueFilter('reward')}
               className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
                 catalogueFilter === 'reward'
                   ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
