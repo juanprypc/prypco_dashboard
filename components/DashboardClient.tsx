@@ -319,13 +319,22 @@ export function DashboardClient({
   }, [catalogue]);
 
   const beginRedeem = useCallback(
-    (item: CatalogueDisplayItem, allocation: CatalogueUnitAllocation | null) => {
-      const requiresBuyerVerification = !!allocation || (item.requiresBuyerVerification === true);
+    (
+      item: CatalogueDisplayItem,
+      allocation: CatalogueUnitAllocation | null,
+      buyerDetails?: { firstName: string; phoneLast4: string },
+    ) => {
+      const requiresBuyerVerification = !!allocation || item.requiresBuyerVerification === true;
+      const details = buyerDetails ?? preFilledBuyerDetails;
 
-      if (requiresBuyerVerification && !preFilledBuyerDetails) {
+      if (requiresBuyerVerification && !details) {
         setBuyerVerificationDialogItem(item);
         setBuyerVerificationAllocation(allocation);
         return;
+      }
+
+      if (buyerDetails) {
+        setPreFilledBuyerDetails(buyerDetails);
       }
 
       setRedeemItem(item);
@@ -373,12 +382,14 @@ export function DashboardClient({
 
   const handleBuyerVerificationSubmit = useCallback(
     (details: { firstName: string; phoneLast4: string }) => {
-      if (!buyerVerificationDialogItem) return;
+      const item = buyerVerificationDialogItem;
+      const allocation = buyerVerificationAllocation;
+      if (!item) return;
 
-      setPreFilledBuyerDetails(details);
       setBuyerVerificationDialogItem(null);
+      setBuyerVerificationAllocation(null);
 
-      beginRedeem(buyerVerificationDialogItem, buyerVerificationAllocation);
+      beginRedeem(item, allocation, details);
     },
     [buyerVerificationDialogItem, buyerVerificationAllocation, beginRedeem],
   );
