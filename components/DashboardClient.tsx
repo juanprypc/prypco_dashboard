@@ -2002,11 +2002,13 @@ function RedeemDialog({
   }
 
   useEffect(() => {
-    setCustomerFirstName('');
-    setCustomerPhoneLast4('');
-    setFirstNameTouched(false);
-    setPhoneTouched(false);
-  }, [item.id, unitAllocation?.id]);
+    if (!preFilledDetails) {
+      setCustomerFirstName('');
+      setCustomerPhoneLast4('');
+      setFirstNameTouched(false);
+      setPhoneTouched(false);
+    }
+  }, [item.id, unitAllocation?.id, preFilledDetails]);
 
 
   return (
