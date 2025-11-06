@@ -1847,10 +1847,13 @@ function BuyerVerificationDialog({ item, unitAllocation, onSubmit, onClose }: Bu
               <input
                 type="text"
                 inputMode="numeric"
-                pattern="\\d*"
+                pattern="\d{4}"
                 maxLength={4}
                 value={phoneLast4}
-                onChange={(e) => setPhoneLast4(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '');
+                  setPhoneLast4(value);
+                }}
                 placeholder="1234"
                 className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
                 autoComplete="off"
