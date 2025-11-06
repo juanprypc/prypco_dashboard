@@ -189,6 +189,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       : [];
 
     const category: 'token' | 'reward' = unitAllocations.length > 0 ? 'token' : 'reward';
+    const requiresBuyerVerification = toBoolean(item.fields?.requiresBuyerVerification);
 
     return {
       id: item.id,
@@ -201,6 +202,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       status,
       requiresAgencyConfirmation,
       termsActive: tcActive,
+      requiresBuyerVerification,
       termsText: tcText,
       termsVersion: tcVersion,
       termsUrl: tcUrl,
@@ -1369,6 +1371,7 @@ const referralCards: ReactNode[] = [
                   unitAllocationPoints: typeof allocation?.points === 'number' ? allocation.points : null,
                   customerFirstName,
                   customerPhoneLast4,
+                  requiresBuyerVerification: redeemItem.requiresBuyerVerification === true,
                 }),
               });
               if (!res.ok) {
@@ -1763,7 +1766,7 @@ function RedeemDialog({
   const termsSatisfied = !item.termsActive || termsAccepted;
   const trimmedFirstName = customerFirstName.trim();
   const trimmedPhone = customerPhoneLast4.trim();
-  const requiresBuyerVerification = !!unitAllocation;
+  const requiresBuyerVerification = !!unitAllocation || (item.requiresBuyerVerification === true);
   const firstNameValid = !requiresBuyerVerification || trimmedFirstName.length > 0;
   const phoneValid = !requiresBuyerVerification || /^\d{4}$/.test(trimmedPhone);
   const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;

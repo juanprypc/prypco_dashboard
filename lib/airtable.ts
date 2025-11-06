@@ -76,6 +76,7 @@ export type CatalogueFields = {
   image?: Array<{ url: string; filename?: string; thumbnails?: { large?: { url: string }; small?: { url: string } } }>;
   description?: string;
   is_active?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
+  requiresBuyerVerification?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   'T&C'?: string;
   'T&C_active'?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   'T&C_version'?: string;

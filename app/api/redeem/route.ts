@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       unitAllocationId?: string | null;
       unitAllocationLabel?: string | null;
       unitAllocationPoints?: number | null;
+      requiresBuyerVerification?: boolean;
       customerFirstName?: string;
       customerPhoneLast4?: string;
     };
@@ -35,16 +36,17 @@ export async function POST(request: Request) {
       typeof body?.unitAllocationId === 'string' ? body.unitAllocationId.trim() : '';
     const unitAllocationId = rawUnitAllocationId.length > 0 ? rawUnitAllocationId : null;
     const hasUnitAllocation = unitAllocationId !== null;
+    const requiresBuyerVerification = body.requiresBuyerVerification === true || hasUnitAllocation;
     const customerFirstName = typeof body?.customerFirstName === 'string' ? body.customerFirstName.trim() : '';
     const customerPhoneLast4 = typeof body?.customerPhoneLast4 === 'string' ? body.customerPhoneLast4.trim() : '';
     const phoneProvided = customerPhoneLast4.length > 0;
     const phoneLooksValid = /^\d{4}$/.test(customerPhoneLast4);
 
-    if (hasUnitAllocation && !customerFirstName) {
+    if (requiresBuyerVerification && !customerFirstName) {
       return NextResponse.json({ error: 'Buyer first name is required' }, { status: 400 });
     }
 
-    if ((hasUnitAllocation || phoneProvided) && !phoneLooksValid) {
+    if ((requiresBuyerVerification || phoneProvided) && !phoneLooksValid) {
       return NextResponse.json({ error: 'Buyer phone last four digits are invalid' }, { status: 400 });
     }
 

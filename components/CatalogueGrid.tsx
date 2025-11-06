@@ -28,6 +28,8 @@ export type CatalogueDisplayItem = {
   termsVersion?: string | null;
   termsUrl?: string | null;
   termsSignature?: string | null;
+  requiresBuyerVerification?: boolean;
+
   unitAllocations: CatalogueUnitAllocation[];
   category?: 'token' | 'reward';
 };
