@@ -1790,85 +1790,93 @@ function BuyerVerificationDialog({ item, unitAllocation, onSubmit, onClose }: Bu
   const requiredPoints = (unitAllocation?.points ?? 0) + (item.points ?? 0);
 
   return (
-    <div className="fixed inset-0 z-[62] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1 hover:bg-gray-100"
-        >
-          <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        <h2 className="mb-4 text-xl font-bold text-[var(--color-outer-space)]">Buyer Verification</h2>
-
-        <div className="mb-4 rounded-lg bg-[var(--color-panel)] p-4">
-          <p className="text-sm text-[var(--color-outer-space)]">
-            <strong>{item.name}</strong>
-          </p>
-          {unitAllocation && (
-            <p className="text-xs text-gray-600 mt-1">{unitAllocation.unitType}</p>
-          )}
-          <p className="mt-2 text-sm font-semibold text-[var(--color-outer-space)]">
-            {requiredPoints.toLocaleString()} points required
-          </p>
+    <div className="fixed inset-0 z-[62] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-[28px] border border-[#d1b7fb] bg-white p-6 text-[var(--color-outer-space)] shadow-xl">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold">Buyer verification</h3>
+            <p className="text-sm text-[var(--color-outer-space)]/70">{item.name}</p>
+          </div>
+          <button onClick={onClose} className="cursor-pointer text-sm text-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]">Close</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="buyerFirstName" className="block text-sm font-medium text-gray-700 mb-1">
-              Buyer First Name <span className="text-red-500">*</span>
+        {unitAllocation ? (
+          <div className="mt-4 rounded-[20px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 p-4 text-xs text-[var(--color-outer-space)]/80">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
+              Selected property
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[var(--color-outer-space)]">
+              {unitAllocation.unitType || 'Allocation'}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 space-y-2 text-sm text-[var(--color-outer-space)]/80">
+          <div className="flex items-center justify-between">
+            <span>Required points</span>
+            <strong>{requiredPoints.toLocaleString()} pts</strong>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <p className="text-sm text-[var(--color-outer-space)]/70">
+            Redeem this reward using {requiredPoints.toLocaleString()} points?
+          </p>
+
+          <div className="space-y-3 rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
+              Buyer verification
+            </p>
+            <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
+              Buyer first name
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Customer first name"
+                className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
+                autoComplete="off"
+                autoFocus
+              />
             </label>
-            <input
-              id="buyerFirstName"
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="Enter buyer's first name"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[var(--color-outer-space)] focus:outline-none focus:ring-1 focus:ring-[var(--color-outer-space)]"
-              autoFocus
-            />
+            {error && error.includes('name') ? (
+              <p className="text-[11px] text-rose-500">{error}</p>
+            ) : null}
+            <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
+              Buyer phone · last 4 digits
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="\\d*"
+                maxLength={4}
+                value={phoneLast4}
+                onChange={(e) => setPhoneLast4(e.target.value)}
+                placeholder="1234"
+                className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
+                autoComplete="off"
+              />
+            </label>
+            {error && error.includes('phone') ? (
+              <p className="text-[11px] text-rose-500">{error}</p>
+            ) : null}
+            <p className="text-[11px] text-[var(--color-outer-space)]/60">
+              We&apos;ll store these details with the redemption so the RM team can verify the unit allocation.
+            </p>
           </div>
 
-          <div>
-            <label htmlFor="buyerPhone" className="block text-sm font-medium text-gray-700 mb-1">
-              Buyer Phone Last 4 Digits <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="buyerPhone"
-              type="text"
-              value={phoneLast4}
-              onChange={(e) => setPhoneLast4(e.target.value)}
-              placeholder="1234"
-              maxLength={4}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[var(--color-outer-space)] focus:outline-none focus:ring-1 focus:ring-[var(--color-outer-space)]"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="submit"
+              className="w-full cursor-pointer rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c] sm:w-auto"
+            >
+              Confirm redeem
+            </button>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="w-full cursor-pointer rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-[var(--color-outer-space)]/70 transition hover:bg-[var(--color-panel)]/80 sm:w-auto"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-outer-space)]/90"
-            >
-              Continue
+              Close
             </button>
           </div>
         </form>
@@ -2112,52 +2120,19 @@ function RedeemDialog({
               </p>
             )}
 
-            {requiresBuyerVerification ? (
-              <div className="space-y-3 rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3">
+            {preFilledDetails ? (
+              <div className="rounded-[18px] border border-[var(--color-electric-purple)]/25 bg-[var(--color-panel)]/60 px-4 py-3 text-xs text-[var(--color-outer-space)]/80">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-electric-purple)]">
                   Buyer verification
                 </p>
-                <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
-                  Buyer first name
-                  <input
-                    type="text"
-                    value={customerFirstName}
-                    onChange={(event) => setCustomerFirstName(event.target.value)}
-                    onBlur={() => setFirstNameTouched(true)}
-                    className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                    placeholder="Customer first name"
-                    autoComplete="off"
-                  />
-                </label>
-                {firstNameTouched && !firstNameValid ? (
-                  <p className="text-[11px] text-rose-500">Enter the customer’s first name.</p>
-                ) : null}
-                <label className="block text-xs font-semibold text-[var(--color-outer-space)]/80">
-                  Buyer phone · last 4 digits
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\\d*"
-                    maxLength={4}
-                    value={customerPhoneLast4}
-                    onChange={(event) => {
-                      const digits = event.target.value.replace(/[^0-9]/g, '').slice(0, 4);
-                      setCustomerPhoneLast4(digits);
-                    }}
-                    onBlur={() => setPhoneTouched(true)}
-                    className="mt-1 w-full rounded-[14px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-                    placeholder="1234"
-                    autoComplete="off"
-                  />
-                </label>
-                {phoneTouched && !phoneValid ? (
-                  <p className="text-[11px] text-rose-500">Enter the last four digits from the buyer’s phone number.</p>
-                ) : null}
-                {(!firstNameValid || !phoneValid) && requiresBuyerVerification ? (
-                  <p className="text-[11px] text-[var(--color-outer-space)]/60">
-                    We’ll store these details with the redemption so the RM team can verify the unit allocation.
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs">
+                    <span className="font-semibold">Name:</span> {preFilledDetails.firstName}
                   </p>
-                ) : null}
+                  <p className="text-xs">
+                    <span className="font-semibold">Phone (last 4):</span> {preFilledDetails.phoneLast4}
+                  </p>
+                </div>
               </div>
             ) : null}
 
