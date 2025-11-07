@@ -18,6 +18,7 @@ export function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDi
   const [agencyConfirmed, setAgencyConfirmed] = useState(() => accepted || !requiresAgencyConfirmation);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const titleId = `reward-terms-${item.id}`;
 
   useEffect(() => {
@@ -53,11 +54,45 @@ export function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDi
         .map((line) => line.trim())
         .filter(Boolean)
     : [];
+  const requiresScroll = paragraphs.length > 0;
+  const [hasScrolledToEnd, setHasScrolledToEnd] = useState(() => !requiresScroll);
+
+  useEffect(() => {
+    if (!requiresScroll) {
+      setHasScrolledToEnd(true);
+      return;
+    }
+
+    setHasScrolledToEnd(false);
+    const element = contentRef.current;
+    if (!element) return;
+
+    const maybeMarkAsScrolled = () => {
+      if (element.scrollHeight - element.scrollTop - element.clientHeight <= 8) {
+        setHasScrolledToEnd(true);
+      }
+    };
+
+    maybeMarkAsScrolled();
+    element.addEventListener('scroll', maybeMarkAsScrolled);
+    return () => element.removeEventListener('scroll', maybeMarkAsScrolled);
+  }, [requiresScroll, item.id]);
 
   const handleAccept = () => {
-    if (requireAcceptance && (!checked || (requiresAgencyConfirmation && !agencyConfirmed))) return;
+    if (
+      requireAcceptance &&
+      (!checked || (requiresAgencyConfirmation && !agencyConfirmed) || (requiresScroll && !hasScrolledToEnd))
+    ) {
+      return;
+    }
     onAccept(item);
   };
+
+  const acceptDisabled =
+    !requireAcceptance ||
+    !checked ||
+    (requiresAgencyConfirmation && !agencyConfirmed) ||
+    (requiresScroll && !hasScrolledToEnd);
 
   return (
     <div
@@ -90,7 +125,10 @@ export function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDi
           </a>
         ) : null}
 
-        <div className="mt-3 max-h-60 overflow-auto rounded-[16px] bg-[var(--color-panel)]/60 px-3 py-3 text-xs leading-relaxed text-[var(--color-outer-space)]/80">
+        <div
+          ref={contentRef}
+          className="mt-3 max-h-60 overflow-auto rounded-[16px] bg-[var(--color-panel)]/60 px-3 py-3 text-xs leading-relaxed text-[var(--color-outer-space)]/80"
+        >
           {paragraphs.length ? (
             paragraphs.map((paragraph, index) => (
               <p key={index} className="whitespace-pre-wrap">
@@ -124,6 +162,11 @@ export function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDi
                 <span>I confirm that my Agency is registered with DAMAC.</span>
               </label>
             ) : null}
+            {requiresScroll && !hasScrolledToEnd ? (
+              <p className="text-[11px] text-[var(--color-outer-space)]/60">
+                Scroll to the end of the terms to enable acceptance.
+              </p>
+            ) : null}
           </div>
         ) : (
           <p className="mt-3 text-[11px] text-[var(--color-outer-space)]/60">You have already accepted these terms.</p>
@@ -143,7 +186,7 @@ export function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDi
               ref={confirmRef}
               type="button"
               onClick={handleAccept}
-              disabled={!checked || (requiresAgencyConfirmation && !agencyConfirmed)}
+              disabled={acceptDisabled}
               className="rounded-full border border-[var(--color-outer-space)] px-4 py-2 text-xs font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {mode === 'redeem' ? 'Accept & continue' : 'Accept terms'}
