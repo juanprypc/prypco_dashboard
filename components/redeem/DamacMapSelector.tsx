@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import type { CatalogueUnitAllocation } from '../CatalogueGrid';
 
@@ -30,58 +29,16 @@ export function DamacMapSelector({ allocations, selectedId, onSelect }: DamacMap
 
   const [zoom, setZoom] = useState(1);
 
+  const handleZoomIn = () => setZoom((prev) => Math.min(3, prev + 0.3));
+  const handleZoomOut = () => setZoom((prev) => Math.max(1, prev - 0.3));
+  const handleResetZoom = () => setZoom(1);
+
   return (
-    <div className="flex flex-col gap-4 sm:flex-row">
-      <div className="flex-1 overflow-hidden rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
-            <p className="text-[11px] text-[var(--color-outer-space)]/60">Use the controls below to zoom and pan the project layout.</p>
-          </div>
-          <div className="inline-flex gap-2">
-            <button
-              type="button"
-              className="rounded-full border border-[#d1b7fb]/60 px-3 py-1 text-xs font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70"
-              onClick={() => setZoom((value) => Math.max(1, value - 0.2))}
-            >
-              –
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-[#d1b7fb]/60 px-3 py-1 text-xs font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70"
-              onClick={() => setZoom((value) => Math.min(2.5, value + 0.2))}
-            >
-              +
-            </button>
-          </div>
-        </div>
-        <div className="relative h-[320px] w-full overflow-hidden rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60">
-          <div className="h-full w-full overflow-auto">
-            <div
-              className="origin-top-left"
-              style={{
-                width: `${zoom * 100}%`,
-                height: `${zoom * 100}%`,
-              }}
-            >
-              <div className="relative min-h-[320px] min-w-[480px]">
-                <Image
-                  src={MAP_IMAGE}
-                  alt="Bahamas cluster map"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 480px"
-                  className="object-contain"
-                  priority
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4">
+    <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="order-2 flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4 lg:order-1">
         <p className="text-sm font-semibold text-[var(--color-outer-space)]">Available units</p>
-        <p className="text-[11px] text-[var(--color-outer-space)]/60">Select any available code to continue with your reservation.</p>
-        <div className="mt-3 max-h-[360px] space-y-3 overflow-auto pr-2">
+        <p className="text-[11px] text-[var(--color-outer-space)]/60">Select any available code to continue</p>
+        <div className="mt-3 max-h-[400px] space-y-3 overflow-auto pr-2 lg:max-h-[500px]">
           {groupedAllocations.map(([unitType, unitAllocations]) => (
             <div key={unitType} className="rounded-[18px] border border-[#d1b7fb]/60 bg-[var(--color-panel)]/40">
               <div className="border-b border-[#d1b7fb]/40 px-4 py-2">
@@ -95,30 +52,30 @@ export function DamacMapSelector({ allocations, selectedId, onSelect }: DamacMap
                     <button
                       key={allocation.id}
                       type="button"
-                      onClick={() => onSelect(allocation.id)}
+                      onClick={() => !disabled && onSelect(allocation.id)}
                       disabled={disabled}
-                      className={`flex w-full items-center justify-between px-4 py-3 text-left transition ${
+                      className={'flex w-full items-center justify-between px-4 py-3 text-left transition min-h-[48px] ' + (
                         selected
-                          ? 'bg-white'
+                          ? 'bg-[var(--color-electric-purple)]/10 border-l-2 border-[var(--color-electric-purple)]'
                           : disabled
-                            ? 'cursor-not-allowed text-[var(--color-outer-space)]/40 bg-transparent'
-                            : 'hover:bg-white'
-                      }`}
+                            ? 'cursor-not-allowed opacity-50'
+                            : 'hover:bg-white active:bg-[var(--color-panel)]/60'
+                      )}
                     >
                       <div>
-                        <p className="text-sm font-semibold text-[var(--color-outer-space)]">
+                        <p className={'text-sm font-semibold ' + (disabled ? 'text-[var(--color-outer-space)]/40' : 'text-[var(--color-outer-space)]')}>
                           {allocation.points?.toLocaleString() ?? '—'} pts
                         </p>
                         <p className="text-[11px] text-[var(--color-outer-space)]/60">Code: {allocation.id}</p>
                       </div>
                       <span
-                        className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                        className={'rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] ' + (
                           allocation.availability === 'available'
-                            ? 'bg-emerald-50 text-emerald-600'
+                            ? 'bg-emerald-100 text-emerald-700'
                             : allocation.availability === 'reserved'
-                              ? 'bg-amber-50 text-amber-600'
-                              : 'bg-rose-50 text-rose-600'
-                        }`}
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-rose-100 text-rose-700'
+                        )}
                       >
                         {allocation.availability}
                       </span>
@@ -129,6 +86,35 @@ export function DamacMapSelector({ allocations, selectedId, onSelect }: DamacMap
             </div>
           ))}
         </div>
+      </div>
+      <div className="order-1 flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4 lg:order-2">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
+            <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">Zoom and pan to explore</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="hidden text-xs text-[var(--color-outer-space)]/60 sm:inline">{Math.round(zoom * 100)}%</span>
+            <div className="inline-flex gap-1">
+              <button type="button" onClick={handleZoomOut} disabled={zoom <= 1}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d1b7fb]/60 text-sm font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition"
+                aria-label="Zoom out">–</button>
+              <button type="button" onClick={handleResetZoom} disabled={zoom === 1}
+                className="flex h-8 min-w-[32px] items-center justify-center rounded-full border border-[#d1b7fb]/60 px-2 text-[10px] font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition"
+                aria-label="Reset zoom">Reset</button>
+              <button type="button" onClick={handleZoomIn} disabled={zoom >= 3}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d1b7fb]/60 text-sm font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition"
+                aria-label="Zoom in">+</button>
+            </div>
+          </div>
+        </div>
+        <div className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]">
+          <div className="inline-block min-h-full min-w-full origin-top-left transition-transform duration-200"
+            style={{ transform: 'scale(' + zoom + ')', transformOrigin: 'top left' }}>
+            <img src={MAP_IMAGE} alt="Bahamas cluster map" className="block h-full w-full object-contain" draggable={false} />
+          </div>
+        </div>
+        <p className="mt-2 text-center text-[10px] text-[var(--color-outer-space)]/50">Scroll to pan • Pinch to zoom on mobile</p>
       </div>
     </div>
   );
