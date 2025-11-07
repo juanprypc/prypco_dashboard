@@ -14,7 +14,7 @@ type DamacMapSelectorProps = {
   onSelect: (allocationId: string) => void;
 };
 
-const MAP_IMAGE = '/image_assets/Bahamas 1 Cluster Key Plan.jpg';
+const MAP_IMAGE = '/images/bahamas-cluster-map.jpg';
 
 export function DamacMapSelector({ allocations, selectedId, onSelect }: DamacMapSelectorProps) {
   const groupedAllocations = useMemo(() => {
