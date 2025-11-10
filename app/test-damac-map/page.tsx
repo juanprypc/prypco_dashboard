@@ -1,51 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DamacMapSelector } from '@/components/redeem';
+
+type AllocationDetails = {
+  damacIslandcode: string | null;
+  points: number | null;
+  unitType: string | null;
+  brType: string | null;
+  availability: string;
+};
 
 export default function TestDamacMapPage() {
   const [catalogueId, setCatalogueId] = useState('');
-  const [catalogueInput, setCatalogueInput] = useState('');
   const [selectedAllocationId, setSelectedAllocationId] = useState<string | null>(null);
+  const [selectedDetails, setSelectedDetails] = useState<AllocationDetails | null>(null);
 
-  const handleApply = () => {
-    setCatalogueId(catalogueInput.trim());
-    setSelectedAllocationId(null);
-  };
+  // Fetch details when selection changes
+  useEffect(() => {
+    if (!selectedAllocationId) {
+      setSelectedDetails(null);
+      return;
+    }
+
+    const q = catalogueId ? `?catalogueId=${catalogueId}` : '';
+    fetch(`/api/damac/map${q}`)
+      .then(r => r.json())
+      .then(data => {
+        const allocation = data.allocations?.find((a: any) => a.id === selectedAllocationId);
+        if (allocation) {
+          setSelectedDetails(allocation);
+        }
+      })
+      .catch(err => console.error('Failed to fetch allocation details:', err));
+  }, [selectedAllocationId, catalogueId]);
 
   return (
     <div className="min-h-screen bg-[var(--color-desert-dust)]/30 p-4 sm:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header */}
-        <div className="rounded-[28px] border border-[#d1b7fb] bg-white p-6 shadow-lg">
-          <h1 className="text-2xl font-bold text-[var(--color-outer-space)]">
-            DAMAC Map Selector · Test Page
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-outer-space)]/70">
-            Leave blank to view all allocations, or enter a catalogue ID to filter
-          </p>
-
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-            <label className="flex-1 text-xs font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">
-              Catalogue ID
-              <input
-                type="text"
-                value={catalogueInput}
-                onChange={(e) => setCatalogueInput(e.target.value)}
-                placeholder="recXXXXXXXXXXXXXX"
-                className="mt-2 w-full rounded-[16px] border border-[var(--color-outer-space)]/15 bg-white px-3 py-3 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/40"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={handleApply}
-              className="rounded-full bg-[var(--color-outer-space)] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c] sm:w-auto"
-            >
-              Apply
-            </button>
-          </div>
-        </div>
-
         {/* Component */}
         <DamacMapSelector
           catalogueId={catalogueId}
@@ -53,18 +45,76 @@ export default function TestDamacMapPage() {
           onSelectAllocation={setSelectedAllocationId}
         />
 
-        {/* Debug Info */}
-        <div className="rounded-[28px] border border-[#d1b7fb]/60 bg-white p-4 shadow">
-          <p className="text-sm font-semibold text-[var(--color-outer-space)]">Selection State</p>
-          <div className="mt-3">
-            <p className="text-[11px] uppercase tracking-wider text-[var(--color-outer-space)]/60">
-              Selected Allocation
-            </p>
-            <p className="text-base font-medium text-[var(--color-outer-space)]">
-              {selectedAllocationId || 'None'}
-            </p>
+        {/* Selection Info - Only shown when something is selected */}
+        {selectedAllocationId && selectedDetails && (
+          <div className="rounded-[24px] border-2 border-[var(--color-electric-purple)] bg-white p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-electric-purple)]">
+                  Selected Unit
+                </p>
+                <h2 className="mt-1 text-2xl font-bold text-[var(--color-outer-space)]">
+                  {selectedDetails.damacIslandcode || selectedAllocationId}
+                </h2>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">
+                      Points
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-[var(--color-outer-space)]">
+                      {selectedDetails.points?.toLocaleString() ?? '—'}
+                    </p>
+                  </div>
+                  {selectedDetails.unitType && (
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">
+                        Unit Type
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-[var(--color-outer-space)]">
+                        {selectedDetails.unitType}
+                      </p>
+                    </div>
+                  )}
+                  {selectedDetails.brType && (
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">
+                        Bedrooms
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-[var(--color-outer-space)]">
+                        {selectedDetails.brType}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">
+                      Status
+                    </p>
+                    <span
+                      className={
+                        'mt-1 inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ' +
+                        (selectedDetails.availability === 'available'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-rose-100 text-rose-700')
+                      }
+                    >
+                      {selectedDetails.availability}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAllocationId(null)}
+                className="rounded-full p-2 text-[var(--color-outer-space)]/40 transition hover:bg-[var(--color-panel)] hover:text-[var(--color-outer-space)]"
+                aria-label="Clear selection"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

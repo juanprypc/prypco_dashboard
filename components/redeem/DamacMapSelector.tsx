@@ -48,14 +48,15 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       });
   }, [catalogueId]);
 
-  // Get unique BR types for filter (only 4 BR, 5 BR, 6 BR)
+  // Get unique BR types for filter
   const brTypes = useMemo(() => {
     const types = new Set(
       allocations
         .map(a => a.brType)
-        .filter(br => br === '4 BR' || br === '5 BR' || br === '6 BR')
+        .filter((br): br is string => br != null && br.trim() !== '')
     );
-    return ['all', ...Array.from(types).sort()];
+    const sortedTypes = Array.from(types).sort();
+    return ['all', ...sortedTypes];
   }, [allocations]);
 
   // Filter allocations based on search and BR type
@@ -76,9 +77,16 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     return filteredAllocations.filter(a => a.availability === 'available').length;
   }, [filteredAllocations]);
 
-  const handleZoomIn = () => setZoom(prev => Math.min(3, prev + 0.3));
-  const handleZoomOut = () => setZoom(prev => Math.max(0.5, prev - 0.3));
+  const handleZoomIn = () => setZoom(prev => Math.min(6, prev + 0.5));
+  const handleZoomOut = () => setZoom(prev => Math.max(0.5, prev - 0.5));
   const handleResetZoom = () => setZoom(1);
+  const handleImageClick = () => {
+    if (zoom < 6) {
+      setZoom(prev => Math.min(6, prev + 1));
+    } else {
+      setZoom(1);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
@@ -220,7 +228,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               <button
                 type="button"
                 onClick={handleZoomIn}
-                disabled={zoom >= 3}
+                disabled={zoom >= 6}
                 className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
                 aria-label="Zoom in"
               >
@@ -243,16 +251,17 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             <img
               src={MAP_IMAGE}
               alt="Bahamas cluster map"
-              className="block h-auto w-full"
+              className="block h-auto w-full cursor-zoom-in"
               draggable={false}
               style={{ minWidth: '800px' }}
               loading="eager"
+              onClick={handleImageClick}
             />
           </div>
         </div>
         <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
           <p className="text-[10px] text-[var(--color-outer-space)]/50">
-            Scroll to pan • Pinch to zoom on mobile
+            Click image or use buttons to zoom • Scroll to pan
           </p>
           <a
             href={MAP_IMAGE_ORIGINAL}
