@@ -41,6 +41,17 @@ function toStringArray(value: unknown): string[] {
   return single ? [single] : [];
 }
 
+function toMaybeNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') return undefined;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
 export type PublicLoyaltyRow = {
   id: string;
   createdTime: string;
@@ -92,6 +103,9 @@ export type UnitAllocationFields = {
   Points?: number;
   price_aed?: number;
   Picture?: Array<{ url: string; thumbnails?: { large?: { url?: string }; small?: { url?: string } } }>;
+  damacIslandcode?: string;
+  'BR Type'?: string;
+  remaining_stock?: number;
 };
 
 export type CatalogueUnitAllocation = {
@@ -102,6 +116,9 @@ export type CatalogueUnitAllocation = {
   points: number | null;
   pictureUrl: string | null;
   priceAed: number | null;
+  damacIslandcode: string | null;
+  brType: string | null;
+  remainingStock: number | null;
 };
 
 export type CatalogueItemWithAllocations = CatalogueItem & {
@@ -163,6 +180,9 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
       points: typeof fields.Points === 'number' ? fields.Points : null,
       pictureUrl,
       priceAed: typeof fields.price_aed === 'number' ? fields.price_aed : null,
+      damacIslandcode: toMaybeString(fields.damacIslandcode) ?? null,
+      brType: toMaybeString(fields['BR Type']) ?? null,
+      remainingStock: toMaybeNumber(fields.remaining_stock) ?? null,
     } satisfies CatalogueUnitAllocation;
   });
 }

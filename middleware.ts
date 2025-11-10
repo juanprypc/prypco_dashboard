@@ -6,14 +6,22 @@ const BASIC_AUTH_USERNAME = (process.env.BASIC_AUTH_USERNAME || 'admin').trim();
 const BASIC_AUTH_PASSWORD = (process.env.BASIC_AUTH_PASSWORD || 'xuhhin-keXpiz-0mipbi').trim();
 
 function requiresAuth(pathname: string): boolean {
+  // Allow test page and its API endpoint without auth
+  if (pathname === '/test-damac-map' || pathname.startsWith('/test-damac-map/')) return false;
+  if (pathname === '/api/damac/map' || pathname.startsWith('/api/damac/map/')) return false;
+
+  // Protect other damac routes
   if (pathname === '/damac') return true;
   if (pathname.startsWith('/damac/')) return true;
   if (pathname === '/api/damac') return true;
   if (pathname.startsWith('/api/damac/')) return true;
+
+  // Protect admin routes
   if (pathname === '/admin') return true;
   if (pathname.startsWith('/admin/')) return true;
   if (pathname === '/api/admin') return true;
   if (pathname.startsWith('/api/admin/')) return true;
+
   return false;
 }
 
@@ -50,5 +58,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/damac', '/damac/:path*', '/api/damac', '/api/damac/:path*', '/admin', '/admin/:path*', '/api/admin', '/api/admin/:path*'],
+  matcher: ['/test-damac-map', '/test-damac-map/:path*', '/damac', '/damac/:path*', '/api/damac', '/api/damac/:path*', '/admin', '/admin/:path*', '/api/admin', '/api/admin/:path*'],
 };
