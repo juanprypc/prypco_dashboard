@@ -17,7 +17,7 @@ type DamacMapSelectorProps = {
   onSelectAllocation: (id: string | null) => void;
 };
 
-const MAP_IMAGE = '/images/Bahamas version1.jpg';
+const MAP_IMAGE = '/images/bahamas-version1.jpg';
 const MAP_IMAGE_ORIGINAL = '/images/bahamas-cluster-map.jpg';
 
 export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
@@ -48,13 +48,17 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       });
   }, [catalogueId]);
 
-  // Get unique unit types for filter
-  const unitTypes = useMemo(() => {
-    const types = new Set(allocations.map(a => a.unitType || 'Unit'));
-    return ['all', ...Array.from(types)];
+  // Get unique BR types for filter (only 4 BR, 5 BR, 6 BR)
+  const brTypes = useMemo(() => {
+    const types = new Set(
+      allocations
+        .map(a => a.brType)
+        .filter(br => br === '4 BR' || br === '5 BR' || br === '6 BR')
+    );
+    return ['all', ...Array.from(types).sort()];
   }, [allocations]);
 
-  // Filter allocations based on search and type
+  // Filter allocations based on search and BR type
   const filteredAllocations = useMemo(() => {
     return allocations.filter(allocation => {
       const matchesSearch = searchTerm === '' ||
@@ -62,7 +66,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
         allocation.damacIslandcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         allocation.brType?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesType = filterType === 'all' || allocation.unitType === filterType;
+      const matchesType = filterType === 'all' || allocation.brType === filterType;
 
       return matchesSearch && matchesType;
     });
@@ -102,9 +106,9 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             disabled={loading}
             className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
           >
-            {unitTypes.map(type => (
+            {brTypes.map(type => (
               <option key={type} value={type}>
-                {type === 'all' ? 'All Types' : type}
+                {type === 'all' ? 'All BR Types' : type}
               </option>
             ))}
           </select>
@@ -146,7 +150,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               >
                 <div className="flex-1">
                   <p className={'text-sm font-semibold ' + (disabled ? 'text-[var(--color-outer-space)]/40' : 'text-[var(--color-outer-space)]')}>
-                    {allocation.id}
+                    {allocation.damacIslandcode || allocation.id}
                   </p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-outer-space)]/60">
                     <span>{allocation.points?.toLocaleString() ?? '—'} pts</span>
@@ -160,12 +164,6 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                       <>
                         <span>•</span>
                         <span>{allocation.brType}</span>
-                      </>
-                    )}
-                    {allocation.damacIslandcode && (
-                      <>
-                        <span>•</span>
-                        <span className="text-[var(--color-electric-purple)]">{allocation.damacIslandcode}</span>
                       </>
                     )}
                   </div>
