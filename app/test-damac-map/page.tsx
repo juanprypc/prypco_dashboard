@@ -12,7 +12,7 @@ type AllocationDetails = {
 };
 
 export default function TestDamacMapPage() {
-  const [catalogueId, setCatalogueId] = useState('');
+  const catalogueId = '';
   const [selectedAllocationId, setSelectedAllocationId] = useState<string | null>(null);
   const [selectedDetails, setSelectedDetails] = useState<AllocationDetails | null>(null);
 
@@ -27,7 +27,7 @@ export default function TestDamacMapPage() {
     fetch(`/api/damac/map${q}`)
       .then(r => r.json())
       .then(data => {
-        const allocation = data.allocations?.find((a: any) => a.id === selectedAllocationId);
+        const allocation = data.allocations?.find((a: AllocationDetails & { id: string }) => a.id === selectedAllocationId);
         if (allocation) {
           setSelectedDetails(allocation);
         }
