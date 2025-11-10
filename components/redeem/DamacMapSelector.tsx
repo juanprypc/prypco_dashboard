@@ -358,6 +358,13 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
           <div
             ref={containerRef}
             className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-x pan-y',
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <div
               ref={imageWrapperRef}
@@ -369,16 +376,16 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 minHeight: '560px',
                 willChange: 'transform',
               }}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
             >
               <img
                 src={MAP_IMAGE}
                 alt="Bahamas cluster map"
                 className="block h-auto w-full cursor-zoom-in select-none"
                 draggable={false}
-                style={{ minWidth: '800px' }}
+                style={{
+                  minWidth: '800px',
+                  pointerEvents: 'none',
+                }}
                 loading="eager"
                 onClick={handleImageClick}
               />
