@@ -1,803 +1,1495 @@
 'use client';
 
-import type React from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
+import type { PublicLoyaltyRow } from '@/lib/airtable';
+import { formatPoints } from '@/lib/format';
+import { KpiCard } from './KpiCard';
+import { CatalogueGrid, type CatalogueDisplayItem, type CatalogueUnitAllocation } from './CatalogueGrid';
+import { BuyPointsButton } from './BuyPointsButton';
+import { TopupBanner } from './TopupBanner';
+import { LoadingOverlay } from './LoadingOverlay';
+import { NavigationTabs } from './NavigationTabs';
+import { ReferralCard, REFERRAL_CARD_BASE_CLASS } from './ReferralCard';
+import { BackToAppButton } from './BackToAppButton';
+import LearnMoreGraphic from '@/image_assets/Frame 1.png';
+import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
+import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
+import { BuyerVerificationDialog, RedeemDialog, TermsDialog, UnitAllocationDialog } from './redeem';
 
-type AllocationWithStatus = {
+type Props = {
+  agentId?: string;
+  agentCode?: string;
+  identifierLabel: string;
+  activeView: 'loyalty' | 'catalogue' | 'learn';
+  topupStatus: 'success' | 'cancel' | null;
+  minTopup: number;
+  pointsPerAed: number;
+  ledgerHref: string;
+  catalogueHref: string;
+  learnHref: string;
+  baseQuery: string;
+};
+
+type LedgerResponse = {
+  records: PublicLoyaltyRow[];
+  displayName?: string | null;
+  investorPromoCode?: string | null;
+  investorWhatsappLink?: string | null;
+  agentReferralLink?: string | null;
+  agentReferralWhatsappLink?: string | null;
+};
+
+type CatalogueResponseItem = {
   id: string;
-  points?: number;
-  unitType?: string;
-  availability: 'available' | 'booked';
-  damacIslandcode?: string;
-  brType?: string;
+  createdTime: string;
+  fields: Record<string, unknown>;
+  unitAllocations?: Array<{
+    id: string;
+    unitType: string | null;
+    maxStock: number | null;
+    points: number | null;
+    pictureUrl: string | null;
+    priceAed: number | null;
+  }>;
 };
 
-type DamacMapSelectorProps = {
-  catalogueId: string;
-  selectedAllocationId: string | null;
-  onSelectAllocation: (id: string | null) => void;
+type CatalogueResponse = {
+  items: CatalogueResponseItem[];
 };
 
-const MAP_IMAGE = '/images/bahamas-version1.jpg';
-const MAP_IMAGE_ORIGINAL = '/images/bahamas-cluster-map.jpg';
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 6;
-const DOUBLE_TAP_DELAY = 300;
-const DEFAULT_BASE_WIDTH = 800;
-const DEFAULT_ASPECT_RATIO = 560 / 800;
-const DEFAULT_CONTAINER_HEIGHT = 500;
+const MAX_RETRIES = 3;
 
-type Point = { x: number; y: number };
-const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
-
-type GlobalWithListeners = typeof globalThis & {
-  addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-  removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-};
-
-export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
-  const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [zoom, setZoom] = useState(1);
-  const zoomRef = useRef(1);
-  useEffect(() => {
-    zoomRef.current = zoom;
-  }, [zoom]);
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [containerSize, setContainerSize] = useState({
-    width: DEFAULT_BASE_WIDTH,
-    height: DEFAULT_CONTAINER_HEIGHT,
-  });
-  const containerSizeRef = useRef(containerSize);
-  useEffect(() => {
-    containerSizeRef.current = containerSize;
-  }, [containerSize]);
-
-  const [imageAspectRatio, setImageAspectRatio] = useState(DEFAULT_ASPECT_RATIO);
-  const aspectRatioRef = useRef(imageAspectRatio);
-  useEffect(() => {
-    aspectRatioRef.current = imageAspectRatio;
-  }, [imageAspectRatio]);
-
-  // Refs for zoom and pan
-  const containerRef = useRef<HTMLDivElement>(null);
-  const imageWrapperRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-
-  // Pointer drag state (desktop)
-  const pointerDragRef = useRef({
-    active: false,
-    pointerId: null as number | null,
-    startX: 0,
-    startY: 0,
-    scrollLeft: 0,
-    scrollTop: 0,
-  });
-  const dragMovedRef = useRef(false);
-  const suppressClickRef = useRef(false);
-  const [isDragging, setIsDragging] = useState(false);
-
-  // ---- Data fetching --------------------------------------------------------
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    const q = catalogueId ? `?catalogueId=${catalogueId}` : '';
-    fetch(`/api/damac/map${q}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        setAllocations(data.allocations || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Failed to fetch allocations:', err);
-        setError('Failed to load units. Please try again.');
-        setLoading(false);
-      });
-  }, [catalogueId]);
-
-  // Read image natural size → aspect ratio
-  const updateAspectRatioFromImage = (event?: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = event?.currentTarget ?? imageRef.current;
-    if (!img) return;
-    const { naturalWidth, naturalHeight } = img;
-    if (naturalWidth && naturalHeight) {
-      setImageAspectRatio(naturalHeight / naturalWidth);
-    }
-  };
-  useEffect(() => {
-    const img = imageRef.current;
-    if (img && (img.complete || img.naturalWidth)) {
-      updateAspectRatioFromImage();
-    }
-  }, []);
-
-  // Observe container size
-  useEffect(() => {
-    const updateSize = () => {
-      const el = containerRef.current;
-      if (!el) return;
-      setContainerSize({
-        width: el.clientWidth || DEFAULT_BASE_WIDTH,
-        height: el.clientHeight || DEFAULT_CONTAINER_HEIGHT,
-      });
-    };
-    const element = containerRef.current;
-    if (!element) return;
-
-    updateSize();
-
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(() => updateSize());
-      observer.observe(element);
-      return () => observer.disconnect();
-    }
-
-    const globalWithListeners = globalThis as GlobalWithListeners;
-    if (typeof globalWithListeners.addEventListener === 'function') {
-      globalWithListeners.addEventListener('resize', updateSize);
-      return () => globalWithListeners.removeEventListener?.('resize', updateSize);
-    }
-  }, []);
-
-  // Filters / derived
-  const brTypes = useMemo(() => {
-    const types = new Set(
-      allocations
-        .map((a) => a.brType)
-        .filter((br): br is string => br != null && br.trim() !== '')
-    );
-    return ['all', ...Array.from(types).sort()];
-  }, [allocations]);
-
-  const filteredAllocations = useMemo(() => {
-    return allocations.filter((allocation) => {
-      const q = searchTerm.toLowerCase();
-      const matchesSearch =
-        q === '' ||
-        allocation.id.toLowerCase().includes(q) ||
-        allocation.damacIslandcode?.toLowerCase().includes(q) ||
-        allocation.brType?.toLowerCase().includes(q);
-      const matchesType = filterType === 'all' || allocation.brType === filterType;
-      return matchesSearch && matchesType;
-    });
-  }, [allocations, searchTerm, filterType]);
-
-  const availableCount = useMemo(
-    () => filteredAllocations.filter((a) => a.availability === 'available').length,
-    [filteredAllocations]
-  );
-
-  const selectedAllocation = useMemo(
-    () => allocations.find((a) => a.id === selectedAllocationId) || null,
-    [allocations, selectedAllocationId]
-  );
-
-  // Geometry
-  const effectiveContainerWidth = containerSize.width || DEFAULT_BASE_WIDTH;
-  const effectiveContainerHeight = containerSize.height || DEFAULT_CONTAINER_HEIGHT;
-  const baseWidth = Math.max(effectiveContainerWidth, DEFAULT_BASE_WIDTH);
-  const baseHeight = baseWidth * imageAspectRatio;
-  const scaledWidth = baseWidth * zoom;
-  const scaledHeight = baseHeight * zoom;
-
-  const canPanHorizontally = scaledWidth > effectiveContainerWidth + 1;
-  const canPanVertically = scaledHeight > effectiveContainerHeight + 1;
-  const canPan = canPanHorizontally || canPanVertically;
-
-  const showGrabCursor = canPan && zoom > 1;
-  const containerCursor = showGrabCursor ? (isDragging ? 'grabbing' : 'grab') : zoom >= MAX_ZOOM ? 'zoom-out' : 'zoom-in';
-
-  // ---- Zoom anchoring helpers ----------------------------------------------
-
-  const computeBaseDims = () => {
-    const w0 = Math.max(containerSizeRef.current.width || DEFAULT_BASE_WIDTH, DEFAULT_BASE_WIDTH);
-    const h0 = w0 * aspectRatioRef.current;
-    return { w0, h0 };
-  };
-
-  // Keep the content point under (px,py) fixed while zoom changes
-  const setZoomAtPoint = (px: number, py: number, oldZoom: number, newZoom: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const { w0, h0 } = computeBaseDims();
-
-    // Convert from container pixels to normalized content coords
-    const contentX = (container.scrollLeft + px) / (w0 * oldZoom);
-    const contentY = (container.scrollTop + py) / (h0 * oldZoom);
-
-    const newScaledW = w0 * newZoom;
-    const newScaledH = h0 * newZoom;
-
-    let newSL = contentX * newScaledW - px;
-    let newST = contentY * newScaledH - py;
-
-    const maxSL = Math.max(0, newScaledW - container.clientWidth);
-    const maxST = Math.max(0, newScaledH - container.clientHeight);
-
-    container.scrollLeft = clamp(newSL, 0, maxSL);
-    container.scrollTop = clamp(newST, 0, maxST);
-  };
-
-  // Discrete zoom (buttons/click/dblclick): wait for layout then fix scroll
-  const applyZoomDiscrete = (getNext: (prev: number) => number, focusClientPoint?: Point) => {
-    const c = containerRef.current;
-    if (!c) {
-      setZoom((prev) => clamp(getNext(prev), MIN_ZOOM, MAX_ZOOM));
-      return;
-    }
-    const rect = c.getBoundingClientRect();
-    const px = focusClientPoint ? focusClientPoint.x - rect.left - c.clientLeft : c.clientWidth / 2;
-    const py = focusClientPoint ? focusClientPoint.y - rect.top - c.clientTop : c.clientHeight / 2;
-
-    setZoom((prev) => {
-      const next = clamp(getNext(prev), MIN_ZOOM, MAX_ZOOM);
-      if (Math.abs(next - prev) < 0.0001) return prev;
-
-      // two rAFs to run after DOM has resized the wrapper
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setZoomAtPoint(px, py, prev, next));
-      });
-      return next;
-    });
-  };
-
-  // Continuous zoom (pinch / Ctrl+Wheel): update immediately
-  const applyZoomContinuousAt = (targetZoom: number, px: number, py: number) => {
-    const c = containerRef.current;
-    if (!c) return;
-    const old = zoomRef.current;
-    const next = clamp(targetZoom, MIN_ZOOM, MAX_ZOOM);
-    if (Math.abs(next - old) < 0.0008) return;
-    setZoom(next);
-    setZoomAtPoint(px, py, old, next);
-  };
-
-  // ---- UI Handlers ----------------------------------------------------------
-
-  const handleZoomIn = () => applyZoomDiscrete((prev) => prev + 0.5);
-  const handleZoomOut = () => applyZoomDiscrete((prev) => prev - 0.5);
-  const handleResetZoom = () => {
-    setZoom(1);
-    const container = containerRef.current;
-    if (container) container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-  };
-
-  // Desktop click-to-zoom (attach to CONTAINER)
-  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    applyZoomDiscrete((prev) => (prev >= MAX_ZOOM ? 1 : prev + 1), { x: e.clientX, y: e.clientY });
-  };
-
-  const handleContainerDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    applyZoomDiscrete((prev) => (prev >= MAX_ZOOM ? 1 : Math.min(MAX_ZOOM, prev + 1.5)), {
-      x: e.clientX,
-      y: e.clientY,
-    });
-  };
-
-  // Trackpad pinch via Ctrl+Wheel (Chrome/Edge/Win, some macOS configs)
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    if (e.ctrlKey) {
-      e.preventDefault();
-      const c = containerRef.current;
-      const rect = c.getBoundingClientRect();
-      const px = e.clientX - rect.left - c.clientLeft;
-      const py = e.clientY - rect.top - c.clientTop;
-      // Smooth scaling curve
-      const scale = Math.exp(-e.deltaY * 0.0015);
-      const next = clamp(zoomRef.current * scale, MIN_ZOOM, MAX_ZOOM);
-      applyZoomContinuousAt(next, px, py);
-    }
-    // else: let normal wheel scroll pan the container
-  };
-
-  // Desktop drag-to-pan (pointer capture)
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if ((e.pointerType !== 'mouse' && e.pointerType !== 'pen') || e.button !== 0 || !canPan) return;
-    const c = containerRef.current;
-    if (!c) return;
-    c.setPointerCapture?.(e.pointerId);
-    suppressClickRef.current = false;
-    pointerDragRef.current = {
-      active: true,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      scrollLeft: c.scrollLeft,
-      scrollTop: c.scrollTop,
-    };
-    dragMovedRef.current = false;
-    setIsDragging(true);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
-    const c = containerRef.current;
-    if (!c) return;
-    e.preventDefault();
-    const dx = e.clientX - pointerDragRef.current.startX;
-    const dy = e.clientY - pointerDragRef.current.startY;
-    if (!dragMovedRef.current && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
-      dragMovedRef.current = true;
-    }
-    c.scrollLeft = pointerDragRef.current.scrollLeft - dx;
-    c.scrollTop = pointerDragRef.current.scrollTop - dy;
-  };
-
-  const endPointerDrag = (pointerId: number) => {
-    const c = containerRef.current;
-    c?.releasePointerCapture?.(pointerId);
-    pointerDragRef.current = {
-      active: false,
-      pointerId: null,
-      startX: 0,
-      startY: 0,
-      scrollLeft: 0,
-      scrollTop: 0,
-    };
-    setIsDragging(false);
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
-    endPointerDrag(e.pointerId);
-    if (dragMovedRef.current) suppressClickRef.current = true;
-    dragMovedRef.current = false;
-  };
-
-  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
-    endPointerDrag(e.pointerId);
-    dragMovedRef.current = false;
-    suppressClickRef.current = false;
-  };
-
-  // ---- Mobile: native touch listeners (passive:false) on the CONTAINER -----
-  useEffect(() => {
-    const c = containerRef.current;
-    if (!c) return;
-
-    let pinchActive = false;
-    let startDist = 0;
-    let startZoom = 1;
-    let centerPX = 0;
-    let centerPY = 0;
-    let lastTapTime = 0;
-    let lastTapPX = 0;
-    let lastTapPY = 0;
-
-    const getMid = (t: TouchList) => ({
-      x: (t[0].clientX + t[1].clientX) / 2,
-      y: (t[0].clientY + t[1].clientY) / 2,
-    });
-
-    const onTS = (ev: TouchEvent) => {
-      if (ev.touches.length === 2) {
-        // Begin pinch
-        pinchActive = true;
-        const { x, y } = getMid(ev.touches);
-        const rect = c.getBoundingClientRect();
-        centerPX = x - rect.left - c.clientLeft;
-        centerPY = y - rect.top - c.clientTop;
-        startDist = Math.hypot(
-          ev.touches[1].clientX - ev.touches[0].clientX,
-          ev.touches[1].clientY - ev.touches[0].clientY
-        );
-        startZoom = zoomRef.current;
-        ev.preventDefault();
-      } else if (ev.touches.length === 1 && !pinchActive) {
-        // Double-tap detection
-        const now = Date.now();
-        const t = ev.touches[0];
-        const rect = c.getBoundingClientRect();
-        const px = t.clientX - rect.left - c.clientLeft;
-        const py = t.clientY - rect.top - c.clientTop;
-
-        const withinTime = now - lastTapTime < DOUBLE_TAP_DELAY;
-        const withinDist = Math.hypot(px - lastTapPX, py - lastTapPY) < 25;
-
-        if (withinTime && withinDist) {
-          ev.preventDefault();
-          const old = zoomRef.current;
-          const next = old >= MAX_ZOOM ? 1 : Math.min(MAX_ZOOM, old + 1.5);
-          setZoom(next);
-          // run after layout for stability
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => setZoomAtPoint(px, py, old, next));
-          });
-        }
-        lastTapTime = now;
-        lastTapPX = px;
-        lastTapPY = py;
-      }
-    };
-
-    const onTM = (ev: TouchEvent) => {
-      if (pinchActive && ev.touches.length === 2) {
-        ev.preventDefault();
-        const dist = Math.hypot(
-          ev.touches[1].clientX - ev.touches[0].clientX,
-          ev.touches[1].clientY - ev.touches[0].clientY
-        );
-        if (!startDist) return;
-        const ratio = dist / startDist;
-        const next = clamp(startZoom * ratio, MIN_ZOOM, MAX_ZOOM);
-
-        // Recompute center as fingers move
-        const { x, y } = getMid(ev.touches);
-        const rect = c.getBoundingClientRect();
-        const px = x - rect.left - c.clientLeft;
-        const py = y - rect.top - c.clientTop;
-
-        applyZoomContinuousAt(next, px, py);
-      }
-    };
-
-    const onTE = () => {
-      if (pinchActive) {
-        pinchActive = false;
-        startDist = 0;
-      }
-    };
-
-    c.addEventListener('touchstart', onTS, { passive: false });
-    c.addEventListener('touchmove', onTM, { passive: false });
-    c.addEventListener('touchend', onTE, { passive: false });
-    c.addEventListener('touchcancel', onTE, { passive: false });
-    return () => {
-      c.removeEventListener('touchstart', onTS);
-      c.removeEventListener('touchmove', onTM);
-      c.removeEventListener('touchend', onTE);
-      c.removeEventListener('touchcancel', onTE);
-    };
-  }, []);
-
-  return (
-    <div className="flex flex-col gap-4 lg:flex-row">
-      {/* Units List */}
-      <div className="order-2 flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4 lg:order-1">
-        <p className="text-sm font-semibold text-[var(--color-outer-space)]">Available Units</p>
-        <p className="text-[11px] text-[var(--color-outer-space)]/60">
-          {loading ? 'Loading...' : `${availableCount} available of ${filteredAllocations.length} units`}
+const LEARN_FAQ_ITEMS: Array<{ question: string; answer: ReactNode }> = [
+  {
+    question: 'Can I buy points, or do I only earn them through the app?',
+    answer: (
+      <p>
+        Yes, you can both earn points through the app and buy extra points. You can top up your balance anytime in the Collect
+        Dashboard.
+      </p>
+    ),
+  },
+  {
+    question: 'Do my points expire?',
+    answer: (
+      <p>
+        Yes. Points expire 1 year after they are earned. For example, if you earn 6,000 points on 18 September 2025, they will
+        expire on 18 September 2026.
+      </p>
+    ),
+  },
+  {
+    question: 'How fast will I get my points after buying them?',
+    answer: <p>Purchased points are credited instantly and will appear directly in your dashboard.</p>,
+  },
+  {
+    question: 'Is there a limit to how many points I can buy?',
+    answer: (
+      <p>
+        Yes. The minimum purchase is AED 250 (500 points), and the maximum purchase is AED 500,000 (1,000,000 points).
+      </p>
+    ),
+  },
+  {
+    question: 'How do I earn points on transactions and referrals?',
+    answer: (
+      <div className="space-y-2">
+        <p>
+          <strong>Property Transactions:</strong> 3,000 points per AED 1M. Example: A AED 2.1M property transaction = 6,300
+          points (credited once the deal is closed).
         </p>
-
-        {/* Search + Filter */}
-        <div className="mt-3 space-y-2">
-          <input
-            type="text"
-            placeholder="Search by code, island, or BR type..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            disabled={loading}
-            className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] placeholder:text-[var(--color-outer-space)]/40 focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
-          />
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            disabled={loading}
-            className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
-          >
-            {brTypes.map((type) => (
-              <option key={type} value={type}>
-                {type === 'all' ? 'All BR Types' : type}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Units List */}
-        <div className="mt-3 max-h-[400px] space-y-2 overflow-auto pr-2 lg:max-h-[500px]">
-          {error && (
-            <div className="rounded-[12px] border border-rose-200 bg-rose-50 p-4 text-center text-sm text-rose-700">
-              {error}
-            </div>
-          )}
-          {loading && !error && (
-            <p className="py-8 text-center text-sm text-[var(--color-outer-space)]/40">Loading units...</p>
-          )}
-          {!loading &&
-            !error &&
-            filteredAllocations.map((allocation) => {
-              const disabled = allocation.availability !== 'available';
-              const selected = allocation.id === selectedAllocationId;
-
-              return (
-                <button
-                  key={allocation.id}
-                  type="button"
-                  onClick={() => {
-                    if (disabled) return;
-                    onSelectAllocation(selectedAllocationId === allocation.id ? null : allocation.id);
-                  }}
-                  disabled={disabled}
-                  className={
-                    'flex w-full items-center justify-between rounded-[12px] border px-3 py-2.5 text-left transition ' +
-                    (selected
-                      ? 'border-[var(--color-electric-purple)] bg-[var(--color-electric-purple)]/10'
-                      : disabled
-                      ? 'border-[#d1b7fb]/30 cursor-not-allowed opacity-50'
-                      : 'border-[#d1b7fb]/60 hover:bg-[var(--color-panel)]/60 active:bg-[var(--color-panel)]')
-                  }
-                >
-                  <div className="flex-1">
-                    <p
-                      className={
-                        'text-sm font-semibold ' +
-                        (disabled ? 'text-[var(--color-outer-space)]/40' : 'text-[var(--color-outer-space)]')
-                      }
-                    >
-                      {allocation.damacIslandcode || allocation.id}
-                    </p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-outer-space)]/60">
-                      <span>{allocation.points?.toLocaleString() ?? '—'} pts</span>
-                      {allocation.unitType && (
-                        <>
-                          <span>•</span>
-                          <span>{allocation.unitType}</span>
-                        </>
-                      )}
-                      {allocation.brType && (
-                        <>
-                          <span>•</span>
-                          <span>{allocation.brType}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={
-                      'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ' +
-                      (allocation.availability === 'available'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-rose-100 text-rose-700')
-                    }
-                  >
-                    {allocation.availability}
-                  </span>
-                </button>
-              );
-            })}
-          {!loading && !error && filteredAllocations.length === 0 && (
-            <p className="py-8 text-center text-sm text-[var(--color-outer-space)]/40">No units found</p>
-          )}
-        </div>
+        <p>
+          <strong>Mortgage Referrals:</strong> 1,500 points per AED 1M. Example: A AED 3.3M mortgage = 4,950 points (credited once
+          the mortgage is disbursed).
+        </p>
+        <p>
+          <strong>Golden Visa Referrals (VIP/VVIP only):</strong> 1,500 points per successful case. Example: 2 Golden Visa referrals =
+          3,000 points.
+        </p>
       </div>
+    ),
+  },
+  {
+    question: 'Can I track how many points I’ve earned?',
+    answer: <p>Yes. You can track and redeem your points directly from your Collect Dashboard on the PRYPCO One app.</p>,
+  },
+];
 
-      {/* Map Image with Selection Overlay */}
-      <div className="order-1 relative flex-1 lg:order-2">
-        <div className="rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
-              <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">
-                {zoom < 6 ? 'Click/tap to zoom • Pinch or scroll to pan' : 'Click/tap to reset zoom'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden text-xs text-[var(--color-outer-space)]/60 sm:inline">{Math.round(zoom * 100)}%</span>
-              <div className="inline-flex gap-1">
-                <button
-                  type="button"
-                  onClick={handleZoomOut}
-                  disabled={zoom <= MIN_ZOOM}
-                  className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
-                  aria-label="Zoom out"
-                >
-                  –
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetZoom}
-                  disabled={zoom === 1}
-                  className="flex h-10 min-w-[40px] touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 px-2 text-xs font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:min-w-[32px] sm:text-[10px]"
-                  aria-label="Reset zoom"
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={handleZoomIn}
-                  disabled={zoom >= MAX_ZOOM}
-                  className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
-                  aria-label="Zoom in"
-                >
-                  +
-                </button>
+function monthKey(dateIso: string): string {
+  const d = new Date(dateIso);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem[] {
+  const toBoolean = (value: unknown): boolean => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalised = value.trim().toLowerCase();
+      return normalised === 'true' || normalised === 'checked' || normalised === '1' || normalised === 'yes';
+    }
+    return false;
+  };
+
+  const toStatus = (value: unknown): CatalogueDisplayItem['status'] => {
+    if (typeof value !== 'string') return null;
+    const normalised = value.trim().toLowerCase();
+    if (normalised === 'coming soon' || normalised === 'coming_soon') return 'coming_soon';
+    if (normalised === 'last units' || normalised === 'last_units') return 'last_units';
+    if (normalised === 'sold out' || normalised === 'sold_out') return 'sold_out';
+    if (normalised === 'active') return 'active';
+    return null;
+  };
+
+  return items.map((item) => {
+    const imagesRaw = item.fields?.image as
+      | Array<{ url?: string; thumbnails?: { large?: { url?: string } } }>
+      | undefined;
+    const image = Array.isArray(imagesRaw) ? imagesRaw[0] : undefined;
+    const descriptionRaw = item.fields?.description as unknown;
+    let description: string | undefined;
+    if (typeof descriptionRaw === 'string') description = descriptionRaw;
+    else if (descriptionRaw && typeof descriptionRaw === 'object' && 'value' in descriptionRaw) {
+      description = String((descriptionRaw as { value?: unknown }).value ?? '');
+    }
+
+    const rawName = item.fields?.name;
+    const name = typeof rawName === 'string' && rawName.trim() ? rawName : 'Reward';
+    const tcRaw = item.fields?.['T&C'];
+    const tcText = typeof tcRaw === 'string' && tcRaw.trim() ? tcRaw.trim() : null;
+    const tcActiveRaw = item.fields?.['T&C_active'];
+    const tcActive = !!tcText && toBoolean(tcActiveRaw);
+    const tcVersionRaw = item.fields?.['T&C_version'];
+    const tcVersion = typeof tcVersionRaw === 'string' && tcVersionRaw.trim() ? tcVersionRaw.trim() : null;
+    const tcUrlRaw = item.fields?.['T&C_url'];
+    const tcUrl = typeof tcUrlRaw === 'string' && tcUrlRaw.trim() ? tcUrlRaw.trim() : null;
+    const tcSignature = tcActive
+      ? tcVersion || `${tcText.length}:${tcText.slice(0, 64)}`
+      : null;
+    const requiresAgencyConfirmation = toBoolean(item.fields?.unit_allocation);
+    const status = toStatus(item.fields?.status_project_allocation);
+
+    const unitAllocations = Array.isArray(item.unitAllocations)
+      ? item.unitAllocations
+          .map((allocation) => {
+            const id = typeof allocation.id === 'string' ? allocation.id.trim() : null;
+            if (!id) return null;
+            return {
+              id,
+              unitType: allocation.unitType ?? null,
+              maxStock: typeof allocation.maxStock === 'number' ? allocation.maxStock : null,
+              points: typeof allocation.points === 'number' ? allocation.points : null,
+              pictureUrl: typeof allocation.pictureUrl === 'string' ? allocation.pictureUrl : null,
+              priceAed: typeof allocation.priceAed === 'number' ? allocation.priceAed : null,
+            } satisfies CatalogueUnitAllocation;
+          })
+          .filter((allocation): allocation is CatalogueUnitAllocation => allocation !== null)
+      : [];
+
+    const category: 'token' | 'reward' = unitAllocations.length > 0 ? 'token' : 'reward';
+    const requiresBuyerVerification = toBoolean(item.fields?.requiresBuyerVerification);
+
+    return {
+      id: item.id,
+      name,
+      description,
+      priceAED: typeof item.fields?.price_aed === 'number' ? item.fields?.price_aed : null,
+      points: typeof item.fields?.points === 'number' ? item.fields?.points : null,
+      link: typeof item.fields?.Link === 'string' && item.fields?.Link.trim() ? item.fields?.Link.trim() : null,
+      imageUrl: typeof image?.thumbnails?.large?.url === 'string' ? image.thumbnails.large.url : image?.url || null,
+      status,
+      requiresAgencyConfirmation,
+      termsActive: tcActive,
+      requiresBuyerVerification,
+      termsText: tcText,
+      termsVersion: tcVersion,
+      termsUrl: tcUrl,
+      termsSignature: tcSignature,
+      unitAllocations,
+      category,
+    };
+  });
+}
+
+const ActivitySection = lazy(() => import('./ActivitySection'));
+
+export function DashboardClient({
+  agentId,
+  agentCode,
+  identifierLabel,
+  activeView,
+  topupStatus,
+  minTopup,
+  pointsPerAed,
+  ledgerHref,
+  catalogueHref,
+  learnHref,
+  baseQuery,
+}: Props) {
+  const [rows, setRows] = useState<PublicLoyaltyRow[] | null>(null);
+  const [catalogue, setCatalogue] = useState<CatalogueDisplayItem[] | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [investorPromoCodeState, setInvestorPromoCodeState] = useState<string | null>(null);
+  const [investorWhatsappLinkState, setInvestorWhatsappLinkState] = useState<string | null>(null);
+  const [agentReferralLinkState, setAgentReferralLinkState] = useState<string | null>(null);
+  const [agentReferralWhatsappLinkState, setAgentReferralWhatsappLinkState] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [retryDelay, setRetryDelay] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
+  const cataloguePrefetchedRef = useRef(false);
+  const catalogueFetchPromiseRef = useRef<Promise<void> | null>(null);
+  const catalogueTrackedRef = useRef(false);
+  const [redeemItem, setRedeemItem] = useState<CatalogueDisplayItem | null>(null);
+  const [redeemStatus, setRedeemStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
+  const [pendingRedeemItem, setPendingRedeemItem] = useState<CatalogueDisplayItem | null>(null);
+  const [termsDialogItem, setTermsDialogItem] = useState<CatalogueDisplayItem | null>(null);
+  const [termsDialogMode, setTermsDialogMode] = useState<'view' | 'redeem'>('view');
+  const [unitAllocationDialogItem, setUnitAllocationDialogItem] = useState<CatalogueDisplayItem | null>(null);
+  const [unitAllocationSelection, setUnitAllocationSelection] = useState<string | null>(null);
+  const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
+  const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
+  const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
+  const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
+  const [buyerVerificationDialogItem, setBuyerVerificationDialogItem] = useState<CatalogueDisplayItem | null>(null);
+  const [buyerVerificationAllocation, setBuyerVerificationAllocation] = useState<CatalogueUnitAllocation | null>(null);
+  const [preFilledBuyerDetails, setPreFilledBuyerDetails] = useState<{ firstName: string; phoneLast4: string } | null>(null);
+  const searchParams = useSearchParams();
+
+  // Initialize filter from URL or default to 'all'
+  const [catalogueFilter, setCatalogueFilter] = useState<'all' | 'token' | 'reward'>(() => {
+    const filterParam = searchParams?.get('filter');
+    if (filterParam === 'token' || filterParam === 'reward') {
+      return filterParam;
+    }
+    return 'all';
+  });
+
+  const currentMonthName = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
+  const analyticsAgentId = agentId ?? agentCode ?? 'unknown';
+
+  // Helper to update filter and sync URL
+  const updateCatalogueFilter = useCallback(
+    (filter: 'all' | 'token' | 'reward') => {
+      setCatalogueFilter(filter);
+      emitAnalyticsEvent('catalogue_filter_changed', { filter });
+
+      // Update URL without page reload
+      const params = new URLSearchParams(searchParams?.toString() ?? '');
+      if (filter === 'all') {
+        params.delete('filter'); // Clean URL when "all"
+      } else {
+        params.set('filter', filter);
+      }
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [searchParams, router],
+  );
+
+  const hasAcceptedTerms = useCallback(
+    (item: CatalogueDisplayItem | null) => {
+      if (!item || !item.termsActive) return true;
+      return item.id === termsAcceptedItemId;
+    },
+    [termsAcceptedItemId],
+  );
+
+  // Filter catalogue items based on selected category
+  const filteredCatalogue = useMemo(() => {
+    if (!catalogue) return null;
+    if (catalogueFilter === 'all') return catalogue;
+    return catalogue.filter((item) => item.category === catalogueFilter);
+  }, [catalogue, catalogueFilter]);
+
+  // Calculate counts for each category
+  const catalogueCounts = useMemo(() => {
+    if (!catalogue) return { all: 0, token: 0, reward: 0 };
+    const tokenCount = catalogue.filter((item) => item.category === 'token').length;
+    const rewardCount = catalogue.filter((item) => item.category === 'reward').length;
+    return {
+      all: catalogue.length,
+      token: tokenCount,
+      reward: rewardCount,
+    };
+  }, [catalogue]);
+
+  const beginRedeem = useCallback(
+    (
+      item: CatalogueDisplayItem,
+      allocation: CatalogueUnitAllocation | null,
+      buyerDetails?: { firstName: string; phoneLast4: string },
+    ) => {
+      const requiresBuyerVerification = !!allocation || item.requiresBuyerVerification === true;
+      const details = buyerDetails ?? preFilledBuyerDetails;
+
+      if (requiresBuyerVerification && !details) {
+        setBuyerVerificationDialogItem(item);
+        setBuyerVerificationAllocation(allocation);
+        return;
+      }
+
+      if (buyerDetails) {
+        setPreFilledBuyerDetails(buyerDetails);
+      }
+
+      setRedeemItem(item);
+      setSelectedUnitAllocation(allocation);
+      setRedeemStatus('idle');
+      setRedeemMessage(null);
+    },
+    [preFilledBuyerDetails],
+  );
+
+  const startRedeemFlow = useCallback(
+    (item: CatalogueDisplayItem) => {
+      const allocations = item.unitAllocations;
+      setSelectedUnitAllocation(null);
+      if (allocations.length > 0) {
+        setUnitAllocationDialogItem(item);
+        setUnitAllocationSelection(null);
+        return;
+      }
+      beginRedeem(item, null);
+    },
+    [beginRedeem],
+  );
+
+  const closeUnitAllocationDialog = useCallback(() => {
+    setUnitAllocationDialogItem(null);
+    setUnitAllocationSelection(null);
+  }, []);
+
+  const confirmUnitAllocation = useCallback(() => {
+    if (!unitAllocationDialogItem) return;
+    const selectionId = unitAllocationSelection;
+    if (!selectionId) return;
+    const allocations = unitAllocationDialogItem.unitAllocations;
+    const chosen = allocations.find((allocation) => allocation.id === selectionId) ?? null;
+    if (!chosen) return;
+    closeUnitAllocationDialog();
+    beginRedeem(unitAllocationDialogItem, chosen);
+  }, [
+    beginRedeem,
+    closeUnitAllocationDialog,
+    unitAllocationDialogItem,
+    unitAllocationSelection,
+  ]);
+
+  const handleBuyerVerificationSubmit = useCallback(
+    (details: { firstName: string; phoneLast4: string }) => {
+      const item = buyerVerificationDialogItem;
+      const allocation = buyerVerificationAllocation;
+      if (!item) return;
+
+      setBuyerVerificationDialogItem(null);
+      setBuyerVerificationAllocation(null);
+
+      beginRedeem(item, allocation, details);
+    },
+    [buyerVerificationDialogItem, buyerVerificationAllocation, beginRedeem],
+  );
+
+  const closeBuyerVerificationDialog = useCallback(() => {
+    setBuyerVerificationDialogItem(null);
+    setBuyerVerificationAllocation(null);
+  }, []);
+
+  const handleRequestRedeem = useCallback(
+    (item: CatalogueDisplayItem) => {
+      if (item.status) {
+        const statusConfig = getCatalogueStatusConfig(item.status);
+        if (statusConfig.redeemDisabled) {
+          if (item.status === 'coming_soon') {
+            emitAnalyticsEvent('coming_soon_interest', {
+              agent_id: analyticsAgentId,
+              reward_id: item.id,
+            });
+            setWaitlistMessage(`Thanks! We'll notify you when ${item.name || 'this reward'} is available.`);
+          }
+          return;
+        }
+      }
+      if (item.termsActive) {
+        setTermsAcceptedItemId(null);
+        setPendingRedeemItem(item);
+        setTermsDialogItem(item);
+        setTermsDialogMode('redeem');
+        return;
+      }
+      startRedeemFlow(item);
+    },
+    [analyticsAgentId, startRedeemFlow],
+  );
+
+  const handleShowTerms = useCallback((item: CatalogueDisplayItem) => {
+    setPendingRedeemItem(null);
+    setTermsDialogItem(item);
+    setTermsDialogMode('view');
+  }, []);
+
+  const handleTermsAccept = useCallback(
+    (item: CatalogueDisplayItem) => {
+      setTermsAcceptedItemId(item.id);
+      if (termsDialogMode === 'redeem') {
+        const target = pendingRedeemItem ?? item;
+        setTermsDialogItem(null);
+        setTermsDialogMode('view');
+        setPendingRedeemItem(null);
+        if (target) startRedeemFlow(target);
+      } else {
+        setTermsDialogItem(null);
+        setTermsDialogMode('view');
+        setPendingRedeemItem(null);
+      }
+    },
+    [pendingRedeemItem, startRedeemFlow, termsDialogMode],
+  );
+
+  const handleTermsClose = useCallback(() => {
+    setTermsDialogItem(null);
+    setTermsDialogMode('view');
+    setPendingRedeemItem(null);
+  }, []);
+
+  const isMountedRef = useRef(true);
+  const currentTab: 'dashboard' | 'store' | 'learn' =
+    activeView === 'catalogue' ? 'store' : activeView === 'learn' ? 'learn' : 'dashboard';
+  const [topupMounted, setTopupMounted] = useState(false);
+  const [topupVisible, setTopupVisible] = useState(false);
+  const topupHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const topupRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const catalogueImageRefreshInFlightRef = useRef(false);
+  const topupTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const topupCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const openTopup = useCallback(() => {
+    if (topupHideTimerRef.current) {
+      clearTimeout(topupHideTimerRef.current);
+      topupHideTimerRef.current = null;
+    }
+    setTopupMounted(true);
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => setTopupVisible(true));
+    } else {
+      setTopupVisible(true);
+    }
+  }, []);
+
+  const closeTopup = useCallback(() => {
+    setTopupVisible(false);
+  }, []);
+
+  const toggleTopup = useCallback(() => {
+    if (topupMounted && topupVisible) {
+      closeTopup();
+    } else {
+      openTopup();
+    }
+  }, [closeTopup, openTopup, topupMounted, topupVisible]);
+
+  const identifierParams = useMemo(() => {
+    const params = new URLSearchParams(baseQuery);
+    params.delete('view');
+    if (agentId) params.set('agent', agentId);
+    else params.delete('agent');
+    if (agentCode) params.set('agentCode', agentCode);
+    else params.delete('agentCode');
+    return params;
+  }, [agentId, agentCode, baseQuery]);
+
+  const copyToClipboard = useCallback(async (value: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+    } catch {
+      // ignore and fall back below
+    }
+    if (typeof document === 'undefined') return;
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'absolute';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }, []);
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://collect.prypco.com';
+  const agentReferralLinkTrimmed = agentReferralLinkState?.trim();
+  const agentReferralLink = agentReferralLinkTrimmed && agentReferralLinkTrimmed.length > 0
+    ? agentReferralLinkTrimmed
+    : `${appUrl}/refer/agent`;
+  const agentReferralDisplay = agentReferralLink.replace(/^https?:\/\//, '');
+  const agentReferralWhatsappHrefTrimmed = agentReferralWhatsappLinkState?.trim();
+  const agentReferralWhatsappHref = agentReferralWhatsappHrefTrimmed && agentReferralWhatsappHrefTrimmed.length > 0
+    ? agentReferralWhatsappHrefTrimmed
+    : null;
+  const fallbackInvestorPromoCode = 'COLLECT2025';
+  const fallbackInvestorWhatsappHref = `https://wa.me/971555555555?text=${encodeURIComponent(
+    'Hi! I would like to chat about the Prypco investor programme.'
+  )}`;
+  const investorPromoCodeValue = investorPromoCodeState ?? fallbackInvestorPromoCode;
+  const investorWhatsappHref = investorWhatsappLinkState ?? fallbackInvestorWhatsappHref;
+
+  const openWhatsapp = useCallback((href: string) => {
+    if (typeof window !== 'undefined') {
+      window.open(href, '_blank', 'noopener');
+    }
+  }, []);
+
+  const shareAgentReferral = useCallback(async () => {
+    const link = agentReferralLink;
+    if (!link) return;
+
+    if (agentReferralWhatsappHref) {
+      openWhatsapp(agentReferralWhatsappHref);
+      return;
+    }
+
+    const shareText = `Join me on Prypco One — use my link: ${link}`;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title: 'Prypco One', text: shareText, url: link });
+        return;
+      }
+    } catch {
+      /* ignore share errors and fall back to copy */
+    }
+
+    await copyToClipboard(link);
+  }, [agentReferralLink, agentReferralWhatsappHref, copyToClipboard, openWhatsapp]);
+
+  useEffect(() => {
+    if (!topupVisible && topupMounted) {
+      topupHideTimerRef.current = setTimeout(() => {
+        setTopupMounted(false);
+        topupTriggerRef.current?.focus();
+        topupHideTimerRef.current = null;
+      }, 200);
+      return () => {
+        if (topupHideTimerRef.current) {
+          clearTimeout(topupHideTimerRef.current);
+          topupHideTimerRef.current = null;
+        }
+      };
+    }
+  }, [topupVisible, topupMounted]);
+
+  useEffect(() => {
+    if (!topupMounted) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeTopup();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [topupMounted, closeTopup]);
+
+  useEffect(() => {
+    if (!topupMounted) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [topupMounted]);
+
+  useEffect(() => {
+    if (!topupMounted || !topupVisible) return;
+    const timeout = setTimeout(() => {
+      topupCloseButtonRef.current?.focus();
+    }, 180);
+    return () => clearTimeout(timeout);
+  }, [topupMounted, topupVisible]);
+
+  useEffect(() => {
+    if (topupStatus) {
+      closeTopup();
+    }
+    if (topupStatus === 'success') {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[topup] scheduling fresh loyalty fetch');
+      }
+      if (topupRefreshTimerRef.current) {
+        clearTimeout(topupRefreshTimerRef.current);
+      }
+      topupRefreshTimerRef.current = setTimeout(() => {
+        setForceFreshLoyalty(true);
+        topupRefreshTimerRef.current = null;
+      }, 12000);
+    }
+  }, [topupStatus, closeTopup]);
+
+  useEffect(() => {
+    return () => {
+      if (topupHideTimerRef.current) {
+        clearTimeout(topupHideTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (topupRefreshTimerRef.current) {
+        clearTimeout(topupRefreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, []);
+
+  const loadCatalogue = useCallback(async ({ forceFresh = false }: { forceFresh?: boolean } = {}) => {
+    if (!forceFresh) {
+      if (cataloguePrefetchedRef.current) return;
+      if (catalogueFetchPromiseRef.current) {
+        try {
+          await catalogueFetchPromiseRef.current;
+        } catch {
+          /* no-op: downstream fetch can retry */
+        }
+        return;
+      }
+    }
+
+    const promise = (async () => {
+      try {
+        const response = await fetch(`/api/catalogue${forceFresh ? '?fresh=1' : ''}`, { cache: 'no-store' });
+        const body = (await response.json().catch(() => ({}))) as CatalogueResponse;
+        if (!response.ok) {
+          const message = typeof body === 'object' && body && 'error' in body ? (body as { error?: string }).error : null;
+          throw new Error(message || 'Failed to load catalogue');
+        }
+        if (!isMountedRef.current) return;
+        cataloguePrefetchedRef.current = true;
+        setCatalogue(buildCatalogue(body.items ?? []));
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        cataloguePrefetchedRef.current = false;
+        throw err;
+      }
+    })();
+
+    if (!forceFresh) catalogueFetchPromiseRef.current = promise;
+
+    try {
+      await promise;
+    } finally {
+      if (!forceFresh && catalogueFetchPromiseRef.current === promise) {
+        catalogueFetchPromiseRef.current = null;
+      }
+    }
+  }, []);
+
+  const handleCatalogueImageError = useCallback(() => {
+    if (catalogueImageRefreshInFlightRef.current) return;
+    catalogueImageRefreshInFlightRef.current = true;
+    loadCatalogue({ forceFresh: true })
+      .catch(() => {})
+      .finally(() => {
+        catalogueImageRefreshInFlightRef.current = false;
+      });
+  }, [loadCatalogue]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData(attempt = 0) {
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      setRetryDelay(null);
+
+      try {
+        const params = new URLSearchParams(identifierParams);
+        if (forceFreshLoyalty) params.set('fresh', '1');
+        const loyaltyUrl = `/api/loyalty?${params.toString()}`;
+
+        // Load both loyalty and catalogue APIs in parallel for faster page load
+        // Catalogue failure is non-blocking since it's only needed on Store tab
+        const [ledgerRes] = await Promise.all([
+          fetch(loyaltyUrl, { cache: 'no-store' }),
+          loadCatalogue().catch(() => null), // Graceful catalogue failure
+        ]);
+
+        if (ledgerRes.status === 429) {
+          throw { retryable: true, message: 'Airtable is busy' };
+        }
+        if (!ledgerRes.ok) {
+          throw new Error((await ledgerRes.json().catch(() => ({}))).error || 'Failed to load ledger');
+        }
+
+        const ledgerJson = (await ledgerRes.json()) as LedgerResponse;
+        if (cancelled) return;
+        const clean = (value: unknown): string | null => {
+          if (typeof value !== 'string') return null;
+          const trimmed = value.trim();
+          return trimmed.length ? trimmed : null;
+        };
+
+        setRows(ledgerJson.records);
+        setDisplayName(clean(ledgerJson.displayName) ?? null);
+        setInvestorPromoCodeState(clean(ledgerJson.investorPromoCode));
+        setInvestorWhatsappLinkState(clean(ledgerJson.investorWhatsappLink));
+        setAgentReferralLinkState(clean(ledgerJson.agentReferralLink));
+        setAgentReferralWhatsappLinkState(clean(ledgerJson.agentReferralWhatsappLink));
+
+        setLastUpdated(new Date());
+        setLoading(false);
+        if (forceFreshLoyalty) setForceFreshLoyalty(false);
+      } catch (err) {
+        if (cancelled) return;
+        const retryable = typeof err === 'object' && err !== null && 'retryable' in err;
+        if (retryable && attempt < MAX_RETRIES) {
+          const delay = Math.pow(2, attempt) * 1000;
+          setRetryDelay(delay / 1000);
+          retryTimerRef.current = setTimeout(() => loadData(attempt + 1), delay);
+          return;
+        }
+        const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Failed to load data';
+        setError(message);
+        setLoading(false);
+        if (forceFreshLoyalty) setForceFreshLoyalty(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, [identifierParams, forceFreshLoyalty, loadCatalogue]);
+
+  // Ensure catalogue is loaded when switching to catalogue view
+  // Uses prefetched data if available for instant rendering
+  useEffect(() => {
+    if (activeView !== 'catalogue') return;
+
+    // Only load if not already loaded (leverages prefetch optimization)
+    if (!catalogue) {
+      loadCatalogue().catch(() => {});
+    }
+  }, [activeView, catalogue, loadCatalogue]);
+
+  // Prefetch catalogue after 2 seconds of idle time on Dashboard
+  // This makes Store tab feel instant when user clicks it
+  useEffect(() => {
+    // Only prefetch when on Dashboard view
+    if (activeView !== 'loyalty') return;
+
+    // Skip if catalogue already loaded or loading
+    if (catalogue !== null) return;
+    if (cataloguePrefetchedRef.current) return;
+    if (catalogueFetchPromiseRef.current) return;
+
+    // Wait 2 seconds before prefetching (user is likely reading dashboard)
+    const prefetchTimer = setTimeout(() => {
+      // Double-check conditions before prefetching
+      if (activeView === 'loyalty' && catalogue === null) {
+        loadCatalogue().catch(() => {
+          // Silent failure - don't disrupt user experience
+        });
+      }
+    }, 2000);
+
+    // Critical: Clean up timer on unmount or view change
+    return () => clearTimeout(prefetchTimer);
+  }, [activeView, catalogue, loadCatalogue]);
+
+  const metrics = useMemo(() => {
+    if (!rows?.length) {
+      return {
+        totalPosted: 0,
+        expiringSoon: 0,
+        currentMonth: 0,
+        positivePoints: 0,
+        negativePoints: 0,
+        pointsByType: [] as { key: string; label: string; points: number; rows: number }[],
+        last20: [] as PublicLoyaltyRow[],
+      };
+    }
+
+    const now = new Date();
+    const soon = new Date(now);
+    soon.setDate(soon.getDate() + 30);
+
+    const totalPosted = rows.reduce((acc, r) => acc + (r.points || 0), 0);
+    const expiringSoon = rows
+      .filter((r) => r.points > 0 && r.expires_at)
+      .filter((r) => {
+        const exp = new Date(r.expires_at as string);
+        return exp >= now && exp <= soon;
+      })
+      .reduce((acc, r) => acc + r.points, 0);
+
+    const currentMonthKey = monthKey(now.toISOString());
+    const currentMonth = rows
+      .filter((r) => monthKey(r.earned_at ?? r.createdTime) === currentMonthKey)
+      .filter((r) => r.points > 0)
+      .reduce((acc, r) => acc + r.points, 0);
+
+    const positivePoints = rows.filter((r) => r.points > 0).reduce((acc, r) => acc + r.points, 0);
+    const negativePoints = rows.filter((r) => r.points < 0).reduce((acc, r) => acc + r.points, 0);
+
+    const pointsByType = Array.from(
+      rows.reduce((acc, row) => {
+        const rawLabel = row.type_display_name?.trim() || row.type || 'Other';
+        const key = rawLabel.toLowerCase();
+        const current = acc.get(key) ?? { label: rawLabel, points: 0, rows: 0 };
+        current.points += row.points;
+        current.rows += 1;
+        acc.set(key, current);
+        return acc;
+      }, new Map<string, { label: string; points: number; rows: number }>())
+    )
+      .map(([key, value]) => ({ key, ...value }))
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 3);
+
+    return {
+      totalPosted,
+      expiringSoon,
+      currentMonth,
+      positivePoints,
+      negativePoints,
+      pointsByType,
+      last20: rows.slice(0, 20),
+    };
+  }, [rows]);
+
+  const topHighlightItems = useMemo(() => metrics.pointsByType.slice(0, 3), [metrics.pointsByType]);
+
+  const topEarningCards = useMemo<ReactNode[]>(() => {
+    if (rows === null) {
+      return Array.from({ length: 3 }, (_, i) => (
+        <div
+          key={`top-skeleton-${i}`}
+          className={`${REFERRAL_CARD_BASE_CLASS} animate-pulse bg-[var(--color-background)]/80 text-transparent`}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-11 w-11 rounded-full bg-[var(--color-background)]/70" />
+            <div className="h-3 w-3/4 rounded-full bg-[var(--color-background)]/60" />
+            <div className="h-3 w-2/3 rounded-full bg-[var(--color-background)]/40" />
+          </div>
+        </div>
+      ));
+    }
+
+    if (!topHighlightItems.length) {
+      return [
+        <div key="top-empty" className={`${REFERRAL_CARD_BASE_CLASS} text-xs text-[var(--color-outer-space)]/70`}>
+          <p className="text-sm font-semibold">Your top categories await</p>
+          <p>
+            Close a deal or share your referral links to unlock your first earning badge. Every transaction moves you up
+            the leaderboard.
+          </p>
+        </div>,
+      ];
+    }
+
+    return topHighlightItems.map((item) => (
+      <TopHighlightCard key={`top-${item.key}`} label={item.label} points={item.points} rows={item.rows} />
+    ));
+  }, [rows, topHighlightItems]);
+
+  useEffect(() => {
+    if (activeView !== 'catalogue') return;
+    if (!catalogue || catalogueTrackedRef.current) return;
+    emitAnalyticsEvent('catalogue_view', {
+      agent_id: analyticsAgentId,
+      item_count: catalogue.length,
+    });
+    catalogueTrackedRef.current = true;
+  }, [activeView, analyticsAgentId, catalogue]);
+
+  useEffect(() => {
+    if (!waitlistMessage) return;
+    const timer = setTimeout(() => setWaitlistMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [waitlistMessage]);
+
+const referralCards: ReactNode[] = [
+    <ReferralCard
+      key="ref-agent"
+      title="Refer an Agent"
+      description="Invite a colleague to Prypco One and earn bonus points."
+      primaryLabel="Share referral link"
+      onPrimaryClick={shareAgentReferral}
+      codeValue={agentReferralDisplay || undefined}
+      codeCopySuccessLabel="Link copied!"
+      onCodeCopy={() => copyToClipboard(agentReferralLink)}
+      analyticsAgentId={analyticsAgentId}
+      analyticsShareVariant="agent_share"
+      analyticsCopyVariant="agent_copy"
+    />,
+    <ReferralCard
+      key="ref-investor"
+      title="Refer an Investor"
+      description="Share Prypco Blocks or Mint with investors and earn 2,000 points."
+      primaryLabel="Share via WhatsApp"
+      onPrimaryClick={() => openWhatsapp(investorWhatsappHref)}
+      codeValue={investorPromoCodeValue ?? undefined}
+      codeCopySuccessLabel="Code copied!"
+      onCodeCopy={() => copyToClipboard(investorPromoCodeValue)}
+      analyticsAgentId={analyticsAgentId}
+      analyticsShareVariant="investor_share"
+      analyticsCopyVariant="investor_copy"
+    />,
+  ];
+
+  const lastUpdatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+  const looksLikeAccountId = (value?: string | null) => {
+    if (!value) return false;
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    // treat UUID or long hex strings as ids
+    return /^[0-9a-f-]{20,}$/i.test(trimmed);
+  };
+
+  const preferName = (value?: string | null) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '—') return null;
+    if (looksLikeAccountId(trimmed)) return null;
+    return trimmed;
+  };
+
+  const greetingName = preferName(displayName) ?? preferName(identifierLabel) ?? 'there';
+
+  if (activeView === 'learn') {
+    return (
+      <div className="space-y-8 text-[var(--color-outer-space)]">
+        <div className="relative overflow-hidden rounded-[31px] border border-transparent bg-[var(--color-hero)] px-4 py-6 sm:px-10 sm:py-12">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3">
+              <Image
+                src="/logo.png"
+                alt="Collect"
+                width={195}
+                height={48}
+                priority
+                className="h-[32px] w-auto sm:h-[40px] md:h-[48px]"
+              />
+              <div className="sm:hidden">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
               </div>
             </div>
-          </div>
-
-          <div
-            ref={containerRef}
-            className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]"
-            style={{
-              WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-x pan-y', // allow scroll; native listeners cancel only pinch/double-tap
-              overscrollBehavior: 'contain',
-              cursor: containerCursor,
-            }}
-            onClick={handleContainerClick}
-            onDoubleClick={handleContainerDoubleClick}
-            onWheel={handleWheel}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
-          >
-            <div
-              ref={imageWrapperRef}
-              className="relative select-none"
-              style={{
-                width: scaledWidth,
-                height: scaledHeight,
-              }}
-            >
-              <img
-                ref={imageRef}
-                src={MAP_IMAGE}
-                alt="Bahamas cluster map"
-                className="block h-full w-full select-none"
-                draggable={false}
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-                loading="eager"
-                onLoad={updateAspectRatioFromImage}
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:block">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
+              </div>
+              <NavigationTabs
+                activeTab="learn"
+                dashboardHref={ledgerHref}
+                storeHref={catalogueHref}
+                learnHref={learnHref}
               />
             </div>
-
-            {/* Floating Selection Overlay - Desktop */}
-            {selectedAllocation && (
-              <div className="pointer-events-none absolute inset-0 hidden items-center justify-center p-8 lg:flex">
-                <div className="pointer-events-auto max-w-md rounded-[20px] border border-[var(--color-outer-space)]/10 bg-white p-6 shadow-2xl">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">
-                        Selected Unit
-                      </p>
-                      <h3 className="mt-1 text-xl font-bold text-[var(--color-outer-space)]">
-                        {selectedAllocation.damacIslandcode || selectedAllocation.id}
-                      </h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onSelectAllocation(null)}
-                      className="rounded-full p-1.5 text-[var(--color-outer-space)]/40 transition hover:bg-[var(--color-panel)] hover:text-[var(--color-outer-space)]"
-                      aria-label="Close"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Points</p>
-                      <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">
-                        {selectedAllocation.points?.toLocaleString() ?? '—'}
-                      </p>
-                    </div>
-                    {selectedAllocation.brType && (
-                      <div>
-                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
-                        <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">
-                          {selectedAllocation.brType}
-                        </p>
-                      </div>
-                    )}
-                    {selectedAllocation.unitType && (
-                      <div className="col-span-2">
-                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
-                        <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">
-                          {selectedAllocation.unitType}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="mt-5 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
-                  >
-                    Proceed to Payment
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
-          <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
-            <p className="text-[10px] text-[var(--color-outer-space)]/50">Double-tap or pinch to zoom • Drag to pan</p>
-            <a
-              href={MAP_IMAGE_ORIGINAL}
-              download="Bahamas-Cluster-Map.jpg"
-              className="text-[10px] text-[var(--color-electric-purple)] hover:underline"
-            >
-              Download map
-            </a>
+          <div className="mt-8 space-y-4 text-center">
+            <h1 className="text-[26px] font-semibold leading-tight sm:text-[56px] lg:text-[64px]">Learn more</h1>
+            <p className="mx-auto max-w-2xl text-sm leading-snug text-[var(--color-outer-space)]/75 sm:text-xl">
+              Know your Collect points at a glance.
+            </p>
           </div>
         </div>
 
-        {/* Bottom Sheet Selection Overlay - Mobile */}
-        {selectedAllocation && (
-          <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
-            {/* Backdrop */}
-            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => onSelectAllocation(null)} />
+        <section className="view-transition">
+          <div className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-[32px] border border-[#d1b7fb]/70 bg-white shadow-[0_18px_45px_-40px_rgba(13,9,59,0.35)]">
+            <Image
+              src={LearnMoreGraphic}
+              alt="Collect points reference graphic"
+              className="h-auto w-full"
+              placeholder="blur"
+              sizes="(max-width: 768px) 90vw, (max-width: 1200px) 80vw, 1024px"
+              priority
+            />
+          </div>
+        </section>
 
-            {/* Sheet */}
-            <div className="relative rounded-t-[28px] border-t border-[var(--color-outer-space)]/10 bg-white px-6 pb-8 pt-5 shadow-2xl">
-              {/* Handle */}
-              <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-[var(--color-outer-space)]/20" />
-
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">Selected Unit</p>
-                  <h3 className="mt-1 text-2xl font-bold text-[var(--color-outer-space)]">
-                    {selectedAllocation.damacIslandcode || selectedAllocation.id}
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onSelectAllocation(null)}
-                  className="rounded-full p-2 text-[var(--color-outer-space)]/40 transition active:bg-[var(--color-panel)]"
-                  aria-label="Close"
+        <section className="view-transition">
+          <div className="mx-auto w-full max-w-5xl space-y-6 rounded-[32px] border border-[#d1b7fb]/70 bg-white/90 px-5 py-8 shadow-[0_20px_55px_-45px_rgba(13,9,59,0.35)] sm:px-10 sm:py-10">
+            <div className="space-y-2 text-left sm:text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-outer-space)]/60">
+                Common questions
+              </p>
+              <h2 className="text-[26px] font-semibold leading-snug sm:text-[38px]">
+                Everything you need to know about Collect points
+              </h2>
+            </div>
+            <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-6">
+              {LEARN_FAQ_ITEMS.map((item) => (
+                <article
+                  key={item.question}
+                  className="flex h-full flex-col gap-2 rounded-[22px] border border-[var(--color-electric-purple)]/20 bg-white px-4 py-4 text-left text-[var(--color-outer-space)] sm:gap-3 sm:px-5 sm:py-5"
                 >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="mt-5 grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Points</p>
-                  <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">
-                    {selectedAllocation.points?.toLocaleString() ?? '—'}
-                  </p>
-                </div>
-                {selectedAllocation.brType && (
-                  <div>
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
-                    <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedAllocation.brType}</p>
+                  <h3 className="text-sm font-medium leading-snug sm:text-[15px]">{item.question}</h3>
+                  <div className="text-sm leading-relaxed text-[var(--color-outer-space)]/70 sm:text-[15px]">
+                    {item.answer}
                   </div>
-                )}
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Status</p>
-                  <span className="mt-1.5 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                    Available
-                  </span>
-                </div>
-              </div>
-
-              {selectedAllocation.unitType && (
-                <div className="mt-4">
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
-                  <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
-                </div>
-              )}
-
-              <button type="button" className="mt-6 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95">
-                Proceed to Payment
-              </button>
+                </article>
+              ))}
             </div>
           </div>
-        )}
+        </section>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-10 text-[var(--color-outer-space)]">
+      <LoadingOverlay visible={loading && !rows && !error} />
+      <div className="relative overflow-hidden rounded-[31px] border border-transparent bg-[var(--color-hero)] px-4 py-6 sm:px-10 sm:py-12">
+        <video
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+        >
+          <source src="/video/collect-loop.webm" type="video/webm" />
+        </video>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_10%,rgba(234,213,254,0.65)_0%,rgba(206,174,255,0.45)_45%,rgba(150,130,255,0.2)_75%,transparent_100%)]" />
+
+        <div className="relative z-10 flex flex-col gap-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-3">
+              <Image
+                src="/logo.png"
+                alt="Collect"
+                width={195}
+                height={48}
+                priority
+                className="h-[32px] w-auto sm:h-[40px] md:h-[48px]"
+              />
+              <div className="sm:hidden">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:block">
+                <BackToAppButton agentId={agentId} agentCode={agentCode} />
+              </div>
+              <NavigationTabs
+                activeTab={currentTab}
+                dashboardHref={ledgerHref}
+                storeHref={catalogueHref}
+                learnHref={learnHref}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4 text-center">
+            <h1 className="break-words text-[26px] font-semibold leading-tight sm:text-[56px] lg:text-[64px]">
+              Hello, <span className="italic">{greetingName}</span>.
+            </h1>
+            <p className="mx-auto max-w-2xl text-sm leading-snug text-[var(--color-outer-space)]/75 sm:text-xl">
+              Track your transactions, points, and rewards, all in one place.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
+            <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
+              <div className="relative">
+                <KpiCard
+                  title="Collected points"
+                  value={metrics.totalPosted}
+                  unit="points"
+                  animate
+                  headerAccessory={
+                    <button
+                      ref={topupTriggerRef}
+                      type="button"
+                      onClick={toggleTopup}
+                      aria-expanded={topupMounted && topupVisible}
+                      className="hidden items-center gap-1 rounded-full border border-transparent px-3 py-1 text-sm font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 sm:inline-flex"
+                    >
+                      <span className="text-lg leading-none">+</span>
+                      <span>Top up</span>
+                    </button>
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={toggleTopup}
+                  aria-expanded={topupMounted && topupVisible}
+                  className="absolute bottom-2 right-2 inline-flex items-center gap-[2px] text-[8px] font-semibold text-[var(--color-outer-space)] sm:hidden"
+                >
+                  <span className="text-[10px] leading-none">+</span>
+                  <span>Top up</span>
+                </button>
+              </div>
+            </div>
+            <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
+              <KpiCard title="Due to expire in 30 days" value={metrics.expiringSoon} unit="points" animate />
+            </div>
+            <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
+              <KpiCard title={`Collected in ${currentMonthName}`} value={metrics.currentMonth} unit="points" animate />
+            </div>
+          </div>
+
+          {lastUpdatedLabel ? (
+            <p className="text-right text-sm text-[var(--color-outer-space)]/60">Last updated {lastUpdatedLabel}</p>
+          ) : null}
+        </div>
+      </div>
+
+      {topupMounted ? (
+        <div
+          className={`fixed inset-0 z-[90] flex items-center justify-center px-3 py-5 sm:px-6 sm:py-6 ${
+            topupVisible ? 'pointer-events-auto' : 'pointer-events-none'
+          }`}
+        >
+          <div
+            className={`absolute inset-0 bg-[var(--color-desert-dust)]/70 backdrop-blur-[2px] transition-opacity duration-200 ease-out ${
+              topupVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={closeTopup}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="topup-heading"
+            className={`relative z-10 w-full max-w-md origin-top rounded-[28px] border border-[#d1b7fb]/70 bg-white/95 p-5 text-[var(--color-outer-space)] shadow-[0_45px_100px_-55px_rgba(13,9,59,0.65)] transition duration-200 ease-out ${
+              topupVisible
+                ? 'translate-y-0 scale-100 opacity-100'
+                : 'translate-y-5 scale-[0.97] opacity-0'
+            } sm:p-6`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 sm:gap-4">
+              <div className="flex-1">
+                <h2 id="topup-heading" className="text-lg font-bold text-[var(--color-outer-space)] sm:text-xl">
+                  Add Points
+                </h2>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--color-outer-space)]/60 sm:text-sm">
+                  Purchase points securely with Stripe
+                </p>
+              </div>
+              <button
+                ref={topupCloseButtonRef}
+                type="button"
+                onClick={closeTopup}
+                aria-label="Close dialog"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--color-outer-space)]/10 bg-white text-[var(--color-outer-space)]/50 transition-all hover:border-[var(--color-electric-purple)]/30 hover:bg-[var(--color-electric-purple)]/5 hover:text-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/30 sm:h-10 sm:w-10"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-5 max-h-[70vh] overflow-y-auto sm:mt-6">
+              <BuyPointsButton
+                agentId={agentId}
+                agentCode={agentCode}
+                baseQuery={identifierParams.toString()}
+                minAmount={minTopup}
+                pointsPerAed={pointsPerAed}
+                className="border-none bg-transparent p-0 shadow-none h-auto"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {topupStatus ? <TopupBanner status={topupStatus} /> : null}
+
+      {retryDelay ? (
+        <div className="mb-4 rounded-2xl border border-[#d1b7fb] bg-white px-4 py-3 text-sm text-[var(--color-outer-space)] shadow-sm">
+          Airtable is catching up. Retrying in {retryDelay.toFixed(0)} second{retryDelay >= 2 ? 's' : ''}…
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="rounded-2xl border border-rose-400/60 bg-rose-50/70 p-6 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+          <p className="text-sm font-semibold">We hit a snag</p>
+          <p className="mt-2 text-xs">{error}</p>
+          <button
+            onClick={() => {
+              setRows(null);
+              setCatalogue(null);
+              setError(null);
+              setLoading(true);
+              setRetryDelay(null);
+              setLastUpdated(null);
+              setDisplayName(null);
+              setInvestorPromoCodeState(null);
+              setInvestorWhatsappLinkState(null);
+              setAgentReferralLinkState(null);
+              setAgentReferralWhatsappLinkState(null);
+              router.refresh();
+            }}
+            className="mt-4 rounded-md border border-rose-400 px-4 py-2 text-xs font-semibold uppercase tracking-wide"
+          >
+            Retry now
+          </button>
+        </div>
+      ) : activeView === 'loyalty' ? (
+        <div className="view-transition space-y-6">
+          <div className="grid gap-3 min-[360px]:grid-cols-2 min-[600px]:grid-cols-3 lg:grid-cols-5 lg:gap-4 xl:gap-5">
+            <section className="col-span-full space-y-3 min-[600px]:col-span-2 lg:col-span-3">
+              <h2 className="text-lg font-medium">Top earning categories</h2>
+              <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 min-[600px]:grid-cols-3 stagger-fade">
+                {topEarningCards}
+              </div>
+            </section>
+
+            <section className="col-span-full space-y-3 min-[360px]:col-span-2 lg:col-span-2">
+              <h2 className="text-lg font-medium">Refer and earn</h2>
+              <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 stagger-fade">
+                {referralCards}
+              </div>
+            </section>
+          </div>
+
+          <section className="rounded-[26px] bg-[var(--color-background)] p-4 sm:p-6">
+            <h2 className="mb-2 text-lg font-medium">Recent activity</h2>
+            <Suspense fallback={<ActivitySkeleton />}>
+              <ActivitySection rows={rows === null ? null : metrics.last20} loading={loading} />
+            </Suspense>
+          </section>
+        </div>
+      ) : (
+        <section className="view-transition space-y-8 rounded-[32px] bg-[#F6F3F8] px-4 py-10 sm:rounded-[48px] sm:px-10 sm:py-12">
+          <div className="space-y-4 text-center">
+            <h2 className="text-[34px] font-medium leading-[1.1] text-[var(--color-outer-space)] sm:text-[72px] lg:text-[85px]">
+              Collect Store
+            </h2>
+            <p className="mx-auto max-w-2xl text-sm leading-[1.3] text-[var(--color-outer-space)]/80 sm:text-[26px] lg:text-[31px]">
+              Redeem your points for exclusive rewards from our curated list of items.
+            </p>
+          </div>
+
+          {/* Category filter pills */}
+          <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+            <button
+              type="button"
+              onClick={() => updateCatalogueFilter('all')}
+              className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
+                catalogueFilter === 'all'
+                  ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
+                  : 'border border-[var(--color-outer-space)]/15 bg-white/60 text-[var(--color-outer-space)]/70 backdrop-blur-sm hover:bg-white/80 hover:text-[var(--color-outer-space)]'
+              }`}
+            >
+              All ({catalogueCounts.all})
+            </button>
+            <button
+              type="button"
+              onClick={() => updateCatalogueFilter('token')}
+              className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
+                catalogueFilter === 'token'
+                  ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
+                  : 'border border-[var(--color-outer-space)]/15 bg-white/60 text-[var(--color-outer-space)]/70 backdrop-blur-sm hover:bg-white/80 hover:text-[var(--color-outer-space)]'
+              }`}
+            >
+              Token Allocations ({catalogueCounts.token})
+            </button>
+            <button
+              type="button"
+              onClick={() => updateCatalogueFilter('reward')}
+              className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 sm:px-6 sm:text-base ${
+                catalogueFilter === 'reward'
+                  ? 'bg-white text-[var(--color-outer-space)] shadow-[0_12px_35px_-22px_rgba(13,9,59,0.6)]'
+                  : 'border border-[var(--color-outer-space)]/15 bg-white/60 text-[var(--color-outer-space)]/70 backdrop-blur-sm hover:bg-white/80 hover:text-[var(--color-outer-space)]'
+              }`}
+            >
+              Items ({catalogueCounts.reward})
+            </button>
+          </div>
+
+          <CatalogueGrid
+            items={filteredCatalogue ?? []}
+            onRedeem={handleRequestRedeem}
+            onShowTerms={handleShowTerms}
+            onImageError={handleCatalogueImageError}
+          />
+        </section>
+      )}
+      {termsDialogItem ? (
+        <TermsDialog
+          item={termsDialogItem}
+          mode={termsDialogMode}
+          accepted={hasAcceptedTerms(termsDialogItem)}
+          onAccept={handleTermsAccept}
+          onClose={handleTermsClose}
+        />
+      ) : null}
+
+      {waitlistMessage ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setWaitlistMessage(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-[26px] border border-[var(--color-electric-purple)]/30 bg-white px-5 py-6 text-center text-[var(--color-outer-space)] shadow-[0_18px_45px_-40px_rgba(13,9,59,0.45)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--color-outer-space)]">You&apos;re on the list</h3>
+            <p className="mt-2 text-sm text-[var(--color-outer-space)]/70">{waitlistMessage}</p>
+            <button
+              type="button"
+              onClick={() => setWaitlistMessage(null)}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-[var(--color-outer-space)] bg-white px-4 py-2 text-sm font-semibold text-[var(--color-outer-space)] transition hover:bg-[var(--color-panel)]/80"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {unitAllocationDialogItem ? (
+        <UnitAllocationDialog
+          item={unitAllocationDialogItem}
+          selectedId={unitAllocationSelection}
+          onSelect={(value) => setUnitAllocationSelection(value)}
+          onConfirm={confirmUnitAllocation}
+          onClose={closeUnitAllocationDialog}
+        />
+      ) : null}
+
+      {buyerVerificationDialogItem ? (
+        <BuyerVerificationDialog
+          item={buyerVerificationDialogItem}
+          unitAllocation={buyerVerificationAllocation}
+          onSubmit={handleBuyerVerificationSubmit}
+          onClose={closeBuyerVerificationDialog}
+        />
+      ) : null}
+
+      {redeemItem ? (
+        <RedeemDialog
+          item={redeemItem}
+          unitAllocation={selectedUnitAllocation}
+          availablePoints={metrics.totalPosted}
+          status={redeemStatus}
+          message={redeemMessage}
+          minAmount={minTopup}
+          pointsPerAed={pointsPerAed}
+          agentId={agentId}
+          agentCode={agentCode}
+          baseQuery={baseQuery}
+          termsAccepted={hasAcceptedTerms(redeemItem)}
+          onShowTerms={handleShowTerms}
+          preFilledDetails={preFilledBuyerDetails}
+          onSubmit={async ({ customerFirstName, customerPhoneLast4 }) => {
+            if (!redeemItem) return;
+            setRedeemStatus('submitting');
+            setRedeemMessage(null);
+            try {
+              const allocation = selectedUnitAllocation;
+              const rewardPoints =
+                typeof allocation?.points === 'number'
+                  ? allocation.points
+                  : typeof redeemItem.points === 'number'
+                    ? redeemItem.points
+                    : null;
+              const res = await fetch('/api/redeem', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                  agentId: agentId ?? null,
+                  agentCode: agentCode ?? null,
+                  rewardId: redeemItem.id,
+                  rewardName: redeemItem.name,
+                  rewardPoints,
+                  priceAed: redeemItem.priceAED ?? null,
+                  unitAllocationId: allocation?.id ?? null,
+                  unitAllocationLabel: allocation?.unitType ?? null,
+                  unitAllocationPoints: typeof allocation?.points === 'number' ? allocation.points : null,
+                  customerFirstName,
+                  customerPhoneLast4,
+                  requiresBuyerVerification: redeemItem.requiresBuyerVerification === true,
+                }),
+              });
+              if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(json?.error || 'Redemption failed');
+              }
+              setRedeemStatus('success');
+              setRedeemMessage('Thanks! We have received your request and will process it shortly.');
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Redemption failed';
+              setRedeemStatus('error');
+              setRedeemMessage(message);
+            }
+          }}
+          onClose={() => {
+            setRedeemItem(null);
+            setRedeemStatus('idle');
+            setRedeemMessage(null);
+            setSelectedUnitAllocation(null);
+            setTermsAcceptedItemId(null);
+            setPreFilledBuyerDetails(null);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function TopHighlightCard({
+  label,
+  points,
+  rows,
+}: {
+  label: string;
+  points: number;
+  rows: number;
+}) {
+  return (
+    <div className={REFERRAL_CARD_BASE_CLASS}>
+      <div className="flex w-full flex-col items-center gap-2 text-center">
+        <p className="text-sm font-semibold leading-snug text-[var(--color-outer-space)] min-[420px]:text-base">
+          {label}
+        </p>
+      </div>
+      <div className="mt-auto flex flex-col items-center gap-1">
+        <p className="text-2xl font-semibold text-[var(--color-outer-space)] min-[420px]:text-[28px]">
+          {formatPoints(points)} pts
+        </p>
+        <p className="text-[11px] text-[var(--color-outer-space)]/60">
+          {rows === 1 ? '1 transaction' : `${rows} transactions`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ActivitySkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center justify-between rounded-[20px] border border-[#d1b7fb]/50 bg-white/70 px-4 py-3 shadow-sm animate-pulse"
+        >
+          <div className="h-3 w-28 rounded-full bg-[#d1b7fb]/70" />
+          <div className="h-3 w-16 rounded-full bg-[#d1b7fb]/50" />
+        </div>
+      ))}
     </div>
   );
 }
