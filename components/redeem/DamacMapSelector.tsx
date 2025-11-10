@@ -34,6 +34,11 @@ type Point = {
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
+type GlobalWithListeners = typeof globalThis & {
+  addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
+  removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
+};
+
 export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,9 +124,6 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   }, []);
 
   useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-
     const updateSize = () => {
       const el = containerRef.current;
       if (!el) return;
@@ -131,16 +133,24 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       });
     };
 
+    const element = containerRef.current;
+    if (!element) return;
+
     updateSize();
 
-    if (typeof window !== 'undefined' && 'ResizeObserver' in window) {
+    if (typeof ResizeObserver !== 'undefined') {
       const observer = new ResizeObserver(() => updateSize());
       observer.observe(element);
       return () => observer.disconnect();
     }
 
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+    const globalWithListeners = globalThis as GlobalWithListeners;
+    if (typeof globalWithListeners.addEventListener === 'function' && typeof globalWithListeners.removeEventListener === 'function') {
+      globalWithListeners.addEventListener('resize', updateSize);
+      return () => globalWithListeners.removeEventListener?.('resize', updateSize);
+    }
+
+    return;
   }, []);
 
   // Get unique BR types for filter

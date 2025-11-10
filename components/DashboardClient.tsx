@@ -264,7 +264,7 @@ export function DashboardClient({
 
   // Initialize filter from URL or default to 'all'
   const [catalogueFilter, setCatalogueFilter] = useState<'all' | 'token' | 'reward'>(() => {
-    const filterParam = searchParams.get('filter');
+    const filterParam = searchParams?.get('filter');
     if (filterParam === 'token' || filterParam === 'reward') {
       return filterParam;
     }
@@ -281,7 +281,7 @@ export function DashboardClient({
       emitAnalyticsEvent('catalogue_filter_changed', { filter });
 
       // Update URL without page reload
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() ?? '');
       if (filter === 'all') {
         params.delete('filter'); // Clean URL when "all"
       } else {
