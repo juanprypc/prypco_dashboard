@@ -19,11 +19,14 @@ type DamacMapSelectorProps = {
 
 const MAP_IMAGE = '/images/bahamas-version1.jpg';
 const MAP_IMAGE_ORIGINAL = '/images/bahamas-cluster-map.jpg';
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 6;
-const DOUBLE_TAP_DELAY = 300;
-const DOUBLE_TAP_DISTANCE = 30;
 
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 3;
+const DOUBLE_TAP_DELAY = 300;
+const DEFAULT_BASE_WIDTH = 800;
+const DEFAULT_ASPECT_RATIO = 560 / 800;
+
+type Point = { x: number; y: number };
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
@@ -31,13 +34,17 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Refs for zoom and pan
+  // Refs for container
   const containerRef = useRef<HTMLDivElement>(null);
-  const imageWrapperRef = useRef<HTMLDivElement>(null);
-
 
   useEffect(() => {
     setLoading(true);
@@ -93,84 +100,94 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     return allocations.find(a => a.id === selectedAllocationId) || null;
   }, [allocations, selectedAllocationId]);
 
-  const clampZoom = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
-
-  const centerAfterZoom = useCallback((
-    relX: number,
-    relY: number,
-    prevZoom: number,
-    nextZoom: number,
-    prevRectWidth: number,
-    prevRectHeight: number,
-  ) => {
+  // Helper function to compute base dimensions
+  const computeBaseDims = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
-    const applyScroll = () => {
-      const containerRect = container.getBoundingClientRect();
-      const projectedWidth = prevRectWidth * (nextZoom / prevZoom);
-      const projectedHeight = prevRectHeight * (nextZoom / prevZoom);
-      const newScrollLeft = Math.max(0, (relX * projectedWidth) - (containerRect.width / 2));
-      const newScrollTop = Math.max(0, (relY * projectedHeight) - (containerRect.height / 2));
-      container.scrollLeft = newScrollLeft;
-      container.scrollTop = newScrollTop;
-    };
-    requestAnimationFrame(() => requestAnimationFrame(applyScroll));
+    const width = container ? Math.max(container.clientWidth, DEFAULT_BASE_WIDTH) : DEFAULT_BASE_WIDTH;
+    const height = width * DEFAULT_ASPECT_RATIO;
+    return { width, height };
   }, []);
 
-  const handleZoomIn = () => setZoom(prev => clampZoom(prev + 0.5));
-  const handleZoomOut = () => setZoom(prev => clampZoom(prev - 0.5));
-  const handleResetZoom = () => setZoom(1);
-
-  // Enhanced click handler - zoom to click position
-  const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
+  // Helper function to set zoom at a specific point
+  const setZoomAtPoint = useCallback((px: number, py: number, oldZoom: number, newZoom: number) => {
     const container = containerRef.current;
-    const wrapper = imageWrapperRef.current;
-    if (!container || !wrapper) return;
+    if (!container) return;
 
-    // Get click position relative to image
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { width, height } = computeBaseDims();
+    const contentX = (container.scrollLeft + px) / (width * oldZoom);
+    const contentY = (container.scrollTop + py) / (height * oldZoom);
 
-    // Calculate relative position (0-1)
-    const relX = x / rect.width;
-    const relY = y / rect.height;
+    const newScaledWidth = width * newZoom;
+    const newScaledHeight = height * newZoom;
 
-    if (zoom < MAX_ZOOM) {
-      const newZoom = clampZoom(zoom + 1);
-      setZoom(newZoom);
-      centerAfterZoom(relX, relY, zoom || MIN_ZOOM, newZoom, rect.width, rect.height);
-    } else {
-      setZoom(1);
-      container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+    const newScrollLeft = contentX * newScaledWidth - px;
+    const newScrollTop = contentY * newScaledHeight - py;
+
+    const maxScrollLeft = Math.max(0, newScaledWidth - container.clientWidth);
+    const maxScrollTop = Math.max(0, newScaledHeight - container.clientHeight);
+
+    container.scrollLeft = clamp(newScrollLeft, 0, maxScrollLeft);
+    container.scrollTop = clamp(newScrollTop, 0, maxScrollTop);
+  }, [computeBaseDims]);
+
+  // Discrete zoom (for buttons and clicks)
+  const applyZoomDiscrete = useCallback((getNext: (prev: number) => number, focusClientPoint?: Point) => {
+    const container = containerRef.current;
+    if (!container) {
+      setZoom((prev) => clamp(getNext(prev), MIN_ZOOM, MAX_ZOOM));
+      return;
     }
+    const rect = container.getBoundingClientRect();
+    const px = focusClientPoint ? focusClientPoint.x - rect.left - container.clientLeft : container.clientWidth / 2;
+    const py = focusClientPoint ? focusClientPoint.y - rect.top - container.clientTop : container.clientHeight / 2;
+
+    setZoom((prevZoom) => {
+      const nextZoom = clamp(getNext(prevZoom), MIN_ZOOM, MAX_ZOOM);
+      if (Math.abs(nextZoom - prevZoom) < 0.0001) return prevZoom;
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setZoomAtPoint(px, py, prevZoom, nextZoom));
+      });
+
+      return nextZoom;
+    });
+  }, [setZoomAtPoint]);
+
+  // Continuous zoom (for pinch gestures)
+  const applyZoomContinuousAt = useCallback((targetZoom: number, px: number, py: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const oldZoom = zoomRef.current;
+    const nextZoom = clamp(targetZoom, MIN_ZOOM, MAX_ZOOM);
+    if (Math.abs(nextZoom - oldZoom) < 0.0008) return;
+    setZoom(nextZoom);
+    setZoomAtPoint(px, py, oldZoom, nextZoom);
+  }, [setZoomAtPoint]);
+
+  const handleZoomIn = () => applyZoomDiscrete((prev) => prev + 0.5);
+  const handleZoomOut = () => applyZoomDiscrete((prev) => prev - 0.5);
+  const handleResetZoom = () => {
+    setZoom(1);
+    const container = containerRef.current;
+    container?.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
   };
 
+  // Native touch event handlers for mobile gestures
   useEffect(() => {
     const container = containerRef.current;
-    const wrapper = imageWrapperRef.current;
-    if (!container || !wrapper) return;
+    if (!container) return;
 
     let pinchActive = false;
     let startDistance = 0;
     let startZoom = 1;
     let lastTapTime = 0;
-    let lastTapX = 0;
-    let lastTapY = 0;
+    let lastTapPX = 0;
+    let lastTapPY = 0;
 
-    const getRelativePoint = (clientX: number, clientY: number) => {
-      const rect = wrapper.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      return {
-        x,
-        y,
-        relX: clamp(x / rect.width, 0, 1),
-        relY: clamp(y / rect.height, 0, 1),
-        rectWidth: rect.width,
-        rectHeight: rect.height,
-      };
-    };
+    const getMidpoint = (touches: TouchList) => ({
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    });
 
     const onTouchStart = (ev: TouchEvent) => {
       if (ev.touches.length === 2) {
@@ -178,56 +195,49 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
         ev.preventDefault();
         startDistance = Math.hypot(
           ev.touches[1].clientX - ev.touches[0].clientX,
-          ev.touches[1].clientY - ev.touches[0].clientY,
+          ev.touches[1].clientY - ev.touches[0].clientY
         );
-        startZoom = zoomRef.current || MIN_ZOOM;
-        return;
-      }
-
-      if (ev.touches.length === 1 && !pinchActive) {
+        startZoom = zoomRef.current;
+      } else if (ev.touches.length === 1 && !pinchActive) {
         const now = Date.now();
+        const rect = container.getBoundingClientRect();
         const touch = ev.touches[0];
-        const { x, y, relX, relY, rectWidth, rectHeight } = getRelativePoint(touch.clientX, touch.clientY);
-        const timeDelta = now - lastTapTime;
-        const distance = Math.hypot(x - lastTapX, y - lastTapY);
+        const px = touch.clientX - rect.left - container.clientLeft;
+        const py = touch.clientY - rect.top - container.clientTop;
+        const withinTime = now - lastTapTime < DOUBLE_TAP_DELAY;
+        const withinDistance = Math.hypot(px - lastTapPX, py - lastTapPY) < 25;
 
-        if (timeDelta < DOUBLE_TAP_DELAY && distance < DOUBLE_TAP_DISTANCE) {
+        if (withinTime && withinDistance) {
           ev.preventDefault();
-          const oldZoom = zoomRef.current || MIN_ZOOM;
-          if (oldZoom < MAX_ZOOM) {
-            const nextZoom = clampZoom(oldZoom + 1.5);
-            setZoom(nextZoom);
-            centerAfterZoom(relX, relY, oldZoom, nextZoom, rectWidth, rectHeight);
-          } else {
-            setZoom(1);
-            container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-          }
+          const oldZoom = zoomRef.current;
+          const nextZoom = oldZoom >= MAX_ZOOM ? 1 : Math.min(MAX_ZOOM, oldZoom + 1.5);
+          setZoom(nextZoom);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => setZoomAtPoint(px, py, oldZoom, nextZoom));
+          });
         }
 
         lastTapTime = now;
-        lastTapX = x;
-        lastTapY = y;
+        lastTapPX = px;
+        lastTapPY = py;
       }
     };
 
     const onTouchMove = (ev: TouchEvent) => {
       if (!pinchActive || ev.touches.length !== 2) return;
       ev.preventDefault();
-      if (!startDistance) return;
       const distance = Math.hypot(
         ev.touches[1].clientX - ev.touches[0].clientX,
-        ev.touches[1].clientY - ev.touches[0].clientY,
+        ev.touches[1].clientY - ev.touches[0].clientY
       );
+      if (!startDistance) return;
       const ratio = distance / startDistance;
-      const targetZoom = clampZoom(startZoom * ratio);
-      const prevZoom = zoomRef.current || MIN_ZOOM;
-      if (Math.abs(targetZoom - prevZoom) < 0.0008) return;
-      setZoom(targetZoom);
-
-      const midX = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
-      const midY = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
-      const { relX, relY, rectWidth, rectHeight } = getRelativePoint(midX, midY);
-      centerAfterZoom(relX, relY, prevZoom, targetZoom, rectWidth, rectHeight);
+      const targetZoom = clamp(startZoom * ratio, MIN_ZOOM, MAX_ZOOM);
+      const { x, y } = getMidpoint(ev.touches);
+      const rect = container.getBoundingClientRect();
+      const px = x - rect.left - container.clientLeft;
+      const py = y - rect.top - container.clientTop;
+      applyZoomContinuousAt(targetZoom, px, py);
     };
 
     const onTouchEnd = () => {
@@ -246,7 +256,22 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [centerAfterZoom]);
+  }, [applyZoomContinuousAt, setZoomAtPoint]);
+
+  // Wheel event handler for desktop trackpad pinch-zoom
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const container = containerRef.current;
+      const rect = container.getBoundingClientRect();
+      const px = e.clientX - rect.left - container.clientLeft;
+      const py = e.clientY - rect.top - container.clientTop;
+      const scale = Math.exp(-e.deltaY * 0.0015);
+      const targetZoom = clamp(zoomRef.current * scale, MIN_ZOOM, MAX_ZOOM);
+      applyZoomContinuousAt(targetZoom, px, py);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
@@ -364,7 +389,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             <div className="flex-1">
               <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
               <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">
-                {zoom < 6 ? 'Click/tap to zoom • Pinch or scroll to pan' : 'Click/tap to reset zoom'}
+                Pinch to zoom • Drag to pan
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -373,7 +398,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 <button
                   type="button"
                   onClick={handleZoomOut}
-                  disabled={zoom <= 0.5}
+                  disabled={zoom <= 1}
                   className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
                   aria-label="Zoom out"
                 >
@@ -391,7 +416,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 <button
                   type="button"
                   onClick={handleZoomIn}
-                  disabled={zoom >= 6}
+                  disabled={zoom >= 3}
                   className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
                   aria-label="Zoom in"
                 >
@@ -400,17 +425,18 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               </div>
             </div>
           </div>
+
+          {/* Map Container - Native touch events for mobile gestures */}
           <div
             ref={containerRef}
             className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]"
             style={{
               WebkitOverflowScrolling: 'touch',
               touchAction: 'pan-x pan-y',
-              overscrollBehavior: 'contain',
             }}
+            onWheel={handleWheel}
           >
             <div
-              ref={imageWrapperRef}
               className="origin-top-left transition-transform duration-200"
               style={{
                 transform: `scale(${zoom})`,
@@ -423,14 +449,13 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               <img
                 src={MAP_IMAGE}
                 alt="Bahamas cluster map"
-                className="block h-auto w-full cursor-zoom-in select-none"
+                className="block h-auto w-full select-none"
                 draggable={false}
                 style={{
                   minWidth: '800px',
                   pointerEvents: 'none',
                 }}
                 loading="eager"
-                onClick={handleImageClick}
               />
             </div>
 
@@ -494,6 +519,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               </div>
             )}
           </div>
+
           <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
             <p className="text-[10px] text-[var(--color-outer-space)]/50">
               Double-tap or pinch to zoom • Drag to pan
