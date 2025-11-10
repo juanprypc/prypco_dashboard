@@ -1,5 +1,6 @@
 'use client';
 
+import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 type AllocationWithStatus = {
@@ -19,6 +20,19 @@ type DamacMapSelectorProps = {
 
 const MAP_IMAGE = '/images/bahamas-version1.jpg';
 const MAP_IMAGE_ORIGINAL = '/images/bahamas-cluster-map.jpg';
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 6;
+const DOUBLE_TAP_DELAY = 300;
+const DEFAULT_BASE_WIDTH = 800;
+const DEFAULT_ASPECT_RATIO = 560 / 800;
+const DEFAULT_CONTAINER_HEIGHT = 500;
+
+type Point = {
+  x: number;
+  y: number;
+};
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
@@ -27,16 +41,52 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [containerSize, setContainerSize] = useState({
+    width: DEFAULT_BASE_WIDTH,
+    height: DEFAULT_CONTAINER_HEIGHT,
+  });
+  const containerSizeRef = useRef(containerSize);
+  useEffect(() => {
+    containerSizeRef.current = containerSize;
+  }, [containerSize]);
+
+  const [imageAspectRatio, setImageAspectRatio] = useState(DEFAULT_ASPECT_RATIO);
+  const aspectRatioRef = useRef(imageAspectRatio);
+  useEffect(() => {
+    aspectRatioRef.current = imageAspectRatio;
+  }, [imageAspectRatio]);
 
   // Refs for zoom and pan
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // Touch gesture state
-  const [isPinching, setIsPinching] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const initialPinchDistance = useRef<number>(0);
   const initialZoom = useRef<number>(1);
+  const isPinchingRef = useRef(false);
+
+  // Pointer drag state
+  const pointerDragRef = useRef({
+    active: false,
+    pointerId: null as number | null,
+    startX: 0,
+    startY: 0,
+    scrollLeft: 0,
+    scrollTop: 0,
+  });
+  const dragMovedRef = useRef(false);
+  const suppressClickRef = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const updateAspectRatioFromImage = (event?: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event?.currentTarget ?? imageRef.current;
+    if (!img) return;
+    const { naturalWidth, naturalHeight } = img;
+    if (!naturalWidth || !naturalHeight) return;
+    setImageAspectRatio(naturalHeight / naturalWidth);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -57,6 +107,41 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
         setLoading(false);
       });
   }, [catalogueId]);
+
+  useEffect(() => {
+    const img = imageRef.current;
+    if (img && (img.complete || img.naturalWidth)) {
+      const { naturalWidth, naturalHeight } = img;
+      if (naturalWidth && naturalHeight) {
+        setImageAspectRatio(naturalHeight / naturalWidth);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      setContainerSize({
+        width: el.clientWidth || DEFAULT_BASE_WIDTH,
+        height: el.clientHeight || DEFAULT_CONTAINER_HEIGHT,
+      });
+    };
+
+    updateSize();
+
+    if (typeof window !== 'undefined' && 'ResizeObserver' in window) {
+      const observer = new ResizeObserver(() => updateSize());
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
   // Get unique BR types for filter
   const brTypes = useMemo(() => {
@@ -92,99 +177,114 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     return allocations.find(a => a.id === selectedAllocationId) || null;
   }, [allocations, selectedAllocationId]);
 
-  const handleZoomIn = () => setZoom(prev => Math.min(6, prev + 0.5));
-  const handleZoomOut = () => setZoom(prev => Math.max(0.5, prev - 0.5));
-  const handleResetZoom = () => setZoom(1);
+  const effectiveContainerWidth = containerSize.width || DEFAULT_BASE_WIDTH;
+  const effectiveContainerHeight = containerSize.height || DEFAULT_CONTAINER_HEIGHT;
+  const baseWidth = Math.max(effectiveContainerWidth, DEFAULT_BASE_WIDTH);
+  const baseHeight = baseWidth * imageAspectRatio;
+  const scaledWidth = baseWidth * zoom;
+  const scaledHeight = baseHeight * zoom;
+  const canPanHorizontally = scaledWidth > effectiveContainerWidth + 1;
+  const canPanVertically = scaledHeight > effectiveContainerHeight + 1;
+  const canPan = canPanHorizontally || canPanVertically;
+  const showGrabCursor = canPan && zoom > 1;
+  const containerCursor = showGrabCursor
+    ? (isDragging ? 'grabbing' : 'grab')
+    : zoom >= MAX_ZOOM
+      ? 'zoom-out'
+      : 'zoom-in';
 
-  // Enhanced click handler - zoom to click position
-  const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
+  const adjustScrollForZoom = (relX: number, relY: number, targetZoom: number) => {
     const container = containerRef.current;
-    const wrapper = imageWrapperRef.current;
-    if (!container || !wrapper) return;
+    if (!container) return;
 
-    // Get click position relative to image
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const baseWidthForScroll = Math.max(containerSizeRef.current.width || DEFAULT_BASE_WIDTH, DEFAULT_BASE_WIDTH);
+    const baseHeightForScroll = baseWidthForScroll * aspectRatioRef.current;
+    const scaledWidthForScroll = baseWidthForScroll * targetZoom;
+    const scaledHeightForScroll = baseHeightForScroll * targetZoom;
+    const maxScrollLeft = Math.max(0, scaledWidthForScroll - container.clientWidth);
+    const maxScrollTop = Math.max(0, scaledHeightForScroll - container.clientHeight);
 
-    // Calculate relative position (0-1)
-    const relX = x / rect.width;
-    const relY = y / rect.height;
+    const desiredScrollLeft = (relX * scaledWidthForScroll) - (container.clientWidth / 2);
+    const desiredScrollTop = (relY * scaledHeightForScroll) - (container.clientHeight / 2);
 
-    if (zoom < 6) {
-      // Zoom in
-      const newZoom = Math.min(6, zoom + 1);
-      setZoom(newZoom);
+    container.scrollLeft = clamp(desiredScrollLeft, 0, maxScrollLeft);
+    container.scrollTop = clamp(desiredScrollTop, 0, maxScrollTop);
+  };
 
-      // Calculate new scroll position to keep click point centered
-      setTimeout(() => {
+  const applyZoom = (getNextZoom: (prev: number) => number, focusPoint?: Point) => {
+    setZoom(prevZoom => {
+      const nextZoom = clamp(getNextZoom(prevZoom), MIN_ZOOM, MAX_ZOOM);
+      if (Math.abs(nextZoom - prevZoom) < 0.0001) {
+        return prevZoom;
+      }
+
+      const container = containerRef.current;
+      const wrapper = imageWrapperRef.current;
+      if (container && wrapper) {
+        const wrapperRect = wrapper.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        const newScrollLeft = (relX * rect.width * newZoom) - (containerRect.width / 2);
-        const newScrollTop = (relY * rect.height * newZoom) - (containerRect.height / 2);
+        const point = focusPoint ?? {
+          x: containerRect.left + containerRect.width / 2,
+          y: containerRect.top + containerRect.height / 2,
+        };
+        if (wrapperRect.width > 0 && wrapperRect.height > 0) {
+          const relX = clamp((point.x - wrapperRect.left) / wrapperRect.width, 0, 1);
+          const relY = clamp((point.y - wrapperRect.top) / wrapperRect.height, 0, 1);
+          requestAnimationFrame(() => adjustScrollForZoom(relX, relY, nextZoom));
+        }
+      }
 
-        container.scrollLeft = Math.max(0, newScrollLeft);
-        container.scrollTop = Math.max(0, newScrollTop);
-      }, 50);
-    } else {
-      // Reset zoom
-      setZoom(1);
+      return nextZoom;
+    });
+  };
+
+  const handleZoomIn = () => applyZoom(prev => prev + 0.5);
+  const handleZoomOut = () => applyZoom(prev => prev - 0.5);
+  const handleResetZoom = () => {
+    setZoom(1);
+    const container = containerRef.current;
+    if (container) {
+      container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
     }
   };
 
+  // Enhanced click handler - zoom to click position
+  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    applyZoom(prev => (prev >= MAX_ZOOM ? 1 : prev + 1), { x: e.clientX, y: e.clientY });
+  };
+
   // Touch event handlers for pinch-to-zoom
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2) {
-      // Start pinch
-      setIsPinching(true);
+      isPinchingRef.current = true;
+      e.preventDefault();
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
-      const distance = Math.hypot(
+      initialPinchDistance.current = Math.hypot(
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       );
-      initialPinchDistance.current = distance;
       initialZoom.current = zoom;
-    } else if (e.touches.length === 1) {
-      // Check for double-tap
+    } else if (e.touches.length === 1 && !isPinchingRef.current) {
       const now = Date.now();
-      const DOUBLE_TAP_DELAY = 300;
-
       if (now - lastTap < DOUBLE_TAP_DELAY) {
-        // Double tap detected
         e.preventDefault();
         const touch = e.touches[0];
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-        const relX = x / rect.width;
-        const relY = y / rect.height;
-
-        if (zoom < 6) {
-          const newZoom = Math.min(6, zoom + 1.5);
-          setZoom(newZoom);
-
-          // Center on tap point
-          const container = containerRef.current;
-          if (container) {
-            setTimeout(() => {
-              const containerRect = container.getBoundingClientRect();
-              const newScrollLeft = (relX * rect.width * newZoom) - (containerRect.width / 2);
-              const newScrollTop = (relY * rect.height * newZoom) - (containerRect.height / 2);
-
-              container.scrollLeft = Math.max(0, newScrollLeft);
-              container.scrollTop = Math.max(0, newScrollTop);
-            }, 50);
-          }
-        } else {
-          setZoom(1);
-        }
+        applyZoom(prev => (prev >= MAX_ZOOM ? 1 : prev + 1.5), {
+          x: touch.clientX,
+          y: touch.clientY,
+        });
       }
       setLastTap(now);
     }
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && isPinching) {
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && isPinchingRef.current) {
       e.preventDefault();
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
@@ -192,15 +292,84 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       );
-
+      if (!initialPinchDistance.current) return;
       const scale = distance / initialPinchDistance.current;
-      const newZoom = Math.min(6, Math.max(0.5, initialZoom.current * scale));
-      setZoom(newZoom);
+      const targetZoom = clamp(initialZoom.current * scale, MIN_ZOOM, MAX_ZOOM);
+      const centerPoint: Point = {
+        x: (touch1.clientX + touch2.clientX) / 2,
+        y: (touch1.clientY + touch2.clientY) / 2,
+      };
+      applyZoom(() => targetZoom, centerPoint);
     }
   };
 
-  const handleTouchEnd = () => {
-    setIsPinching(false);
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length < 2) {
+      isPinchingRef.current = false;
+      initialPinchDistance.current = 0;
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.pointerType !== 'mouse' && e.pointerType !== 'pen') || e.button !== 0 || !canPan) return;
+    const container = containerRef.current;
+    if (!container) return;
+    container.setPointerCapture?.(e.pointerId);
+    suppressClickRef.current = false;
+    pointerDragRef.current = {
+      active: true,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    };
+    dragMovedRef.current = false;
+    setIsDragging(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
+    const container = containerRef.current;
+    if (!container) return;
+    e.preventDefault();
+    const dx = e.clientX - pointerDragRef.current.startX;
+    const dy = e.clientY - pointerDragRef.current.startY;
+    if (!dragMovedRef.current && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      dragMovedRef.current = true;
+    }
+    container.scrollLeft = pointerDragRef.current.scrollLeft - dx;
+    container.scrollTop = pointerDragRef.current.scrollTop - dy;
+  };
+
+  const endPointerDrag = (pointerId: number) => {
+    const container = containerRef.current;
+    container?.releasePointerCapture?.(pointerId);
+    pointerDragRef.current = {
+      active: false,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      scrollLeft: 0,
+      scrollTop: 0,
+    };
+    setIsDragging(false);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
+    endPointerDrag(e.pointerId);
+    if (dragMovedRef.current) {
+      suppressClickRef.current = true;
+    }
+    dragMovedRef.current = false;
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
+    endPointerDrag(e.pointerId);
+    dragMovedRef.current = false;
+    suppressClickRef.current = false;
   };
 
   return (
@@ -361,33 +530,37 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             style={{
               WebkitOverflowScrolling: 'touch',
               touchAction: 'pan-x pan-y',
+              cursor: containerCursor,
             }}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
           >
             <div
               ref={imageWrapperRef}
-              className="origin-top-left transition-transform duration-200"
+              className="relative select-none"
               style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: 'top left',
-                minWidth: '800px',
-                minHeight: '560px',
-                willChange: 'transform',
+                width: scaledWidth,
+                height: scaledHeight,
               }}
+              onClick={handleMapClick}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               <img
+                ref={imageRef}
                 src={MAP_IMAGE}
                 alt="Bahamas cluster map"
-                className="block h-auto w-full cursor-zoom-in select-none"
+                className="block h-full w-full select-none"
                 draggable={false}
                 style={{
-                  minWidth: '800px',
                   pointerEvents: 'none',
+                  userSelect: 'none',
                 }}
                 loading="eager"
-                onClick={handleImageClick}
+                onLoad={updateAspectRatioFromImage}
               />
             </div>
 
