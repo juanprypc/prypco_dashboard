@@ -38,25 +38,6 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
 
-  // Touch gesture state
-  const [isPinching, setIsPinching] = useState(false);
-  const lastTapTimeRef = useRef(0);
-  const lastTapPointRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const initialPinchDistance = useRef<number>(0);
-  const initialZoom = useRef<number>(1);
-  const pinchOriginRef = useRef<{
-    relX: number;
-    relY: number;
-    rectWidth: number;
-    rectHeight: number;
-    zoomAtStart: number;
-  }>({
-    relX: 0.5,
-    relY: 0.5,
-    rectWidth: 800,
-    rectHeight: 560,
-    zoomAtStart: 1,
-  });
 
   useEffect(() => {
     setLoading(true);
@@ -114,7 +95,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
 
   const clampZoom = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
 
-  const centerAfterZoom = (
+  const centerAfterZoom = useCallback((
     relX: number,
     relY: number,
     prevZoom: number,
@@ -134,7 +115,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       container.scrollTop = newScrollTop;
     };
     requestAnimationFrame(() => requestAnimationFrame(applyScroll));
-  };
+  }, []);
 
   const handleZoomIn = () => setZoom(prev => clampZoom(prev + 0.5));
   const handleZoomOut = () => setZoom(prev => clampZoom(prev - 0.5));
@@ -165,94 +146,107 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     }
   };
 
-  // Touch event handlers for pinch-to-zoom
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      // Start pinch
-      setIsPinching(true);
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
-      const distance = Math.hypot(
-        touch2.clientX - touch1.clientX,
-        touch2.clientY - touch1.clientY
-      );
-      initialPinchDistance.current = distance;
-      initialZoom.current = zoom;
-      const wrapper = imageWrapperRef.current;
-      if (wrapper) {
-        const rect = wrapper.getBoundingClientRect();
-        const midX = (touch1.clientX + touch2.clientX) / 2;
-        const midY = (touch1.clientY + touch2.clientY) / 2;
-        pinchOriginRef.current = {
-          relX: clamp((midX - rect.left) / rect.width, 0, 1),
-          relY: clamp((midY - rect.top) / rect.height, 0, 1),
-          rectWidth: rect.width,
-          rectHeight: rect.height,
-          zoomAtStart: zoom || MIN_ZOOM,
-        };
+  useEffect(() => {
+    const container = containerRef.current;
+    const wrapper = imageWrapperRef.current;
+    if (!container || !wrapper) return;
+
+    let pinchActive = false;
+    let startDistance = 0;
+    let startZoom = 1;
+    let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+
+    const getRelativePoint = (clientX: number, clientY: number) => {
+      const rect = wrapper.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      return {
+        x,
+        y,
+        relX: clamp(x / rect.width, 0, 1),
+        relY: clamp(y / rect.height, 0, 1),
+        rectWidth: rect.width,
+        rectHeight: rect.height,
+      };
+    };
+
+    const onTouchStart = (ev: TouchEvent) => {
+      if (ev.touches.length === 2) {
+        pinchActive = true;
+        ev.preventDefault();
+        startDistance = Math.hypot(
+          ev.touches[1].clientX - ev.touches[0].clientX,
+          ev.touches[1].clientY - ev.touches[0].clientY,
+        );
+        startZoom = zoomRef.current || MIN_ZOOM;
+        return;
       }
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      const touch = e.touches[0];
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-      const relX = x / rect.width;
-      const relY = y / rect.height;
 
-      const lastTapTime = lastTapTimeRef.current;
-      const lastPoint = lastTapPointRef.current;
-      const distance = Math.hypot(x - lastPoint.x, y - lastPoint.y);
+      if (ev.touches.length === 1 && !pinchActive) {
+        const now = Date.now();
+        const touch = ev.touches[0];
+        const { x, y, relX, relY, rectWidth, rectHeight } = getRelativePoint(touch.clientX, touch.clientY);
+        const timeDelta = now - lastTapTime;
+        const distance = Math.hypot(x - lastTapX, y - lastTapY);
 
-      if (now - lastTapTime < DOUBLE_TAP_DELAY && distance < DOUBLE_TAP_DISTANCE) {
-        e.preventDefault();
-        if (zoom < MAX_ZOOM) {
-          const newZoom = clampZoom(zoom + 1.5);
-          setZoom(newZoom);
-          centerAfterZoom(relX, relY, zoom || MIN_ZOOM, newZoom, rect.width, rect.height);
-        } else {
-          setZoom(1);
-          containerRef.current?.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+        if (timeDelta < DOUBLE_TAP_DELAY && distance < DOUBLE_TAP_DISTANCE) {
+          ev.preventDefault();
+          const oldZoom = zoomRef.current || MIN_ZOOM;
+          if (oldZoom < MAX_ZOOM) {
+            const nextZoom = clampZoom(oldZoom + 1.5);
+            setZoom(nextZoom);
+            centerAfterZoom(relX, relY, oldZoom, nextZoom, rectWidth, rectHeight);
+          } else {
+            setZoom(1);
+            container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+          }
         }
+
+        lastTapTime = now;
+        lastTapX = x;
+        lastTapY = y;
       }
+    };
 
-      lastTapTimeRef.current = now;
-      lastTapPointRef.current = { x, y };
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && isPinching) {
-      e.preventDefault();
-      const touch1 = e.touches[0];
-      const touch2 = e.touches[1];
+    const onTouchMove = (ev: TouchEvent) => {
+      if (!pinchActive || ev.touches.length !== 2) return;
+      ev.preventDefault();
+      if (!startDistance) return;
       const distance = Math.hypot(
-        touch2.clientX - touch1.clientX,
-        touch2.clientY - touch1.clientY
+        ev.touches[1].clientX - ev.touches[0].clientX,
+        ev.touches[1].clientY - ev.touches[0].clientY,
       );
+      const ratio = distance / startDistance;
+      const targetZoom = clampZoom(startZoom * ratio);
+      const prevZoom = zoomRef.current || MIN_ZOOM;
+      if (Math.abs(targetZoom - prevZoom) < 0.0008) return;
+      setZoom(targetZoom);
 
-      const scale = distance / initialPinchDistance.current;
-      const newZoom = clampZoom(initialZoom.current * scale);
-      setZoom(newZoom);
+      const midX = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
+      const midY = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
+      const { relX, relY, rectWidth, rectHeight } = getRelativePoint(midX, midY);
+      centerAfterZoom(relX, relY, prevZoom, targetZoom, rectWidth, rectHeight);
+    };
 
-      const container = containerRef.current;
-      const { relX, relY, rectWidth, rectHeight, zoomAtStart } = pinchOriginRef.current;
-      if (container) {
-        const containerRect = container.getBoundingClientRect();
-        const projectedWidth = rectWidth * (newZoom / zoomAtStart);
-        const projectedHeight = rectHeight * (newZoom / zoomAtStart);
-        const newScrollLeft = Math.max(0, (relX * projectedWidth) - (containerRect.width / 2));
-        const newScrollTop = Math.max(0, (relY * projectedHeight) - (containerRect.height / 2));
-        container.scrollLeft = newScrollLeft;
-        container.scrollTop = newScrollTop;
-      }
-    }
-  };
+    const onTouchEnd = () => {
+      pinchActive = false;
+      startDistance = 0;
+    };
 
-  const handleTouchEnd = () => {
-    setIsPinching(false);
-    initialPinchDistance.current = 0;
-  };
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd, { passive: false });
+    container.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+      container.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [centerAfterZoom]);
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
@@ -414,9 +408,6 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               touchAction: 'pan-x pan-y',
               overscrollBehavior: 'contain',
             }}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
             <div
               ref={imageWrapperRef}
