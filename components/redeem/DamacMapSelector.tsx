@@ -24,6 +24,8 @@ const MAX_ZOOM = 6;
 const DOUBLE_TAP_DELAY = 300;
 const DOUBLE_TAP_DISTANCE = 30;
 
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
 export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
