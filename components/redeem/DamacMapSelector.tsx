@@ -1,7 +1,6 @@
 'use client';
 
-import type React from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type AllocationWithStatus = {
   id: string;
@@ -23,61 +22,39 @@ const MAP_IMAGE_ORIGINAL = '/images/bahamas-cluster-map.jpg';
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 6;
 const DOUBLE_TAP_DELAY = 300;
-const DEFAULT_BASE_WIDTH = 800;
-const DEFAULT_ASPECT_RATIO = 560 / 800;
-const DEFAULT_CONTAINER_HEIGHT = 500;
-
-type Point = { x: number; y: number };
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-type GlobalWithListeners = typeof globalThis & {
-  addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-  removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-};
+const DOUBLE_TAP_DISTANCE = 30;
 
 export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [zoom, setZoom] = useState(1);
-  const zoomRef = useRef(1);
-  useEffect(() => {
-    zoomRef.current = zoom;
-  }, [zoom]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [containerSize, setContainerSize] = useState({
-    width: DEFAULT_BASE_WIDTH,
-    height: DEFAULT_CONTAINER_HEIGHT,
-  });
-  const containerSizeRef = useRef(containerSize);
-  useEffect(() => {
-    containerSizeRef.current = containerSize;
-  }, [containerSize]);
-
-  const [imageAspectRatio, setImageAspectRatio] = useState(DEFAULT_ASPECT_RATIO);
-  const aspectRatioRef = useRef(imageAspectRatio);
-  useEffect(() => {
-    aspectRatioRef.current = imageAspectRatio;
-  }, [imageAspectRatio]);
-
+  // Refs for zoom and pan
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
 
-  const pointerDragRef = useRef({
-    active: false,
-    pointerId: null as number | null,
-    startX: 0,
-    startY: 0,
-    scrollLeft: 0,
-    scrollTop: 0,
+  // Touch gesture state
+  const [isPinching, setIsPinching] = useState(false);
+  const lastTapTimeRef = useRef(0);
+  const lastTapPointRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const initialPinchDistance = useRef<number>(0);
+  const initialZoom = useRef<number>(1);
+  const pinchOriginRef = useRef<{
+    relX: number;
+    relY: number;
+    rectWidth: number;
+    rectHeight: number;
+    zoomAtStart: number;
+  }>({
+    relX: 0.5,
+    relY: 0.5,
+    rectWidth: 800,
+    rectHeight: 560,
+    zoomAtStart: 1,
   });
-  const dragMovedRef = useRef(false);
-  const suppressClickRef = useRef(false);
-  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -99,345 +76,192 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       });
   }, [catalogueId]);
 
-  const updateAspectRatioFromImage = (event?: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = event?.currentTarget ?? imageRef.current;
-    if (!img) return;
-    const { naturalWidth, naturalHeight } = img;
-    if (naturalWidth && naturalHeight) {
-      setImageAspectRatio(naturalHeight / naturalWidth);
-    }
-  };
-
-  useEffect(() => {
-    const img = imageRef.current;
-    if (img && (img.complete || img.naturalWidth)) {
-      updateAspectRatioFromImage();
-    }
-  }, []);
-
-  useEffect(() => {
-    const updateSize = () => {
-      const el = containerRef.current;
-      if (!el) return;
-      setContainerSize({
-        width: el.clientWidth || DEFAULT_BASE_WIDTH,
-        height: el.clientHeight || DEFAULT_CONTAINER_HEIGHT,
-      });
-    };
-
-    const element = containerRef.current;
-    if (!element) return;
-
-    updateSize();
-
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(() => updateSize());
-      observer.observe(element);
-      return () => observer.disconnect();
-    }
-
-    const globalWithListeners = globalThis as GlobalWithListeners;
-    if (typeof globalWithListeners.addEventListener === 'function') {
-      globalWithListeners.addEventListener('resize', updateSize);
-      return () => globalWithListeners.removeEventListener?.('resize', updateSize);
-    }
-  }, []);
-
+  // Get unique BR types for filter
   const brTypes = useMemo(() => {
     const types = new Set(
       allocations
-        .map((a) => a.brType)
+        .map(a => a.brType)
         .filter((br): br is string => br != null && br.trim() !== '')
     );
-    return ['all', ...Array.from(types).sort()];
+    const sortedTypes = Array.from(types).sort();
+    return ['all', ...sortedTypes];
   }, [allocations]);
 
+  // Filter allocations based on search and BR type
   const filteredAllocations = useMemo(() => {
-    return allocations.filter((allocation) => {
-      const q = searchTerm.toLowerCase();
-      const matchesSearch =
-        q === '' ||
-        allocation.id.toLowerCase().includes(q) ||
-        allocation.damacIslandcode?.toLowerCase().includes(q) ||
-        allocation.brType?.toLowerCase().includes(q);
+    return allocations.filter(allocation => {
+      const matchesSearch = searchTerm === '' ||
+        allocation.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        allocation.damacIslandcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        allocation.brType?.toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchesType = filterType === 'all' || allocation.brType === filterType;
+
       return matchesSearch && matchesType;
     });
   }, [allocations, searchTerm, filterType]);
 
-  const availableCount = useMemo(
-    () => filteredAllocations.filter((a) => a.availability === 'available').length,
-    [filteredAllocations]
-  );
+  const availableCount = useMemo(() => {
+    return filteredAllocations.filter(a => a.availability === 'available').length;
+  }, [filteredAllocations]);
 
-  const selectedAllocation = useMemo(
-    () => allocations.find((a) => a.id === selectedAllocationId) || null,
-    [allocations, selectedAllocationId]
-  );
+  // Get selected allocation details
+  const selectedAllocation = useMemo(() => {
+    return allocations.find(a => a.id === selectedAllocationId) || null;
+  }, [allocations, selectedAllocationId]);
 
-  const effectiveContainerWidth = containerSize.width || DEFAULT_BASE_WIDTH;
-  const effectiveContainerHeight = containerSize.height || DEFAULT_CONTAINER_HEIGHT;
-  const baseWidth = Math.max(effectiveContainerWidth, DEFAULT_BASE_WIDTH);
-  const baseHeight = baseWidth * imageAspectRatio;
-  const scaledWidth = baseWidth * zoom;
-  const scaledHeight = baseHeight * zoom;
+  const clampZoom = (value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
 
-  const canPanHorizontally = scaledWidth > effectiveContainerWidth + 1;
-  const canPanVertically = scaledHeight > effectiveContainerHeight + 1;
-  const canPan = canPanHorizontally || canPanVertically;
-  const showGrabCursor = canPan && zoom > 1;
-  const containerCursor = showGrabCursor ? (isDragging ? 'grabbing' : 'grab') : zoom >= MAX_ZOOM ? 'zoom-out' : 'zoom-in';
-
-  const computeBaseDims = useCallback(() => {
-    const width = Math.max(containerSizeRef.current.width || DEFAULT_BASE_WIDTH, DEFAULT_BASE_WIDTH);
-    const height = width * aspectRatioRef.current;
-    return { width, height };
-  }, []);
-
-  const setZoomAtPoint = useCallback((px: number, py: number, oldZoom: number, newZoom: number) => {
+  const centerAfterZoom = (
+    relX: number,
+    relY: number,
+    prevZoom: number,
+    nextZoom: number,
+    prevRectWidth: number,
+    prevRectHeight: number,
+  ) => {
     const container = containerRef.current;
     if (!container) return;
-
-    const { width, height } = computeBaseDims();
-    const contentX = (container.scrollLeft + px) / (width * oldZoom);
-    const contentY = (container.scrollTop + py) / (height * oldZoom);
-
-    const newScaledWidth = width * newZoom;
-    const newScaledHeight = height * newZoom;
-
-    const newScrollLeft = contentX * newScaledWidth - px;
-    const newScrollTop = contentY * newScaledHeight - py;
-
-    const maxScrollLeft = Math.max(0, newScaledWidth - container.clientWidth);
-    const maxScrollTop = Math.max(0, newScaledHeight - container.clientHeight);
-
-    container.scrollLeft = clamp(newScrollLeft, 0, maxScrollLeft);
-    container.scrollTop = clamp(newScrollTop, 0, maxScrollTop);
-  }, [computeBaseDims]);
-
-  const applyZoomDiscrete = useCallback((getNext: (prev: number) => number, focusClientPoint?: Point) => {
-    const container = containerRef.current;
-    if (!container) {
-      setZoom((prev) => clamp(getNext(prev), MIN_ZOOM, MAX_ZOOM));
-      return;
-    }
-    const rect = container.getBoundingClientRect();
-    const px = focusClientPoint ? focusClientPoint.x - rect.left - container.clientLeft : container.clientWidth / 2;
-    const py = focusClientPoint ? focusClientPoint.y - rect.top - container.clientTop : container.clientHeight / 2;
-
-    setZoom((prevZoom) => {
-      const nextZoom = clamp(getNext(prevZoom), MIN_ZOOM, MAX_ZOOM);
-      if (Math.abs(nextZoom - prevZoom) < 0.0001) return prevZoom;
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setZoomAtPoint(px, py, prevZoom, nextZoom));
-      });
-
-      return nextZoom;
-    });
-  }, [setZoomAtPoint]);
-
-  const applyZoomContinuousAt = useCallback((targetZoom: number, px: number, py: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const oldZoom = zoomRef.current;
-    const nextZoom = clamp(targetZoom, MIN_ZOOM, MAX_ZOOM);
-    if (Math.abs(nextZoom - oldZoom) < 0.0008) return;
-    setZoom(nextZoom);
-    setZoomAtPoint(px, py, oldZoom, nextZoom);
-  }, [setZoomAtPoint]);
-
-  const handleZoomIn = () => applyZoomDiscrete((prev) => prev + 0.5);
-  const handleZoomOut = () => applyZoomDiscrete((prev) => prev - 0.5);
-  const handleResetZoom = () => {
-    setZoom(1);
-    const container = containerRef.current;
-    container?.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-  };
-
-  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    applyZoomDiscrete((prev) => (prev >= MAX_ZOOM ? 1 : prev + 1), { x: e.clientX, y: e.clientY });
-  };
-
-  const handleContainerDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    applyZoomDiscrete((prev) => (prev >= MAX_ZOOM ? 1 : Math.min(MAX_ZOOM, prev + 1.5)), { x: e.clientX, y: e.clientY });
-  };
-
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    if (e.ctrlKey) {
-      e.preventDefault();
-      const container = containerRef.current;
-      const rect = container.getBoundingClientRect();
-      const px = e.clientX - rect.left - container.clientLeft;
-      const py = e.clientY - rect.top - container.clientTop;
-      const scale = Math.exp(-e.deltaY * 0.0015);
-      const targetZoom = clamp(zoomRef.current * scale, MIN_ZOOM, MAX_ZOOM);
-      applyZoomContinuousAt(targetZoom, px, py);
-    }
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if ((e.pointerType !== 'mouse' && e.pointerType !== 'pen') || e.button !== 0 || !canPan) return;
-    const container = containerRef.current;
-    if (!container) return;
-    container.setPointerCapture?.(e.pointerId);
-    suppressClickRef.current = false;
-    pointerDragRef.current = {
-      active: true,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      scrollLeft: container.scrollLeft,
-      scrollTop: container.scrollTop,
+    const applyScroll = () => {
+      const containerRect = container.getBoundingClientRect();
+      const projectedWidth = prevRectWidth * (nextZoom / prevZoom);
+      const projectedHeight = prevRectHeight * (nextZoom / prevZoom);
+      const newScrollLeft = Math.max(0, (relX * projectedWidth) - (containerRect.width / 2));
+      const newScrollTop = Math.max(0, (relY * projectedHeight) - (containerRect.height / 2));
+      container.scrollLeft = newScrollLeft;
+      container.scrollTop = newScrollTop;
     };
-    dragMovedRef.current = false;
-    setIsDragging(true);
+    requestAnimationFrame(() => requestAnimationFrame(applyScroll));
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
+  const handleZoomIn = () => setZoom(prev => clampZoom(prev + 0.5));
+  const handleZoomOut = () => setZoom(prev => clampZoom(prev - 0.5));
+  const handleResetZoom = () => setZoom(1);
+
+  // Enhanced click handler - zoom to click position
+  const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
     const container = containerRef.current;
-    if (!container) return;
-    e.preventDefault();
-    const dx = e.clientX - pointerDragRef.current.startX;
-    const dy = e.clientY - pointerDragRef.current.startY;
-    if (!dragMovedRef.current && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
-      dragMovedRef.current = true;
+    const wrapper = imageWrapperRef.current;
+    if (!container || !wrapper) return;
+
+    // Get click position relative to image
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Calculate relative position (0-1)
+    const relX = x / rect.width;
+    const relY = y / rect.height;
+
+    if (zoom < MAX_ZOOM) {
+      const newZoom = clampZoom(zoom + 1);
+      setZoom(newZoom);
+      centerAfterZoom(relX, relY, zoom || MIN_ZOOM, newZoom, rect.width, rect.height);
+    } else {
+      setZoom(1);
+      container.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
     }
-    container.scrollLeft = pointerDragRef.current.scrollLeft - dx;
-    container.scrollTop = pointerDragRef.current.scrollTop - dy;
   };
 
-  const endPointerDrag = (pointerId: number) => {
-    const container = containerRef.current;
-    container?.releasePointerCapture?.(pointerId);
-    pointerDragRef.current = {
-      active: false,
-      pointerId: null,
-      startX: 0,
-      startY: 0,
-      scrollLeft: 0,
-      scrollTop: 0,
-    };
-    setIsDragging(false);
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
-    endPointerDrag(e.pointerId);
-    if (dragMovedRef.current) suppressClickRef.current = true;
-    dragMovedRef.current = false;
-  };
-
-  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pointerDragRef.current.active || pointerDragRef.current.pointerId !== e.pointerId) return;
-    endPointerDrag(e.pointerId);
-    dragMovedRef.current = false;
-    suppressClickRef.current = false;
-  };
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let pinchActive = false;
-    let startDistance = 0;
-    let startZoom = 1;
-    let lastTapTime = 0;
-    let lastTapPX = 0;
-    let lastTapPY = 0;
-
-    const getMidpoint = (touches: TouchList) => ({
-      x: (touches[0].clientX + touches[1].clientX) / 2,
-      y: (touches[0].clientY + touches[1].clientY) / 2,
-    });
-
-    const onTouchStart = (ev: TouchEvent) => {
-      if (ev.touches.length === 2) {
-        pinchActive = true;
-        ev.preventDefault();
-        startDistance = Math.hypot(
-          ev.touches[1].clientX - ev.touches[0].clientX,
-          ev.touches[1].clientY - ev.touches[0].clientY
-        );
-        startZoom = zoomRef.current;
-      } else if (ev.touches.length === 1 && !pinchActive) {
-        const now = Date.now();
-        const rect = container.getBoundingClientRect();
-        const touch = ev.touches[0];
-        const px = touch.clientX - rect.left - container.clientLeft;
-        const py = touch.clientY - rect.top - container.clientTop;
-        const withinTime = now - lastTapTime < DOUBLE_TAP_DELAY;
-        const withinDistance = Math.hypot(px - lastTapPX, py - lastTapPY) < 25;
-
-        if (withinTime && withinDistance) {
-          ev.preventDefault();
-          const oldZoom = zoomRef.current;
-          const nextZoom = oldZoom >= MAX_ZOOM ? 1 : Math.min(MAX_ZOOM, oldZoom + 1.5);
-          setZoom(nextZoom);
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => setZoomAtPoint(px, py, oldZoom, nextZoom));
-          });
-        }
-
-        lastTapTime = now;
-        lastTapPX = px;
-        lastTapPY = py;
-      }
-    };
-
-    const onTouchMove = (ev: TouchEvent) => {
-      if (!pinchActive || ev.touches.length !== 2) return;
-      ev.preventDefault();
+  // Touch event handlers for pinch-to-zoom
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      // Start pinch
+      setIsPinching(true);
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
       const distance = Math.hypot(
-        ev.touches[1].clientX - ev.touches[0].clientX,
-        ev.touches[1].clientY - ev.touches[0].clientY
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
       );
-      if (!startDistance) return;
-      const ratio = distance / startDistance;
-      const targetZoom = clamp(startZoom * ratio, MIN_ZOOM, MAX_ZOOM);
-      const { x, y } = getMidpoint(ev.touches);
-      const rect = container.getBoundingClientRect();
-      const px = x - rect.left - container.clientLeft;
-      const py = y - rect.top - container.clientTop;
-      applyZoomContinuousAt(targetZoom, px, py);
-    };
+      initialPinchDistance.current = distance;
+      initialZoom.current = zoom;
+      const wrapper = imageWrapperRef.current;
+      if (wrapper) {
+        const rect = wrapper.getBoundingClientRect();
+        const midX = (touch1.clientX + touch2.clientX) / 2;
+        const midY = (touch1.clientY + touch2.clientY) / 2;
+        pinchOriginRef.current = {
+          relX: clamp((midX - rect.left) / rect.width, 0, 1),
+          relY: clamp((midY - rect.top) / rect.height, 0, 1),
+          rectWidth: rect.width,
+          rectHeight: rect.height,
+          zoomAtStart: zoom || MIN_ZOOM,
+        };
+      }
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      const touch = e.touches[0];
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      const relX = x / rect.width;
+      const relY = y / rect.height;
 
-    const onTouchEnd = () => {
-      pinchActive = false;
-      startDistance = 0;
-    };
+      const lastTapTime = lastTapTimeRef.current;
+      const lastPoint = lastTapPointRef.current;
+      const distance = Math.hypot(x - lastPoint.x, y - lastPoint.y);
 
-    container.addEventListener('touchstart', onTouchStart, { passive: false });
-    container.addEventListener('touchmove', onTouchMove, { passive: false });
-    container.addEventListener('touchend', onTouchEnd, { passive: false });
-    container.addEventListener('touchcancel', onTouchEnd, { passive: false });
+      if (now - lastTapTime < DOUBLE_TAP_DELAY && distance < DOUBLE_TAP_DISTANCE) {
+        e.preventDefault();
+        if (zoom < MAX_ZOOM) {
+          const newZoom = clampZoom(zoom + 1.5);
+          setZoom(newZoom);
+          centerAfterZoom(relX, relY, zoom || MIN_ZOOM, newZoom, rect.width, rect.height);
+        } else {
+          setZoom(1);
+          containerRef.current?.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+        }
+      }
 
-    return () => {
-      container.removeEventListener('touchstart', onTouchStart);
-      container.removeEventListener('touchmove', onTouchMove);
-      container.removeEventListener('touchend', onTouchEnd);
-      container.removeEventListener('touchcancel', onTouchEnd);
-    };
-  }, [applyZoomContinuousAt, setZoomAtPoint]);
+      lastTapTimeRef.current = now;
+      lastTapPointRef.current = { x, y };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && isPinching) {
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+
+      const scale = distance / initialPinchDistance.current;
+      const newZoom = clampZoom(initialZoom.current * scale);
+      setZoom(newZoom);
+
+      const container = containerRef.current;
+      const { relX, relY, rectWidth, rectHeight, zoomAtStart } = pinchOriginRef.current;
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const projectedWidth = rectWidth * (newZoom / zoomAtStart);
+        const projectedHeight = rectHeight * (newZoom / zoomAtStart);
+        const newScrollLeft = Math.max(0, (relX * projectedWidth) - (containerRect.width / 2));
+        const newScrollTop = Math.max(0, (relY * projectedHeight) - (containerRect.height / 2));
+        container.scrollLeft = newScrollLeft;
+        container.scrollTop = newScrollTop;
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsPinching(false);
+    initialPinchDistance.current = 0;
+  };
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
+      {/* Units List */}
       <div className="order-2 flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4 lg:order-1">
         <p className="text-sm font-semibold text-[var(--color-outer-space)]">Available Units</p>
         <p className="text-[11px] text-[var(--color-outer-space)]/60">
           {loading ? 'Loading...' : `${availableCount} available of ${filteredAllocations.length} units`}
         </p>
 
+        {/* Search and Filter */}
         <div className="mt-3 space-y-2">
           <input
             type="text"
@@ -447,13 +271,14 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             disabled={loading}
             className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] placeholder:text-[var(--color-outer-space)]/40 focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
           />
+
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
             disabled={loading}
             className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
           >
-            {brTypes.map((type) => (
+            {brTypes.map(type => (
               <option key={type} value={type}>
                 {type === 'all' ? 'All BR Types' : type}
               </option>
@@ -461,83 +286,89 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
           </select>
         </div>
 
+        {/* Units List */}
         <div className="mt-3 max-h-[400px] space-y-2 overflow-auto pr-2 lg:max-h-[500px]">
           {error && (
-            <div className="rounded-[12px] border border-rose-200 bg-rose-50 p-4 text-center text-sm text-rose-700">{error}</div>
+            <div className="rounded-[12px] border border-rose-200 bg-rose-50 p-4 text-center text-sm text-rose-700">
+              {error}
+            </div>
           )}
-          {loading && !error && <p className="py-8 text-center text-sm text-[var(--color-outer-space)]/40">Loading units...</p>}
-          {!loading &&
-            !error &&
-            filteredAllocations.map((allocation) => {
-              const disabled = allocation.availability !== 'available';
-              const selected = allocation.id === selectedAllocationId;
-              return (
-                <button
-                  key={allocation.id}
-                  type="button"
-                  onClick={() => {
-                    if (disabled) return;
-                    onSelectAllocation(selectedAllocationId === allocation.id ? null : allocation.id);
-                  }}
-                  disabled={disabled}
+          {loading && !error && (
+            <p className="py-8 text-center text-sm text-[var(--color-outer-space)]/40">
+              Loading units...
+            </p>
+          )}
+          {!loading && !error && filteredAllocations.map((allocation) => {
+            const disabled = allocation.availability !== 'available';
+            const selected = allocation.id === selectedAllocationId;
+
+            return (
+              <button
+                key={allocation.id}
+                type="button"
+                onClick={() => {
+                  if (disabled) return;
+                  onSelectAllocation(selectedAllocationId === allocation.id ? null : allocation.id);
+                }}
+                disabled={disabled}
+                className={
+                  'flex w-full items-center justify-between rounded-[12px] border px-3 py-2.5 text-left transition ' +
+                  (selected
+                    ? 'border-[var(--color-electric-purple)] bg-[var(--color-electric-purple)]/10'
+                    : disabled
+                      ? 'border-[#d1b7fb]/30 cursor-not-allowed opacity-50'
+                      : 'border-[#d1b7fb]/60 hover:bg-[var(--color-panel)]/60 active:bg-[var(--color-panel)]')
+                }
+              >
+                <div className="flex-1">
+                  <p className={'text-sm font-semibold ' + (disabled ? 'text-[var(--color-outer-space)]/40' : 'text-[var(--color-outer-space)]')}>
+                    {allocation.damacIslandcode || allocation.id}
+                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-outer-space)]/60">
+                    <span>{allocation.points?.toLocaleString() ?? '—'} pts</span>
+                    {allocation.unitType && (
+                      <>
+                        <span>•</span>
+                        <span>{allocation.unitType}</span>
+                      </>
+                    )}
+                    {allocation.brType && (
+                      <>
+                        <span>•</span>
+                        <span>{allocation.brType}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <span
                   className={
-                    'flex w-full items-center justify-between rounded-[12px] border px-3 py-2.5 text-left transition ' +
-                    (selected
-                      ? 'border-[var(--color-electric-purple)] bg-[var(--color-electric-purple)]/10'
-                      : disabled
-                        ? 'border-[#d1b7fb]/30 cursor-not-allowed opacity-50'
-                        : 'border-[#d1b7fb]/60 hover:bg-[var(--color-panel)]/60 active:bg-[var(--color-panel)]')
+                    'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ' +
+                    (allocation.availability === 'available'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-rose-100 text-rose-700')
                   }
                 >
-                  <div className="flex-1">
-                    <p
-                      className={
-                        'text-sm font-semibold ' +
-                        (disabled ? 'text-[var(--color-outer-space)]/40' : 'text-[var(--color-outer-space)]')
-                      }
-                    >
-                      {allocation.damacIslandcode || allocation.id}
-                    </p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-outer-space)]/60">
-                      <span>{allocation.points?.toLocaleString() ?? '—'} pts</span>
-                      {allocation.unitType && (
-                        <>
-                          <span>•</span>
-                          <span>{allocation.unitType}</span>
-                        </>
-                      )}
-                      {allocation.brType && (
-                        <>
-                          <span>•</span>
-                          <span>{allocation.brType}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={
-                      'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ' +
-                      (allocation.availability === 'available' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')
-                    }
-                  >
-                    {allocation.availability}
-                  </span>
-                </button>
-              );
-            })}
+                  {allocation.availability}
+                </span>
+              </button>
+            );
+          })}
           {!loading && !error && filteredAllocations.length === 0 && (
-            <p className="py-8 text-center text-sm text-[var(--color-outer-space)]/40">No units found</p>
+            <p className="py-8 text-center text-sm text-[var(--color-outer-space)]/40">
+              No units found
+            </p>
           )}
         </div>
       </div>
 
+      {/* Map Image with Selection Overlay */}
       <div className="order-1 relative flex-1 lg:order-2">
         <div className="rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex-1">
               <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
               <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">
-                {zoom < MAX_ZOOM ? 'Click/tap to zoom • Pinch or scroll to pan' : 'Click/tap to reset zoom'}
+                {zoom < 6 ? 'Click/tap to zoom • Pinch or scroll to pan' : 'Click/tap to reset zoom'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -546,7 +377,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 <button
                   type="button"
                   onClick={handleZoomOut}
-                  disabled={zoom <= MIN_ZOOM}
+                  disabled={zoom <= 0.5}
                   className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
                   aria-label="Zoom out"
                 >
@@ -564,7 +395,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 <button
                   type="button"
                   onClick={handleZoomIn}
-                  disabled={zoom >= MAX_ZOOM}
+                  disabled={zoom >= 6}
                   className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
                   aria-label="Zoom in"
                 >
@@ -573,7 +404,6 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               </div>
             </div>
           </div>
-
           <div
             ref={containerRef}
             className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]"
@@ -581,42 +411,45 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               WebkitOverflowScrolling: 'touch',
               touchAction: 'pan-x pan-y',
               overscrollBehavior: 'contain',
-              cursor: containerCursor,
             }}
-            onClick={handleContainerClick}
-            onDoubleClick={handleContainerDoubleClick}
-            onWheel={handleWheel}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <div
               ref={imageWrapperRef}
-              className="relative select-none"
+              className="origin-top-left transition-transform duration-200"
               style={{
-                width: scaledWidth,
-                height: scaledHeight,
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
+                minWidth: '800px',
+                minHeight: '560px',
+                willChange: 'transform',
               }}
             >
               <img
-                ref={imageRef}
                 src={MAP_IMAGE}
                 alt="Bahamas cluster map"
-                className="block h-full w-full select-none"
+                className="block h-auto w-full cursor-zoom-in select-none"
                 draggable={false}
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
+                style={{
+                  minWidth: '800px',
+                  pointerEvents: 'none',
+                }}
                 loading="eager"
-                onLoad={updateAspectRatioFromImage}
+                onClick={handleImageClick}
               />
             </div>
 
+            {/* Floating Selection Overlay - Desktop */}
             {selectedAllocation && (
               <div className="pointer-events-none absolute inset-0 hidden items-center justify-center p-8 lg:flex">
                 <div className="pointer-events-auto max-w-md rounded-[20px] border border-[var(--color-outer-space)]/10 bg-white p-6 shadow-2xl">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">Selected Unit</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">
+                        Selected Unit
+                      </p>
                       <h3 className="mt-1 text-xl font-bold text-[var(--color-outer-space)]">
                         {selectedAllocation.damacIslandcode || selectedAllocation.id}
                       </h3>
@@ -643,13 +476,17 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                     {selectedAllocation.brType && (
                       <div>
                         <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
-                        <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">{selectedAllocation.brType}</p>
+                        <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">
+                          {selectedAllocation.brType}
+                        </p>
                       </div>
                     )}
                     {selectedAllocation.unitType && (
                       <div className="col-span-2">
                         <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
-                        <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
+                        <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">
+                          {selectedAllocation.unitType}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -664,23 +501,39 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               </div>
             )}
           </div>
-
           <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
-            <p className="text-[10px] text-[var(--color-outer-space)]/50">Double-tap or pinch to zoom • Drag to pan</p>
-            <a href={MAP_IMAGE_ORIGINAL} download="Bahamas-Cluster-Map.jpg" className="text-[10px] text-[var(--color-electric-purple)] hover:underline">
+            <p className="text-[10px] text-[var(--color-outer-space)]/50">
+              Double-tap or pinch to zoom • Drag to pan
+            </p>
+            <a
+              href={MAP_IMAGE_ORIGINAL}
+              download="Bahamas-Cluster-Map.jpg"
+              className="text-[10px] text-[var(--color-electric-purple)] hover:underline"
+            >
               Download map
             </a>
           </div>
         </div>
 
+        {/* Bottom Sheet Selection Overlay - Mobile */}
         {selectedAllocation && (
           <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
-            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => onSelectAllocation(null)} />
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm"
+              onClick={() => onSelectAllocation(null)}
+            />
+
+            {/* Sheet */}
             <div className="relative rounded-t-[28px] border-t border-[var(--color-outer-space)]/10 bg-white px-6 pb-8 pt-5 shadow-2xl">
+              {/* Handle */}
               <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-[var(--color-outer-space)]/20" />
+
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">Selected Unit</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">
+                    Selected Unit
+                  </p>
                   <h3 className="mt-1 text-2xl font-bold text-[var(--color-outer-space)]">
                     {selectedAllocation.damacIslandcode || selectedAllocation.id}
                   </h3>
@@ -700,12 +553,16 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               <div className="mt-5 grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Points</p>
-                  <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedAllocation.points?.toLocaleString() ?? '—'}</p>
+                  <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">
+                    {selectedAllocation.points?.toLocaleString() ?? '—'}
+                  </p>
                 </div>
                 {selectedAllocation.brType && (
                   <div>
                     <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
-                    <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedAllocation.brType}</p>
+                    <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">
+                      {selectedAllocation.brType}
+                    </p>
                   </div>
                 )}
                 <div>
@@ -719,11 +576,16 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               {selectedAllocation.unitType && (
                 <div className="mt-4">
                   <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
-                  <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
+                  <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">
+                    {selectedAllocation.unitType}
+                  </p>
                 </div>
               )}
 
-              <button type="button" className="mt-6 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95">
+              <button
+                type="button"
+                className="mt-6 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95"
+              >
                 Proceed to Payment
               </button>
             </div>
