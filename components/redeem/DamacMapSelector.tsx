@@ -32,6 +32,8 @@ const PROTOTYPE_LEGEND = [
   { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
   { code: 'DSTH-M1', color: '#00c2d7', br: '4BR' },
 ] as const;
+const UNIT_TYPE_FILTER_OPTIONS = ['all', '4 BR', '5 BR', '6 BR'] as const;
+const BR_TYPE_FILTER_OPTIONS = ['all', 'DS-V45', 'DSTH-E', 'DSTH-M2', 'DSTH-M1'] as const;
 
 type Point = { x: number; y: number };
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
