@@ -61,6 +61,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const zoomRef = useRef(1);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isDesktopView, setIsDesktopView] = useState(false);
+  const viewersWatching = useMemo(() => Math.max(1, Math.floor(Math.random() * 100)), []);
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -622,43 +623,51 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
 
       <div className="order-1 relative flex-1 lg:order-2">
         <div className="rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
-              <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">{interactionHint}</p>
+          <div className="mb-3 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
+                <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">{interactionHint}</p>
+              </div>
+              {!isDesktopView && (
+                <div className="flex items-center gap-2">
+                  <span className="hidden text-xs text-[var(--color-outer-space)]/60 sm:inline">{Math.round(zoom * 100)}%</span>
+                  <div className="inline-flex gap-1">
+                    <button
+                      type="button"
+                      onClick={handleZoomOut}
+                      disabled={zoom <= MIN_ZOOM}
+                      className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
+                      aria-label="Zoom out"
+                    >
+                      –
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetZoom}
+                      disabled={zoom === 1}
+                      className="flex h-10 min-w-[40px] touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 px-2 text-xs font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:min-w-[32px] sm:text-[10px]"
+                      aria-label="Reset zoom"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleZoomIn}
+                      disabled={zoom >= MAX_ZOOM}
+                      className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
+                      aria-label="Zoom in"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             {!isDesktopView && (
-              <div className="flex items-center gap-2">
-                <span className="hidden text-xs text-[var(--color-outer-space)]/60 sm:inline">{Math.round(zoom * 100)}%</span>
-                <div className="inline-flex gap-1">
-                  <button
-                    type="button"
-                    onClick={handleZoomOut}
-                    disabled={zoom <= MIN_ZOOM}
-                    className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
-                    aria-label="Zoom out"
-                  >
-                    –
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetZoom}
-                    disabled={zoom === 1}
-                    className="flex h-10 min-w-[40px] touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 px-2 text-xs font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:min-w-[32px] sm:text-[10px]"
-                    aria-label="Reset zoom"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleZoomIn}
-                    disabled={zoom >= MAX_ZOOM}
-                    className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
-                    aria-label="Zoom in"
-                  >
-                    +
-                  </button>
-                </div>
+              <div className="flex items-center gap-2 rounded-[12px] bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-900 shadow-sm">
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span>{viewersWatching} travelers are viewing this map right now</span>
               </div>
             )}
           </div>
