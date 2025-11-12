@@ -62,6 +62,9 @@ const formatSqft = (value?: number | null) => {
   if (value == null) return null;
   return `${value.toLocaleString()} sqft`;
 };
+
+const extractLerDigits = (value: string) => value.replace(/\D/g, '').slice(0, 8);
+const lerCodeFromDigits = (digits: string) => (digits ? `LER-${digits}` : null);
 const detectTouchEnvironment = () => {
   if (typeof window === 'undefined') return false;
   const hasTouchStart = 'ontouchstart' in window;
@@ -89,6 +92,10 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const [agentViewers, setAgentViewers] = useState(MIN_AGENT_VIEWERS);
   const [showLerForm, setShowLerForm] = useState(false);
   const [lerDigits, setLerDigits] = useState('');
+  const [lerWarningVisible, setLerWarningVisible] = useState(false);
+  const [lerVerifyStatus, setLerVerifyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [lerVerifyError, setLerVerifyError] = useState<string | null>(null);
+  const [lerVerifiedCode, setLerVerifiedCode] = useState<string | null>(null);
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -187,6 +194,10 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     setError(null);
     setShowLerForm(false);
     setLerDigits('');
+    setLerWarningVisible(false);
+    setLerVerifyStatus('idle');
+    setLerVerifyError(null);
+    setLerVerifiedCode(null);
     const q = catalogueId ? `?catalogueId=${catalogueId}` : '';
     fetch(`/api/damac/map${q}`)
       .then((r) => {
@@ -274,8 +285,40 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     });
   }, [allocations, searchTerm, unitTypeFilter, brTypeFilter]);
   const handleLerDigitsChange = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 8);
+    const digits = extractLerDigits(value);
     setLerDigits(digits);
+    setLerVerifyError(null);
+    setLerVerifyStatus('idle');
+    setLerVerifiedCode(null);
+  };
+
+  const handleVerifyLer = async () => {
+    if (!lerInputValid || lerVerifyStatus === 'loading') return;
+    if (!lerWarningVisible) {
+      setLerWarningVisible(true);
+      return;
+    }
+    setLerVerifyError(null);
+    setLerVerifyStatus('loading');
+    try {
+      const res = await fetch('/api/damac/ler/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ler: lerCodeFromDigits(lerDigits) }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) {
+        setLerVerifyStatus('error');
+        setLerVerifyError(json?.message || 'This LER is already in use.');
+        return;
+      }
+      setLerVerifyStatus('success');
+      setLerWarningVisible(false);
+      setLerVerifiedCode(lerCodeFromDigits(lerDigits));
+    } catch (error) {
+      setLerVerifyStatus('error');
+      setLerVerifyError('Unable to verify LER right now. Please try again.');
+    }
   };
 
   const availableCount = useMemo(
@@ -878,8 +921,8 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                           <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
                             LER Reference
                           </label>
-                          <div className="mt-1 flex items-center rounded-full border border-[#d1b7fb]/80 bg-white pr-3 text-sm font-semibold text-[var(--color-outer-space)] shadow-sm">
-                            <span className="pl-4 pr-2 text-[var(--color-electric-purple)] text-base">LER-</span>
+                          <div className="mt-1 flex items-center rounded-full border border-[#d1b7fb]/80 bg-white pr-3 text-base font-semibold text-[var(--color-outer-space)] shadow-sm">
+                            <span className="pl-4 pr-2 text-[var(--color-electric-purple)]">LER-</span>
                             <input
                               type="text"
                               inputMode="numeric"
@@ -894,13 +937,44 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                             Numbers only. Example: LER-12345
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          disabled={!lerInputValid}
-                          className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Confirm LER
-                        </button>
+                        {lerWarningVisible && lerVerifyStatus !== 'success' && (
+                          <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                            Submitting an invalid LER will forfeit the token and no refund will be issued. Continue only if you are sure.
+                          </div>
+                        )}
+                        {lerVerifyError && (
+                          <div className="rounded-[14px] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                            {lerVerifyError}
+                          </div>
+                        )}
+                        {lerVerifyStatus === 'success' && lerVerifiedCode ? (
+                          <div className="space-y-2 rounded-[16px] border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-[11px] text-emerald-800">
+                            <div className="font-semibold">LER verified</div>
+                            <p className="text-[10px]">This reference ({lerVerifiedCode}) is valid. Continue to finalize the redemption.</p>
+                            <button
+                              type="button"
+                              className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
+                              onClick={() => {
+                                setShowLerForm(false);
+                              }}
+                            >
+                              Continue
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!lerInputValid || lerVerifyStatus === 'loading'}
+                            onClick={handleVerifyLer}
+                            className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {lerWarningVisible
+                              ? lerVerifyStatus === 'loading'
+                                ? 'Verifying...'
+                                : 'Yes, verify LER'
+                              : 'Confirm LER'}
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <button
@@ -1042,13 +1116,44 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                       Numbers only. Example: LER-12345
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    disabled={!lerInputValid}
-                    className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Confirm LER
-                  </button>
+                  {lerWarningVisible && lerVerifyStatus !== 'success' && (
+                    <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                      Submitting an invalid LER will forfeit the token and no refund will be issued. Continue only if you are sure.
+                    </div>
+                  )}
+                  {lerVerifyError && (
+                    <div className="rounded-[14px] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                      {lerVerifyError}
+                    </div>
+                  )}
+                  {lerVerifyStatus === 'success' && lerVerifiedCode ? (
+                    <div className="space-y-2 rounded-[16px] border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-[11px] text-emerald-800">
+                      <div className="font-semibold">LER verified</div>
+                      <p className="text-[10px]">This reference ({lerVerifiedCode}) is valid. Continue to finalize the redemption.</p>
+                      <button
+                        type="button"
+                        className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95"
+                        onClick={() => {
+                          setShowLerForm(false);
+                        }}
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!lerInputValid || lerVerifyStatus === 'loading'}
+                      onClick={handleVerifyLer}
+                      className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {lerWarningVisible
+                        ? lerVerifyStatus === 'loading'
+                          ? 'Verifying...'
+                          : 'Yes, verify LER'
+                        : 'Confirm LER'}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
