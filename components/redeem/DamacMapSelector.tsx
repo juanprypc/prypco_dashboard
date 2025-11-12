@@ -87,6 +87,8 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isDesktopView, setIsDesktopView] = useState(false);
   const [agentViewers, setAgentViewers] = useState(MIN_AGENT_VIEWERS);
+  const [showLerForm, setShowLerForm] = useState(false);
+  const [lerDigits, setLerDigits] = useState('');
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -183,6 +185,8 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setShowLerForm(false);
+    setLerDigits('');
     const q = catalogueId ? `?catalogueId=${catalogueId}` : '';
     fetch(`/api/damac/map${q}`)
       .then((r) => {
@@ -269,6 +273,10 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       return matchesSearch && matchesUnitType && matchesPrototype;
     });
   }, [allocations, searchTerm, unitTypeFilter, brTypeFilter]);
+  const handleLerDigitsChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+    setLerDigits(digits);
+  };
 
   const availableCount = useMemo(
     () => filteredAllocations.filter((a) => a.availability === 'available').length,
@@ -282,6 +290,12 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const selectedPriceFull = selectedAllocation ? formatPriceAedFull(selectedAllocation.priceAed) : null;
   const selectedPlotArea = selectedAllocation ? formatSqft(selectedAllocation.plotAreaSqft) : null;
   const selectedSaleableArea = selectedAllocation ? formatSqft(selectedAllocation.saleableAreaSqft) : null;
+  useEffect(() => {
+    setShowLerForm(false);
+    setLerDigits('');
+  }, [selectedAllocation]);
+
+  const lerInputValid = lerDigits.length >= 4;
 
   const effectiveContainerWidth = containerSize.width || DEFAULT_BASE_WIDTH;
   const effectiveContainerHeight = containerSize.height || DEFAULT_CONTAINER_HEIGHT;
@@ -850,12 +864,53 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                     </div>
                   </div>
 
-                    <button
-                      type="button"
-                      className="mt-5 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
-                    >
-                      Proceed to Payment
-                    </button>
+                    {showLerForm ? (
+                      <div className="mt-5 space-y-3 rounded-[20px] border border-[#d1b7fb]/60 bg-[var(--color-panel)]/60 p-4">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/80">Input L.E.R number</p>
+                          <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-[var(--color-outer-space)]/70">
+                            <li>EOI must be paid fully in Damac360.</li>
+                            <li>Token must match the typology specification.</li>
+                            <li>Each LER can be used for only one token.</li>
+                          </ol>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
+                            LER Reference
+                          </label>
+                          <div className="mt-1 flex items-center rounded-full border border-[#d1b7fb]/80 bg-white pr-3 text-sm font-semibold text-[var(--color-outer-space)] shadow-sm">
+                            <span className="pl-4 pr-2 text-[var(--color-electric-purple)]">LER-</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={lerDigits}
+                              onChange={(e) => handleLerDigitsChange(e.target.value)}
+                              placeholder="00000"
+                              className="flex-1 rounded-full border-0 bg-transparent py-2 text-sm text-[var(--color-outer-space)] outline-none placeholder:text-[var(--color-outer-space)]/40"
+                            />
+                          </div>
+                          <p className="mt-1 text-[10px] text-[var(--color-outer-space)]/50">
+                            Numbers only. Example: LER-12345
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!lerInputValid}
+                          className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Confirm LER
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="mt-5 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
+                        onClick={() => setShowLerForm(true)}
+                      >
+                        Proceed to Payment
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -957,9 +1012,53 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 </div>
               )}
 
-              <button type="button" className="mt-6 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95">
-                Proceed to Payment
-              </button>
+              {showLerForm ? (
+                <div className="mt-6 space-y-3 rounded-[24px] border border-[#d1b7fb]/60 bg-[var(--color-panel)]/60 p-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/80">Input L.E.R number</p>
+                    <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-[var(--color-outer-space)]/70">
+                      <li>EOI must be paid fully in Damac360.</li>
+                      <li>Token must match the typology specification.</li>
+                      <li>Each LER can be used only once.</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
+                      LER Reference
+                    </label>
+                    <div className="mt-1 flex items-center rounded-full border border-[#d1b7fb]/80 bg-white pr-3 text-sm font-semibold text-[var(--color-outer-space)] shadow-sm">
+                      <span className="pl-4 pr-2 text-[var(--color-electric-purple)]">LER-</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={lerDigits}
+                        onChange={(e) => handleLerDigitsChange(e.target.value)}
+                        placeholder="00000"
+                        className="flex-1 rounded-full border-0 bg-transparent py-2 text-sm text-[var(--color-outer-space)] outline-none placeholder:text-[var(--color-outer-space)]/40"
+                      />
+                    </div>
+                    <p className="mt-1 text-[10px] text-[var(--color-outer-space)]/50">
+                      Numbers only. Example: LER-12345
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!lerInputValid}
+                    className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Confirm LER
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="mt-6 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95"
+                  onClick={() => setShowLerForm(true)}
+                >
+                  Proceed to Payment
+                </button>
+              )}
             </div>
           </div>
         )}
