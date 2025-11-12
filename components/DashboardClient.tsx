@@ -440,7 +440,7 @@ export function DashboardClient({
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
-      if (item.status) {
+      if (!item.damacIslandCampaign && item.status) {
         const statusConfig = getCatalogueStatusConfig(item.status);
         if (statusConfig.redeemDisabled) {
           if (item.status === 'coming_soon') {

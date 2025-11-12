@@ -62,7 +62,10 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
         const imageUrl = item.imageUrl;
         const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;
         const isComingSoon = item.status === 'coming_soon';
-        const disableButton = !onRedeem || (!!statusConfig?.redeemDisabled && !isComingSoon);
+        const damacCampaign = item.damacIslandCampaign === true;
+        const disableButton =
+          !onRedeem || (!!statusConfig?.redeemDisabled && !damacCampaign && !isComingSoon);
+        const buttonLabel = damacCampaign ? 'View availability' : isComingSoon ? 'Join waitlist' : 'Redeem';
         const imageClassName =
           item.unitAllocations.length > 0
             ? 'object-cover scale-110 sm:scale-100 sm:object-contain'
@@ -130,7 +133,7 @@ export function CatalogueGrid({ items, onRedeem, onImageError }: Props) {
                 disabled={disableButton}
                 className={`mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-[18px] border text-[11px] font-medium transition sm:mt-8 sm:h-[50px] sm:rounded-[24px] sm:border-2 sm:text-[16px] ${disableButton ? 'cursor-not-allowed border-[var(--color-outer-space)]/30 text-[var(--color-outer-space)]/40 bg-white/80' : 'cursor-pointer border-[var(--color-outer-space)] bg-white/80 text-[var(--color-outer-space)] hover:border-[var(--color-electric-purple)] hover:bg-[var(--color-electric-purple)] hover:text-white'}`}
               >
-                {isComingSoon ? 'Join waitlist' : 'Redeem'}
+                {buttonLabel}
               </button>
             </div>
           </div>
