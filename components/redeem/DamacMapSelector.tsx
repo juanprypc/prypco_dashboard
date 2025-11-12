@@ -239,6 +239,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     : isTouchDevice
       ? 'Double-tap or pinch to zoom • Drag to pan'
       : 'Use +/– buttons to zoom • Scroll to pan';
+  const interactiveMapHeights = 'h-[500px] sm:h-[600px]';
 
   const computeBaseDims = useCallback(() => {
     const width = Math.max(containerSizeRef.current.width || DEFAULT_BASE_WIDTH, DEFAULT_BASE_WIDTH);
@@ -649,7 +650,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
           ) : (
             <div
               ref={containerRef}
-              className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]"
+              className={`relative w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 ${interactiveMapHeights}`}
               style={{
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-x pan-y',
