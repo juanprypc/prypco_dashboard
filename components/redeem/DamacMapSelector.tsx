@@ -50,16 +50,16 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const [filterType, setFilterType] = useState<string>('all');
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
-  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(() => detectTouchEnvironment());
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const media = window.matchMedia('(pointer: coarse)');
     const update = () => setIsTouchDevice(detectTouchEnvironment());
     update();
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(pointer: coarse)');
     if (typeof media.addEventListener === 'function') {
       media.addEventListener('change', update);
       return () => media.removeEventListener('change', update);
