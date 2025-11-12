@@ -29,6 +29,15 @@ const DEFAULT_CONTAINER_HEIGHT = 500;
 
 type Point = { x: number; y: number };
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const detectTouchEnvironment = () => {
+  if (typeof window === 'undefined') return false;
+  const hasTouchStart = 'ontouchstart' in window;
+  const hasTouchPoints = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+  const isCoarsePointer = typeof window.matchMedia === 'function'
+    ? window.matchMedia('(pointer: coarse)').matches
+    : false;
+  return hasTouchStart || hasTouchPoints || isCoarsePointer;
+};
 
 type GlobalWithListeners = typeof globalThis & {
   addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
@@ -41,9 +50,26 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const [filterType, setFilterType] = useState<string>('all');
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
+  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(() => detectTouchEnvironment());
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(pointer: coarse)');
+    const update = () => setIsTouchDevice(detectTouchEnvironment());
+    update();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+    if (typeof media.addListener === 'function') {
+      media.addListener(update);
+      return () => media.removeListener(update);
+    }
+    return;
+  }, []);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +212,14 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const canPanVertically = scaledHeight > effectiveContainerHeight + 1;
   const canPan = canPanHorizontally || canPanVertically;
   const showGrabCursor = canPan && zoom > 1;
-  const containerCursor = showGrabCursor ? (isDragging ? 'grabbing' : 'grab') : zoom >= MAX_ZOOM ? 'zoom-out' : 'zoom-in';
+  const containerCursor = showGrabCursor
+    ? (isDragging ? 'grabbing' : 'grab')
+    : isTouchDevice
+      ? (zoom >= MAX_ZOOM ? 'zoom-out' : 'zoom-in')
+      : 'auto';
+  const interactionHint = isTouchDevice
+    ? 'Double-tap or pinch to zoom • Drag to pan'
+    : 'Use +/– buttons to zoom • Scroll to pan';
 
   const computeBaseDims = useCallback(() => {
     const width = Math.max(containerSizeRef.current.width || DEFAULT_BASE_WIDTH, DEFAULT_BASE_WIDTH);
@@ -256,6 +289,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   };
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isTouchDevice) return;
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
@@ -264,6 +298,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   };
 
   const handleContainerDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isTouchDevice) return;
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
@@ -271,7 +306,8 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     applyZoomDiscrete((prev) => (prev >= MAX_ZOOM ? 1 : Math.min(MAX_ZOOM, prev + 1.5)), { x: e.clientX, y: e.clientY });
   };
 
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (!isTouchDevice) return;
     if (!containerRef.current) return;
     if (e.ctrlKey) {
       e.preventDefault();
@@ -283,7 +319,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       const targetZoom = clamp(zoomRef.current * scale, MIN_ZOOM, MAX_ZOOM);
       applyZoomContinuousAt(targetZoom, px, py);
     }
-  };
+  }, [applyZoomContinuousAt, isTouchDevice]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.pointerType !== 'mouse' && e.pointerType !== 'pen') || e.button !== 0 || !canPan) return;
@@ -346,6 +382,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   };
 
   useEffect(() => {
+    if (!isTouchDevice) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -428,7 +465,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [applyZoomContinuousAt, setZoomAtPoint]);
+  }, [applyZoomContinuousAt, setZoomAtPoint, isTouchDevice]);
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row">
@@ -536,9 +573,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex-1">
               <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
-              <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">
-                {zoom < MAX_ZOOM ? 'Click/tap to zoom • Pinch or scroll to pan' : 'Click/tap to reset zoom'}
-              </p>
+              <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">{interactionHint}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="hidden text-xs text-[var(--color-outer-space)]/60 sm:inline">{Math.round(zoom * 100)}%</span>
@@ -666,7 +701,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
           </div>
 
           <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
-            <p className="text-[10px] text-[var(--color-outer-space)]/50">Double-tap or pinch to zoom • Drag to pan</p>
+            <p className="text-[10px] text-[var(--color-outer-space)]/50">{interactionHint}</p>
             <a href={MAP_IMAGE_ORIGINAL} download="Bahamas-Cluster-Map.jpg" className="text-[10px] text-[var(--color-electric-purple)] hover:underline">
               Download map
             </a>
