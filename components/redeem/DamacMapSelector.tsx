@@ -776,11 +776,11 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 <span>Bahamas - 01</span>
                 <span className="text-[var(--color-outer-space)]/80 tracking-[0.08em]">Prototype</span>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="mt-2 space-y-2">
                 {PROTOTYPE_LEGEND.map(({ code, color, br }) => (
-                  <div key={code} className="flex items-center justify-between gap-1.5 rounded-[8px] border border-[#d1b7fb]/40 bg-white px-1.5 py-1">
+                  <div key={code} className="flex items-center justify-between gap-2 rounded-[8px] border border-[#d1b7fb]/40 bg-white px-2 py-1.5">
                     <span className="text-[10px] font-semibold">{code}</span>
-                    <span className="h-3.5 w-9 rounded-[3px]" style={{ backgroundColor: color }} />
+                    <span className="h-4 w-10 rounded-[3px]" style={{ backgroundColor: color }} />
                     <span className="text-[10px] font-semibold">{br}</span>
                   </div>
                 ))}
