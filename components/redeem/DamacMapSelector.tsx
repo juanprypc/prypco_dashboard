@@ -834,22 +834,20 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                         <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
                       </div>
                     )}
-                    {(selectedPlotArea || selectedSaleableArea) && (
-                      <>
-                        {selectedPlotArea && (
-                          <div>
-                            <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Plot Area</p>
-                            <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedPlotArea}</p>
-                          </div>
-                        )}
-                        {selectedSaleableArea && (
-                          <div>
-                            <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Saleable Area</p>
-                            <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedSaleableArea}</p>
-                          </div>
-                        )}
-                      </>
-                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Plot Area (sqft)</p>
+                        <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">
+                          {selectedPlotArea ?? '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Saleable Area (sqft)</p>
+                        <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">
+                          {selectedSaleableArea ?? '—'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                     <button
@@ -937,22 +935,20 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 </div>
               </div>
 
-              {(selectedPlotArea || selectedSaleableArea) && (
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  {selectedPlotArea && (
-                    <div>
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Plot Area</p>
-                      <p className="mt-1.5 text-base font-semibold text-[var(--color-outer-space)]">{selectedPlotArea}</p>
-                    </div>
-                  )}
-                  {selectedSaleableArea && (
-                    <div>
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Saleable Area</p>
-                      <p className="mt-1.5 text-base font-semibold text-[var(--color-outer-space)]">{selectedSaleableArea}</p>
-                    </div>
-                  )}
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Plot Area (sqft)</p>
+                  <p className="mt-1.5 text-base font-semibold text-[var(--color-outer-space)]">
+                    {selectedPlotArea ?? '—'}
+                  </p>
                 </div>
-              )}
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Saleable Area (sqft)</p>
+                  <p className="mt-1.5 text-base font-semibold text-[var(--color-outer-space)]">
+                    {selectedSaleableArea ?? '—'}
+                  </p>
+                </div>
+              </div>
 
               {selectedAllocation.unitType && (
                 <div className="mt-4">
