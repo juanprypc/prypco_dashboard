@@ -24,7 +24,6 @@ import {
   DamacMapSelector,
 } from './redeem';
 import type { AllocationWithStatus } from './redeem';
-import type { AllocationWithStatus } from './redeem';
 
 type Props = {
   agentId?: string;
