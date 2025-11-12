@@ -250,25 +250,37 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
 
   const applyZoomDiscrete = useCallback((getNext: (prev: number) => number, focusClientPoint?: Point) => {
     const container = containerRef.current;
-    if (!container) {
-      setZoom((prev) => clamp(getNext(prev), MIN_ZOOM, MAX_ZOOM));
-      return;
-    }
-    const rect = container.getBoundingClientRect();
-    const px = focusClientPoint ? focusClientPoint.x - rect.left - container.clientLeft : container.clientWidth / 2;
-    const py = focusClientPoint ? focusClientPoint.y - rect.top - container.clientTop : container.clientHeight / 2;
+    const shouldRecenter = isTouchDevice && container;
+    const rect = shouldRecenter ? container.getBoundingClientRect() : null;
+    const px = shouldRecenter && rect
+      ? (focusClientPoint ? focusClientPoint.x - rect.left - container!.clientLeft : container!.clientWidth / 2)
+      : 0;
+    const py = shouldRecenter && rect
+      ? (focusClientPoint ? focusClientPoint.y - rect.top - container!.clientTop : container!.clientHeight / 2)
+      : 0;
 
     setZoom((prevZoom) => {
       const nextZoom = clamp(getNext(prevZoom), MIN_ZOOM, MAX_ZOOM);
       if (Math.abs(nextZoom - prevZoom) < 0.0001) return prevZoom;
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setZoomAtPoint(px, py, prevZoom, nextZoom));
-      });
+      if (shouldRecenter) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => setZoomAtPoint(px, py, prevZoom, nextZoom));
+        });
+      } else {
+        const c = containerRef.current;
+        if (c) {
+          const { width, height } = computeBaseDims();
+          const maxScrollLeft = Math.max(0, width * nextZoom - c.clientWidth);
+          const maxScrollTop = Math.max(0, height * nextZoom - c.clientHeight);
+          c.scrollLeft = clamp(c.scrollLeft, 0, maxScrollLeft);
+          c.scrollTop = clamp(c.scrollTop, 0, maxScrollTop);
+        }
+      }
 
       return nextZoom;
     });
-  }, [setZoomAtPoint]);
+  }, [computeBaseDims, isTouchDevice, setZoomAtPoint]);
 
   const applyZoomContinuousAt = useCallback((targetZoom: number, px: number, py: number) => {
     const container = containerRef.current;
