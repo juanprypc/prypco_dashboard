@@ -745,17 +745,17 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 </div>
               )}
             </div>
-            <div className="mt-3 rounded-[16px] border border-[#d1b7fb]/60 bg-white/95 p-3 text-[11px] text-[var(--color-outer-space)] shadow-sm sm:p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#c00]">
+            <div className="mt-3 rounded-[14px] border border-[#d1b7fb]/60 bg-white/95 p-3 text-[10px] text-[var(--color-outer-space)] shadow-sm sm:p-3.5">
+              <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[0.2em] text-[#c00]">
                 <span>Bahamas - 01</span>
                 <span className="text-[var(--color-outer-space)]/80 tracking-[0.08em]">Prototype</span>
               </div>
-              <div className="mt-3 grid grid-cols-1 gap-2">
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 {PROTOTYPE_LEGEND.map(({ code, color, br }) => (
-                  <div key={code} className="flex items-center justify-between gap-2 rounded-[10px] border border-[#d1b7fb]/50 bg-white px-2 py-1.5">
-                    <span className="text-[11px] font-semibold">{code}</span>
-                    <span className="h-4 w-10 rounded-[4px]" style={{ backgroundColor: color }} />
-                    <span className="text-[11px] font-semibold">{br}</span>
+                  <div key={code} className="flex items-center justify-between gap-1.5 rounded-[8px] border border-[#d1b7fb]/40 bg-white px-1.5 py-1">
+                    <span className="text-[10px] font-semibold">{code}</span>
+                    <span className="h-3.5 w-9 rounded-[3px]" style={{ backgroundColor: color }} />
+                    <span className="text-[10px] font-semibold">{br}</span>
                   </div>
                 ))}
               </div>
