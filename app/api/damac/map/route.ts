@@ -5,6 +5,7 @@ type AllocationWithAvailability = {
   id: string;
   points: number | null;
   unitType: string | null;
+  priceAed: number | null;
   availability: 'available' | 'booked';
   damacIslandcode: string | null;
   brType: string | null;
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
         id: allocation.id,
         points: allocation.points,
         unitType: allocation.unitType,
+        priceAed: allocation.priceAed ?? null,
         availability: isAvailable ? 'available' : 'booked',
         damacIslandcode: allocation.damacIslandcode,
         brType: allocation.brType,

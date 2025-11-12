@@ -7,6 +7,7 @@ type AllocationWithStatus = {
   id: string;
   points?: number;
   unitType?: string;
+  priceAed?: number;
   availability: 'available' | 'booked';
   damacIslandcode?: string;
   brType?: string;
@@ -40,6 +41,20 @@ const VIEWER_STORAGE_KEY = 'damac-agent-viewer-count';
 
 type Point = { x: number; y: number };
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const formatPriceAedCompact = (value?: number | null) => {
+  if (value == null) return null;
+  if (value >= 1000) {
+    const thousands = value / 1000;
+    const formatted = Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1);
+    return `${formatted}k AED`;
+  }
+  return `${value} AED`;
+};
+
+const formatPriceAedFull = (value?: number | null) => {
+  if (value == null) return null;
+  return `AED ${value.toLocaleString()}`;
+};
 const detectTouchEnvironment = () => {
   if (typeof window === 'undefined') return false;
   const hasTouchStart = 'ontouchstart' in window;
@@ -257,6 +272,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     () => allocations.find((a) => a.id === selectedAllocationId) || null,
     [allocations, selectedAllocationId]
   );
+  const selectedPriceFull = selectedAllocation ? formatPriceAedFull(selectedAllocation.priceAed) : null;
 
   const effectiveContainerWidth = containerSize.width || DEFAULT_BASE_WIDTH;
   const effectiveContainerHeight = containerSize.height || DEFAULT_CONTAINER_HEIGHT;
@@ -587,6 +603,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             filteredAllocations.map((allocation) => {
               const disabled = allocation.availability !== 'available';
               const selected = allocation.id === selectedAllocationId;
+              const compactPrice = formatPriceAedCompact(allocation.priceAed);
               return (
                 <button
                   key={allocation.id}
@@ -626,6 +643,12 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                         <>
                           <span>•</span>
                           <span>{allocation.brType}</span>
+                        </>
+                      )}
+                      {compactPrice && (
+                        <>
+                          <span>•</span>
+                          <span>{compactPrice}</span>
                         </>
                       )}
                     </div>
@@ -782,6 +805,14 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                           {selectedAllocation.points?.toLocaleString() ?? '—'}
                         </p>
                       </div>
+                      {selectedPriceFull && (
+                        <div>
+                          <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Price</p>
+                          <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">
+                            {selectedPriceFull}
+                          </p>
+                        </div>
+                      )}
                       {selectedAllocation.brType && (
                         <div>
                           <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
@@ -856,7 +887,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 </button>
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-4">
+              <div className="mt-5 grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Points</p>
                   <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedAllocation.points?.toLocaleString() ?? '—'}</p>
@@ -865,6 +896,12 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                   <div>
                     <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
                     <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedAllocation.brType}</p>
+                  </div>
+                )}
+                {selectedPriceFull && (
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Price</p>
+                    <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedPriceFull}</p>
                   </div>
                 )}
                 <div>
