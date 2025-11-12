@@ -336,11 +336,6 @@ export function DamacMapSelector({
     setShowLerForm(false);
   }, [lerVerifiedCode, onRequestProceed, selectedAllocation]);
 
-  const availableCount = useMemo(
-    () => filteredAllocations.filter((a) => a.availability === 'available').length,
-    [filteredAllocations]
-  );
-
   const selectedAllocation = useMemo(
     () => allocations.find((a) => a.id === selectedAllocationId) || null,
     [allocations, selectedAllocationId]
@@ -355,6 +350,18 @@ export function DamacMapSelector({
     setShowLerForm(false);
     setLerDigits('');
   }, [selectedAllocation]);
+
+  const handleLerSuccessContinue = useCallback(() => {
+    if (onRequestProceed && selectedAllocation && lerVerifiedCode) {
+      onRequestProceed({ allocation: selectedAllocation, lerCode: lerVerifiedCode });
+    }
+    setShowLerForm(false);
+  }, [lerVerifiedCode, onRequestProceed, selectedAllocation]);
+
+  const availableCount = useMemo(
+    () => filteredAllocations.filter((a) => a.availability === 'available').length,
+    [filteredAllocations]
+  );
 
   const lerInputValid = lerDigits.length >= 4;
 
