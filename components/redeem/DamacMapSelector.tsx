@@ -518,10 +518,10 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] placeholder:text-[var(--color-outer-space)]/40 focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
           />
           <div className="rounded-[16px] border border-[#d1b7fb]/60 bg-[var(--color-panel)]/40 p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
-              Filter by
-            </p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
+              <span>Filter by</span>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
               <select
                 value={unitTypeFilter}
                 onChange={(e) => setUnitTypeFilter(e.target.value as (typeof UNIT_TYPE_FILTER_OPTIONS)[number])}
@@ -776,11 +776,11 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 <span>Bahamas - 01</span>
                 <span className="text-[var(--color-outer-space)]/80 tracking-[0.08em]">Prototype</span>
               </div>
-              <div className="mt-2 space-y-2">
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 {PROTOTYPE_LEGEND.map(({ code, color, br }) => (
-                  <div key={code} className="flex items-center justify-between gap-2 rounded-[8px] border border-[#d1b7fb]/40 bg-white px-2 py-1.5">
+                  <div key={code} className="flex items-center justify-between gap-1.5 rounded-[8px] border border-[#d1b7fb]/40 bg-white px-1.5 py-1">
                     <span className="text-[10px] font-semibold">{code}</span>
-                    <span className="h-4 w-10 rounded-[3px]" style={{ backgroundColor: color }} />
+                    <span className="h-3.5 w-9 rounded-[3px]" style={{ backgroundColor: color }} />
                     <span className="text-[10px] font-semibold">{br}</span>
                   </div>
                 ))}
