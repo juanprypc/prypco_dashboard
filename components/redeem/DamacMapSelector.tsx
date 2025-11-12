@@ -53,7 +53,8 @@ type GlobalWithListeners = typeof globalThis & {
 export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
+  const [unitTypeFilter, setUnitTypeFilter] = useState<(typeof UNIT_TYPE_FILTER_OPTIONS)[number]>('all');
+  const [brTypeFilter, setBrTypeFilter] = useState<(typeof BR_TYPE_FILTER_OPTIONS)[number]>('all');
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
@@ -192,27 +193,31 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     }
   }, []);
 
-  const brTypes = useMemo(() => {
-    const types = new Set(
-      allocations
-        .map((a) => a.brType)
-        .filter((br): br is string => br != null && br.trim() !== '')
-    );
-    return ['all', ...Array.from(types).sort()];
-  }, [allocations]);
-
   const filteredAllocations = useMemo(() => {
     return allocations.filter((allocation) => {
       const q = searchTerm.toLowerCase();
+      const unitTypeValue = allocation.unitType?.toLowerCase() ?? '';
+      const brTypeValue = allocation.brType?.toLowerCase() ?? '';
+      const protoValue = allocation.damacIslandcode?.toLowerCase() ?? '';
+
       const matchesSearch =
         q === '' ||
         allocation.id.toLowerCase().includes(q) ||
-        allocation.damacIslandcode?.toLowerCase().includes(q) ||
-        allocation.brType?.toLowerCase().includes(q);
-      const matchesType = filterType === 'all' || allocation.brType === filterType;
-      return matchesSearch && matchesType;
+        protoValue.includes(q) ||
+        brTypeValue.includes(q) ||
+        unitTypeValue.includes(q);
+
+      const matchesUnitType =
+        unitTypeFilter === 'all' || unitTypeValue === unitTypeFilter.toLowerCase();
+
+      const matchesPrototype =
+        brTypeFilter === 'all' ||
+        protoValue === brTypeFilter.toLowerCase() ||
+        brTypeValue === brTypeFilter.toLowerCase();
+
+      return matchesSearch && matchesUnitType && matchesPrototype;
     });
-  }, [allocations, searchTerm, filterType]);
+  }, [allocations, searchTerm, unitTypeFilter, brTypeFilter]);
 
   const availableCount = useMemo(
     () => filteredAllocations.filter((a) => a.availability === 'available').length,
@@ -510,18 +515,37 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             disabled={loading}
             className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] placeholder:text-[var(--color-outer-space)]/40 focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
           />
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            disabled={loading}
-            className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
-          >
-            {brTypes.map((type) => (
-              <option key={type} value={type}>
-                {type === 'all' ? 'All BR Types' : type}
-              </option>
-            ))}
-          </select>
+          <div className="rounded-[16px] border border-[#d1b7fb]/60 bg-[var(--color-panel)]/40 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
+              Filter by
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <select
+                value={unitTypeFilter}
+                onChange={(e) => setUnitTypeFilter(e.target.value as (typeof UNIT_TYPE_FILTER_OPTIONS)[number])}
+                disabled={loading}
+                className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
+              >
+                {UNIT_TYPE_FILTER_OPTIONS.map(option => (
+                  <option key={option} value={option}>
+                    {option === 'all' ? 'All Unit Types' : option}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={brTypeFilter}
+                onChange={(e) => setBrTypeFilter(e.target.value as (typeof BR_TYPE_FILTER_OPTIONS)[number])}
+                disabled={loading}
+                className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
+              >
+                {BR_TYPE_FILTER_OPTIONS.map(option => (
+                  <option key={option} value={option}>
+                    {option === 'all' ? 'All Prototype Codes' : option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="mt-3 max-h-[400px] space-y-2 overflow-auto pr-2 lg:max-h-[500px]">
