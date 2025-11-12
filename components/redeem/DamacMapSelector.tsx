@@ -8,6 +8,8 @@ type AllocationWithStatus = {
   points?: number;
   unitType?: string;
   priceAed?: number;
+  plotAreaSqft?: number;
+  saleableAreaSqft?: number;
   availability: 'available' | 'booked';
   damacIslandcode?: string;
   brType?: string;
@@ -28,8 +30,8 @@ const DEFAULT_BASE_WIDTH = 800;
 const DEFAULT_ASPECT_RATIO = 560 / 800;
 const DEFAULT_CONTAINER_HEIGHT = 500;
 const PROTOTYPE_LEGEND = [
-  { code: 'DS-V45', color: '#5360d6', br: '6BR' },
-  { code: 'DSTH-E', color: '#f02020', br: '5BR' },
+  { code: 'DS-V45.', color: '#5360d6', br: '6BR' },
+  { code: 'DSTH-E ', color: '#f02020', br: '5BR' },
   { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
   { code: 'DSTH-M1', color: '#00c2d7', br: '4BR' },
 ] as const;
@@ -54,6 +56,11 @@ const formatPriceAedCompact = (value?: number | null) => {
 const formatPriceAedFull = (value?: number | null) => {
   if (value == null) return null;
   return `AED ${value.toLocaleString()}`;
+};
+
+const formatSqft = (value?: number | null) => {
+  if (value == null) return null;
+  return `${value.toLocaleString()} sqft`;
 };
 const detectTouchEnvironment = () => {
   if (typeof window === 'undefined') return false;
@@ -273,6 +280,8 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     [allocations, selectedAllocationId]
   );
   const selectedPriceFull = selectedAllocation ? formatPriceAedFull(selectedAllocation.priceAed) : null;
+  const selectedPlotArea = selectedAllocation ? formatSqft(selectedAllocation.plotAreaSqft) : null;
+  const selectedSaleableArea = selectedAllocation ? formatSqft(selectedAllocation.saleableAreaSqft) : null;
 
   const effectiveContainerWidth = containerSize.width || DEFAULT_BASE_WIDTH;
   const effectiveContainerHeight = containerSize.height || DEFAULT_CONTAINER_HEIGHT;
@@ -819,13 +828,29 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                           <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">{selectedAllocation.brType}</p>
                         </div>
                       )}
-                      {selectedAllocation.unitType && (
-                        <div className="col-span-2">
-                          <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
-                          <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
-                        </div>
-                      )}
-                    </div>
+                    {selectedAllocation.unitType && (
+                      <div className="col-span-2">
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
+                        <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
+                      </div>
+                    )}
+                    {(selectedPlotArea || selectedSaleableArea) && (
+                      <>
+                        {selectedPlotArea && (
+                          <div>
+                            <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Plot Area</p>
+                            <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedPlotArea}</p>
+                          </div>
+                        )}
+                        {selectedSaleableArea && (
+                          <div>
+                            <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Saleable Area</p>
+                            <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedSaleableArea}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
 
                     <button
                       type="button"
@@ -911,6 +936,23 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                   </span>
                 </div>
               </div>
+
+              {(selectedPlotArea || selectedSaleableArea) && (
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  {selectedPlotArea && (
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Plot Area</p>
+                      <p className="mt-1.5 text-base font-semibold text-[var(--color-outer-space)]">{selectedPlotArea}</p>
+                    </div>
+                  )}
+                  {selectedSaleableArea && (
+                    <div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Saleable Area</p>
+                      <p className="mt-1.5 text-base font-semibold text-[var(--color-outer-space)]">{selectedSaleableArea}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedAllocation.unitType && (
                 <div className="mt-4">

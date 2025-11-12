@@ -106,6 +106,8 @@ export type UnitAllocationFields = {
   damacIslandcode?: string;
   'BR Type'?: string;
   remaining_stock?: number;
+  'Plot Area (sqft)'?: number;
+  'Saleable Area (sqft)'?: number;
 };
 
 export type CatalogueUnitAllocation = {
@@ -119,6 +121,8 @@ export type CatalogueUnitAllocation = {
   damacIslandcode: string | null;
   brType: string | null;
   remainingStock: number | null;
+  plotAreaSqft: number | null;
+  saleableAreaSqft: number | null;
 };
 
 export type CatalogueItemWithAllocations = CatalogueItem & {
@@ -183,6 +187,8 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
       damacIslandcode: toMaybeString(fields.damacIslandcode) ?? null,
       brType: toMaybeString(fields['BR Type']) ?? null,
       remainingStock: toMaybeNumber(fields.remaining_stock) ?? null,
+      plotAreaSqft: toMaybeNumber(fields['Plot Area (sqft)']) ?? null,
+      saleableAreaSqft: toMaybeNumber(fields['Saleable Area (sqft)']) ?? null,
     } satisfies CatalogueUnitAllocation;
   });
 }
