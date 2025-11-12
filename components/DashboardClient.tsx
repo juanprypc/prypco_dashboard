@@ -16,7 +16,15 @@ import { BackToAppButton } from './BackToAppButton';
 import LearnMoreGraphic from '@/image_assets/Frame 1.png';
 import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
 import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
-import { BuyerVerificationDialog, RedeemDialog, TermsDialog, UnitAllocationDialog } from './redeem';
+import {
+  BuyerVerificationDialog,
+  RedeemDialog,
+  TermsDialog,
+  UnitAllocationDialog,
+  DamacMapSelector,
+} from './redeem';
+import type { AllocationWithStatus } from './redeem';
+import type { AllocationWithStatus } from './redeem';
 
 type Props = {
   agentId?: string;
@@ -117,6 +125,12 @@ const LEARN_FAQ_ITEMS: Array<{ question: string; answer: ReactNode }> = [
   },
 ];
 
+function normaliseTopupAmount(value: number, minAmount: number): number {
+  if (!Number.isFinite(value) || value <= 0) return minAmount;
+  const multiples = Math.max(1, Math.ceil(value / minAmount));
+  return multiples * minAmount;
+}
+
 function monthKey(dateIso: string): string {
   const d = new Date(dateIso);
   const y = d.getUTCFullYear();
@@ -210,6 +224,7 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
       termsSignature: tcSignature,
       unitAllocations,
       category,
+      damacIslandCampaign: toBoolean(item.fields?.damacIslandCampaign),
     };
   });
 }
@@ -260,6 +275,12 @@ export function DashboardClient({
   const [buyerVerificationDialogItem, setBuyerVerificationDialogItem] = useState<CatalogueDisplayItem | null>(null);
   const [buyerVerificationAllocation, setBuyerVerificationAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [preFilledBuyerDetails, setPreFilledBuyerDetails] = useState<{ firstName: string; phoneLast4: string } | null>(null);
+  const [damacRedeemItem, setDamacRedeemItem] = useState<CatalogueDisplayItem | null>(null);
+  const [damacSelectedAllocationId, setDamacSelectedAllocationId] = useState<string | null>(null);
+  const [damacSelectionDetails, setDamacSelectionDetails] = useState<AllocationWithStatus | null>(null);
+  const [damacFlowStatus, setDamacFlowStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
+  const [damacFlowError, setDamacFlowError] = useState<string | null>(null);
+  const [damacConfirmedLer, setDamacConfirmedLer] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   // Initialize filter from URL or default to 'all'
@@ -348,6 +369,15 @@ export function DashboardClient({
 
   const startRedeemFlow = useCallback(
     (item: CatalogueDisplayItem) => {
+      if (item.damacIslandCampaign) {
+        setDamacRedeemItem(item);
+        setDamacSelectedAllocationId(null);
+        setDamacSelectionDetails(null);
+        setDamacFlowStatus('idle');
+        setDamacFlowError(null);
+        setDamacConfirmedLer(null);
+        return;
+      }
       const allocations = item.unitAllocations;
       setSelectedUnitAllocation(null);
       if (allocations.length > 0) {
@@ -398,6 +428,15 @@ export function DashboardClient({
   const closeBuyerVerificationDialog = useCallback(() => {
     setBuyerVerificationDialogItem(null);
     setBuyerVerificationAllocation(null);
+  }, []);
+
+  const closeDamacFlow = useCallback(() => {
+    setDamacRedeemItem(null);
+    setDamacSelectedAllocationId(null);
+    setDamacSelectionDetails(null);
+    setDamacFlowStatus('idle');
+    setDamacFlowError(null);
+    setDamacConfirmedLer(null);
   }, []);
 
   const handleRequestRedeem = useCallback(
@@ -523,6 +562,30 @@ export function DashboardClient({
     document.execCommand('copy');
     document.body.removeChild(textarea);
   }, []);
+
+  const startStripeCheckout = useCallback(
+    async (amountAED: number) => {
+      if (!agentId && !agentCode) {
+        throw new Error('Missing agent details.');
+      }
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          agentCode,
+          amountAED,
+          baseQuery,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.url) {
+        throw new Error(json?.error || 'Failed to start checkout');
+      }
+      window.location.href = json.url as string;
+    },
+    [agentId, agentCode, baseQuery],
+  );
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://collect.prypco.com';
   const agentReferralLinkTrimmed = agentReferralLinkState?.trim();
@@ -878,6 +941,92 @@ export function DashboardClient({
 
   const topHighlightItems = useMemo(() => metrics.pointsByType.slice(0, 3), [metrics.pointsByType]);
 
+  const handleDamacProceed = useCallback(
+    async ({ allocation, lerCode }: { allocation: AllocationWithStatus; lerCode: string }) => {
+      if (!damacRedeemItem) return;
+      const matchingAllocation =
+        damacRedeemItem.unitAllocations.find((unit) => unit.id === allocation.id) ?? null;
+      if (!matchingAllocation) {
+        setDamacFlowError('Selected unit is no longer available. Please pick another option.');
+        setDamacSelectedAllocationId(null);
+        setDamacSelectionDetails(null);
+        return;
+      }
+
+      const requiredPoints =
+        typeof matchingAllocation.points === 'number'
+          ? matchingAllocation.points
+          : typeof allocation.points === 'number'
+            ? allocation.points
+            : null;
+      if (!requiredPoints || requiredPoints <= 0) {
+        setDamacFlowError('This unit is missing a points value. Please choose another unit.');
+        return;
+      }
+      if (!agentId && !agentCode) {
+        setDamacFlowError('Missing agent identifiers.');
+        return;
+      }
+
+      const availablePoints = metrics.totalPosted;
+      if (availablePoints < requiredPoints) {
+        setDamacFlowError(null);
+        setDamacFlowStatus('submitting');
+        try {
+          const shortfall = requiredPoints - availablePoints;
+          const denominator = pointsPerAed > 0 ? pointsPerAed : 1;
+          const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator), minTopup);
+          await startStripeCheckout(suggestedAed);
+        } catch (error) {
+          const errMessage = error instanceof Error ? error.message : 'Unable to open checkout';
+          setDamacFlowError(errMessage);
+          setDamacFlowStatus('idle');
+        }
+        return;
+      }
+
+      setDamacFlowStatus('submitting');
+      setDamacFlowError(null);
+      try {
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            agentId: agentId ?? null,
+            agentCode: agentCode ?? null,
+            rewardId: damacRedeemItem.id,
+            rewardName: damacRedeemItem.name,
+            rewardPoints: matchingAllocation.points ?? damacRedeemItem.points ?? null,
+            priceAed: matchingAllocation.priceAed ?? damacRedeemItem.priceAED ?? null,
+            unitAllocationId: matchingAllocation.id,
+            unitAllocationLabel: matchingAllocation.unitType ?? allocation.damacIslandcode ?? null,
+            unitAllocationPoints: matchingAllocation.points ?? null,
+            damacLerReference: lerCode,
+          }),
+        });
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json?.error || 'Redemption failed');
+        }
+        setDamacConfirmedLer(lerCode);
+        setDamacFlowStatus('success');
+      } catch (error) {
+        const errMessage = error instanceof Error ? error.message : 'Unable to submit redemption';
+        setDamacFlowError(errMessage);
+        setDamacFlowStatus('idle');
+      }
+    },
+    [
+      agentCode,
+      agentId,
+      damacRedeemItem,
+      metrics.totalPosted,
+      minTopup,
+      pointsPerAed,
+      startStripeCheckout,
+    ],
+  );
+
   const topEarningCards = useMemo<ReactNode[]>(() => {
     if (rows === null) {
       return Array.from({ length: 3 }, (_, i) => (
@@ -926,6 +1075,12 @@ export function DashboardClient({
     const timer = setTimeout(() => setWaitlistMessage(null), 5000);
     return () => clearTimeout(timer);
   }, [waitlistMessage]);
+
+  useEffect(() => {
+    if (damacFlowStatus === 'success') {
+      setForceFreshLoyalty(true);
+    }
+  }, [damacFlowStatus]);
 
 const referralCards: ReactNode[] = [
     <ReferralCard
@@ -1356,6 +1511,84 @@ const referralCards: ReactNode[] = [
             >
               Close
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {damacRedeemItem ? (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-2 py-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-6xl rounded-[32px] border border-[#d1b7fb] bg-white shadow-[0_40px_90px_-45px_rgba(13,9,59,0.65)]">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#d1b7fb]/60 px-6 py-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--color-electric-purple)]">Damac Islands</p>
+                <h3 className="text-2xl font-semibold text-[var(--color-outer-space)]">{damacRedeemItem.name}</h3>
+                <p className="text-sm text-[var(--color-outer-space)]/70">
+                  {damacSelectionDetails
+                    ? `Selected ${damacSelectionDetails.damacIslandcode || damacSelectionDetails.unitType || 'unit'}`
+                    : 'Select a unit to continue'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeDamacFlow}
+                className="rounded-full border border-[var(--color-outer-space)]/20 px-4 py-1.5 text-sm font-medium text-[var(--color-outer-space)]/70 transition hover:border-[var(--color-outer-space)]/60 hover:text-[var(--color-outer-space)]"
+              >
+                Close
+              </button>
+            </div>
+
+            {damacFlowError ? (
+              <div className="mx-6 mt-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {damacFlowError}
+              </div>
+            ) : null}
+
+            <div className="max-h-[80vh] overflow-y-auto px-2 py-4 sm:px-4">
+              <DamacMapSelector
+                catalogueId={damacRedeemItem.id}
+                selectedAllocationId={damacSelectedAllocationId}
+                onSelectAllocation={setDamacSelectedAllocationId}
+                onSelectionChange={setDamacSelectionDetails}
+                onRequestProceed={handleDamacProceed}
+              />
+            </div>
+
+            {damacFlowStatus === 'submitting' ? (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[32px] bg-white/70 text-center text-sm font-semibold text-[var(--color-outer-space)]">
+                Processing your request…
+              </div>
+            ) : null}
+
+            {damacFlowStatus === 'success' ? (
+              <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[32px] bg-white/95 px-6 text-center text-[var(--color-outer-space)]">
+                <div className="space-y-4">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600">
+                    <svg viewBox="0 0 52 52" className="h-8 w-8 text-current" aria-hidden>
+                      <circle cx="26" cy="26" r="23" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.2" />
+                      <path
+                        d="M16 27.5 23.5 34l12.5-15"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <h4 className="text-xl font-semibold">Request received</h4>
+                  <p className="text-sm text-[var(--color-outer-space)]/70">
+                    {damacConfirmedLer ? `LER ${damacConfirmedLer} is now locked.` : 'Your token request has been locked.'} Our team will finalize the allocation shortly.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={closeDamacFlow}
+                    className="rounded-full bg-[var(--color-outer-space)] px-6 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
+                  >
+                    Back to store
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

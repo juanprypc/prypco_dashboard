@@ -22,6 +22,7 @@ export async function POST(request: Request) {
       requiresBuyerVerification?: boolean;
       customerFirstName?: string;
       customerPhoneLast4?: string;
+      damacLerReference?: string | null;
     };
 
     if (!body?.agentId && !body?.agentCode) {
@@ -36,7 +37,13 @@ export async function POST(request: Request) {
       typeof body?.unitAllocationId === 'string' ? body.unitAllocationId.trim() : '';
     const unitAllocationId = rawUnitAllocationId.length > 0 ? rawUnitAllocationId : null;
     const hasUnitAllocation = unitAllocationId !== null;
-    const requiresBuyerVerification = body.requiresBuyerVerification === true || hasUnitAllocation;
+    const damacLerReference =
+      typeof body?.damacLerReference === 'string' && body.damacLerReference.trim()
+        ? body.damacLerReference.trim()
+        : null;
+    const skipBuyerVerification = !!damacLerReference;
+    const requiresBuyerVerification =
+      skipBuyerVerification ? false : body.requiresBuyerVerification === true || hasUnitAllocation;
     const customerFirstName = typeof body?.customerFirstName === 'string' ? body.customerFirstName.trim() : '';
     const customerPhoneLast4 = typeof body?.customerPhoneLast4 === 'string' ? body.customerPhoneLast4.trim() : '';
     const phoneProvided = customerPhoneLast4.length > 0;
@@ -68,6 +75,7 @@ export async function POST(request: Request) {
           : null,
       customerFirstName: customerFirstName || null,
       customerPhoneLast4: phoneLooksValid ? customerPhoneLast4 || null : null,
+      damacLerReference,
       requestedAt: new Date().toISOString(),
     };
 

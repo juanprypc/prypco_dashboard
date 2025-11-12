@@ -3,7 +3,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-type AllocationWithStatus = {
+export type AllocationWithStatus = {
   id: string;
   points?: number;
   unitType?: string;
@@ -19,6 +19,8 @@ type DamacMapSelectorProps = {
   catalogueId: string;
   selectedAllocationId: string | null;
   onSelectAllocation: (id: string | null) => void;
+  onSelectionChange?: (allocation: AllocationWithStatus | null) => void;
+  onRequestProceed?: (payload: { allocation: AllocationWithStatus; lerCode: string }) => void;
 };
 
 const MAP_IMAGE = '/images/bahamas-version1.jpg';
@@ -80,7 +82,13 @@ type GlobalWithListeners = typeof globalThis & {
   removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
 };
 
-export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAllocation }: DamacMapSelectorProps) {
+export function DamacMapSelector({
+  catalogueId,
+  selectedAllocationId,
+  onSelectAllocation,
+  onSelectionChange,
+  onRequestProceed,
+}: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [unitTypeFilter, setUnitTypeFilter] = useState<(typeof UNIT_TYPE_FILTER_OPTIONS)[number]>('all');
@@ -315,11 +323,18 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
       setLerVerifyStatus('success');
       setLerWarningVisible(false);
       setLerVerifiedCode(lerCodeFromDigits(lerDigits));
-    } catch (error) {
+    } catch {
       setLerVerifyStatus('error');
       setLerVerifyError('Unable to verify LER right now. Please try again.');
     }
   };
+
+  const handleLerSuccessContinue = useCallback(() => {
+    if (onRequestProceed && selectedAllocation && lerVerifiedCode) {
+      onRequestProceed({ allocation: selectedAllocation, lerCode: lerVerifiedCode });
+    }
+    setShowLerForm(false);
+  }, [lerVerifiedCode, onRequestProceed, selectedAllocation]);
 
   const availableCount = useMemo(
     () => filteredAllocations.filter((a) => a.availability === 'available').length,
@@ -330,6 +345,9 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     () => allocations.find((a) => a.id === selectedAllocationId) || null,
     [allocations, selectedAllocationId]
   );
+  useEffect(() => {
+    onSelectionChange?.(selectedAllocation);
+  }, [onSelectionChange, selectedAllocation]);
   const selectedPriceFull = selectedAllocation ? formatPriceAedFull(selectedAllocation.priceAed) : null;
   const selectedPlotArea = selectedAllocation ? formatSqft(selectedAllocation.plotAreaSqft) : null;
   const selectedSaleableArea = selectedAllocation ? formatSqft(selectedAllocation.saleableAreaSqft) : null;
@@ -1130,15 +1148,13 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                     <div className="space-y-2 rounded-[16px] border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-[11px] text-emerald-800">
                       <div className="font-semibold">LER verified</div>
                       <p className="text-[10px]">This reference ({lerVerifiedCode}) is valid. Continue to finalize the redemption.</p>
-                      <button
-                        type="button"
-                        className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95"
-                        onClick={() => {
-                          setShowLerForm(false);
-                        }}
-                      >
-                        Continue
-                      </button>
+                            <button
+                              type="button"
+                              className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95"
+                              onClick={handleLerSuccessContinue}
+                            >
+                              Continue
+                            </button>
                     </div>
                   ) : (
                     <button

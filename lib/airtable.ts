@@ -88,6 +88,7 @@ export type CatalogueFields = {
   description?: string;
   is_active?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   requiresBuyerVerification?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
+  damacIslandCampaign?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   'T&C'?: string;
   'T&C_active'?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   'T&C_version'?: string;

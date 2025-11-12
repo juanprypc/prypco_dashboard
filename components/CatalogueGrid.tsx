@@ -32,6 +32,7 @@ export type CatalogueDisplayItem = {
 
   unitAllocations: CatalogueUnitAllocation[];
   category?: 'token' | 'reward';
+  damacIslandCampaign?: boolean;
 };
 
 type Props = {
