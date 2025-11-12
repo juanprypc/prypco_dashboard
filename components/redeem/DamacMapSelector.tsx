@@ -34,6 +34,9 @@ const PROTOTYPE_LEGEND = [
 ] as const;
 const UNIT_TYPE_FILTER_OPTIONS = ['all', '4 BR', '5 BR', '6 BR'] as const;
 const BR_TYPE_FILTER_OPTIONS = ['all', 'DS-V45', 'DSTH-E', 'DSTH-M2', 'DSTH-M1'] as const;
+const MIN_AGENT_VIEWERS = 28;
+const MAX_AGENT_VIEWERS = 64;
+const VIEWER_STORAGE_KEY = 'damac-agent-viewer-count';
 
 type Point = { x: number; y: number };
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -61,7 +64,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const zoomRef = useRef(1);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isDesktopView, setIsDesktopView] = useState(false);
-  const viewersWatching = useMemo(() => Math.max(1, Math.floor(Math.random() * 100)), []);
+  const [agentViewers, setAgentViewers] = useState(MIN_AGENT_VIEWERS);
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -667,7 +670,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             {!isDesktopView && (
               <div className="flex items-center gap-2 rounded-[12px] bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-900 shadow-sm">
                 <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                <span>{viewersWatching} travelers are viewing this map right now</span>
+                <span>{agentViewers} agents are reviewing these units right now</span>
               </div>
             )}
           </div>
@@ -866,3 +869,25 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     </div>
   );
 }
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem(VIEWER_STORAGE_KEY);
+    if (stored) {
+      setAgentViewers(Number(stored));
+    } else {
+      const seed = Math.floor(Math.random() * (MAX_AGENT_VIEWERS - MIN_AGENT_VIEWERS + 1)) + MIN_AGENT_VIEWERS;
+      sessionStorage.setItem(VIEWER_STORAGE_KEY, String(seed));
+      setAgentViewers(seed);
+    }
+
+    const interval = window.setInterval(() => {
+      setAgentViewers(prev => {
+        const drift = Math.random() < 0.5 ? -1 : 1;
+        const next = clamp(prev + drift, MIN_AGENT_VIEWERS, MAX_AGENT_VIEWERS);
+        sessionStorage.setItem(VIEWER_STORAGE_KEY, String(next));
+        return next;
+      });
+    }, 120000);
+
+    return () => clearInterval(interval);
+  }, []);
