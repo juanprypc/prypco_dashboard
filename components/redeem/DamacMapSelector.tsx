@@ -581,7 +581,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             disabled={loading}
-            className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-sm text-[var(--color-outer-space)] placeholder:text-[var(--color-outer-space)]/40 focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
+            className="w-full rounded-[12px] border border-[#d1b7fb]/60 bg-white px-3 py-2 text-base text-[var(--color-outer-space)] placeholder:text-[var(--color-outer-space)]/40 focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 disabled:opacity-50"
           />
           <div className="rounded-[16px] border border-[#d1b7fb]/60 bg-[var(--color-panel)]/40 p-3">
             <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
