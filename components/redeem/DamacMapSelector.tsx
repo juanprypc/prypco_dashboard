@@ -51,6 +51,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isDesktopView, setIsDesktopView] = useState(false);
   useEffect(() => {
     zoomRef.current = zoom;
   }, [zoom]);
@@ -60,6 +61,22 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     update();
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const media = window.matchMedia('(pointer: coarse)');
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+    if (typeof media.addListener === 'function') {
+      media.addListener(update);
+      return () => media.removeListener(update);
+    }
+    return;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktopView(media.matches);
+    update();
     if (typeof media.addEventListener === 'function') {
       media.addEventListener('change', update);
       return () => media.removeEventListener('change', update);
@@ -217,9 +234,11 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     : isTouchDevice
       ? (zoom >= MAX_ZOOM ? 'zoom-out' : 'zoom-in')
       : 'auto';
-  const interactionHint = isTouchDevice
-    ? 'Double-tap or pinch to zoom • Drag to pan'
-    : 'Use +/– buttons to zoom • Scroll to pan';
+  const interactionHint = isDesktopView
+    ? 'Download the full-resolution map to view on desktop'
+    : isTouchDevice
+      ? 'Double-tap or pinch to zoom • Drag to pan'
+      : 'Use +/– buttons to zoom • Scroll to pan';
 
   const computeBaseDims = useCallback(() => {
     const width = Math.max(containerSizeRef.current.width || DEFAULT_BASE_WIDTH, DEFAULT_BASE_WIDTH);
@@ -575,130 +594,150 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
               <p className="hidden text-[11px] text-[var(--color-outer-space)]/60 sm:block">{interactionHint}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="hidden text-xs text-[var(--color-outer-space)]/60 sm:inline">{Math.round(zoom * 100)}%</span>
-              <div className="inline-flex gap-1">
-                <button
-                  type="button"
-                  onClick={handleZoomOut}
-                  disabled={zoom <= MIN_ZOOM}
-                  className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
-                  aria-label="Zoom out"
-                >
-                  –
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetZoom}
-                  disabled={zoom === 1}
-                  className="flex h-10 min-w-[40px] touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 px-2 text-xs font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:min-w-[32px] sm:text-[10px]"
-                  aria-label="Reset zoom"
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={handleZoomIn}
-                  disabled={zoom >= MAX_ZOOM}
-                  className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
-                  aria-label="Zoom in"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            ref={containerRef}
-            className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]"
-            style={{
-              WebkitOverflowScrolling: 'touch',
-              touchAction: 'pan-x pan-y',
-              overscrollBehavior: 'contain',
-              cursor: containerCursor,
-            }}
-            onClick={handleContainerClick}
-            onDoubleClick={handleContainerDoubleClick}
-            onWheel={handleWheel}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
-          >
-            <div
-              ref={imageWrapperRef}
-              className="relative select-none"
-              style={{
-                width: scaledWidth,
-                height: scaledHeight,
-              }}
-            >
-              <img
-                ref={imageRef}
-                src={MAP_IMAGE}
-                alt="Bahamas cluster map"
-                className="block h-full w-full select-none"
-                draggable={false}
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-                loading="eager"
-                onLoad={updateAspectRatioFromImage}
-              />
-            </div>
-
-            {selectedAllocation && (
-              <div className="pointer-events-none absolute inset-0 hidden items-center justify-center p-8 lg:flex">
-                <div className="pointer-events-auto max-w-md rounded-[20px] border border-[var(--color-outer-space)]/10 bg-white p-6 shadow-2xl">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">Selected Unit</p>
-                      <h3 className="mt-1 text-xl font-bold text-[var(--color-outer-space)]">
-                        {selectedAllocation.damacIslandcode || selectedAllocation.id}
-                      </h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onSelectAllocation(null)}
-                      className="rounded-full p-1.5 text-[var(--color-outer-space)]/40 transition hover:bg-[var(--color-panel)] hover:text-[var(--color-outer-space)]"
-                      aria-label="Close"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Points</p>
-                      <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">
-                        {selectedAllocation.points?.toLocaleString() ?? '—'}
-                      </p>
-                    </div>
-                    {selectedAllocation.brType && (
-                      <div>
-                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
-                        <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">{selectedAllocation.brType}</p>
-                      </div>
-                    )}
-                    {selectedAllocation.unitType && (
-                      <div className="col-span-2">
-                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
-                        <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
-                      </div>
-                    )}
-                  </div>
-
+            {!isDesktopView && (
+              <div className="flex items-center gap-2">
+                <span className="hidden text-xs text-[var(--color-outer-space)]/60 sm:inline">{Math.round(zoom * 100)}%</span>
+                <div className="inline-flex gap-1">
                   <button
                     type="button"
-                    className="mt-5 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
+                    onClick={handleZoomOut}
+                    disabled={zoom <= MIN_ZOOM}
+                    className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
+                    aria-label="Zoom out"
                   >
-                    Proceed to Payment
+                    –
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetZoom}
+                    disabled={zoom === 1}
+                    className="flex h-10 min-w-[40px] touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 px-2 text-xs font-semibold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:min-w-[32px] sm:text-[10px]"
+                    aria-label="Reset zoom"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleZoomIn}
+                    disabled={zoom >= MAX_ZOOM}
+                    className="flex h-10 w-10 touch-manipulation items-center justify-center rounded-full border border-[#d1b7fb]/60 text-base font-bold text-[var(--color-outer-space)] hover:bg-[var(--color-panel)]/70 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 transition sm:h-8 sm:w-8 sm:text-sm"
+                    aria-label="Zoom in"
+                  >
+                    +
                   </button>
                 </div>
               </div>
             )}
           </div>
+
+          {isDesktopView ? (
+            <div className="relative flex h-[300px] w-full items-center justify-center rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 p-6 text-center sm:h-[400px] lg:h-[500px]">
+              <div className="max-w-md space-y-4">
+                <p className="text-sm font-semibold text-[var(--color-outer-space)]">Download Required</p>
+                <p className="text-sm text-[var(--color-outer-space)]/70">
+                  The interactive map is currently supported on mobile/tablet. Download the high-resolution file to inspect it on desktop.
+                </p>
+                <a
+                  href={MAP_IMAGE_ORIGINAL}
+                  download="Bahamas-Cluster-Map.jpg"
+                  className="inline-flex items-center justify-center rounded-full bg-[var(--color-electric-purple)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#6a3bff]"
+                >
+                  Download Bahamas Map
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div
+              ref={containerRef}
+              className="relative h-[300px] w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 sm:h-[400px] lg:h-[500px]"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-x pan-y',
+                overscrollBehavior: 'contain',
+                cursor: containerCursor,
+              }}
+              onClick={handleContainerClick}
+              onDoubleClick={handleContainerDoubleClick}
+              onWheel={handleWheel}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
+            >
+              <div
+                ref={imageWrapperRef}
+                className="relative select-none"
+                style={{
+                  width: scaledWidth,
+                  height: scaledHeight,
+                }}
+              >
+                <img
+                  ref={imageRef}
+                  src={MAP_IMAGE}
+                  alt="Bahamas cluster map"
+                  className="block h-full w-full select-none"
+                  draggable={false}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                  loading="eager"
+                  onLoad={updateAspectRatioFromImage}
+                />
+              </div>
+
+              {selectedAllocation && (
+                <div className="pointer-events-none absolute inset-0 hidden items-center justify-center p-8 lg:flex">
+                  <div className="pointer-events-auto max-w-md rounded-[20px] border border-[var(--color-outer-space)]/10 bg-white p-6 shadow-2xl">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/50">Selected Unit</p>
+                        <h3 className="mt-1 text-xl font-bold text-[var(--color-outer-space)]">
+                          {selectedAllocation.damacIslandcode || selectedAllocation.id}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onSelectAllocation(null)}
+                        className="rounded-full p-1.5 text-[var(--color-outer-space)]/40 transition hover:bg-[var(--color-panel)] hover:text-[var(--color-outer-space)]"
+                        aria-label="Close"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Points</p>
+                        <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">
+                          {selectedAllocation.points?.toLocaleString() ?? '—'}
+                        </p>
+                      </div>
+                      {selectedAllocation.brType && (
+                        <div>
+                          <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
+                          <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">{selectedAllocation.brType}</p>
+                        </div>
+                      )}
+                      {selectedAllocation.unitType && (
+                        <div className="col-span-2">
+                          <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Unit Type</p>
+                          <p className="mt-1 text-sm font-medium text-[var(--color-outer-space)]">{selectedAllocation.unitType}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="mt-5 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
+                    >
+                      Proceed to Payment
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
             <p className="text-[10px] text-[var(--color-outer-space)]/50">{interactionHint}</p>
