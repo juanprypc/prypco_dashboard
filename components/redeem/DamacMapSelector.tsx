@@ -26,6 +26,12 @@ const DOUBLE_TAP_DELAY = 300;
 const DEFAULT_BASE_WIDTH = 800;
 const DEFAULT_ASPECT_RATIO = 560 / 800;
 const DEFAULT_CONTAINER_HEIGHT = 500;
+const PROTOTYPE_LEGEND = [
+  { code: 'DS-V45', color: '#5360d6', br: '6BR' },
+  { code: 'DSTH-E', color: '#f02020', br: '5BR' },
+  { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
+  { code: 'DSTH-M1', color: '#00c2d7', br: '4BR' },
+] as const;
 
 type Point = { x: number; y: number };
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -648,6 +654,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
               </div>
             </div>
           ) : (
+            <>
             <div
               ref={containerRef}
               className={`relative w-full overflow-auto rounded-[18px] border border-[#d1b7fb]/40 bg-[var(--color-panel)]/60 ${interactiveMapHeights}`}
@@ -683,27 +690,6 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                   loading="eager"
                   onLoad={updateAspectRatioFromImage}
                 />
-
-                {!isDesktopView && (
-                  <div className="pointer-events-none absolute bottom-4 right-4 z-10 w-[160px] rounded-[16px] border border-white/30 bg-white/90 p-3 text-[11px] text-[var(--color-outer-space)] shadow-lg backdrop-blur">
-                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[#c00]">Bahamas - 01</p>
-                    <p className="mt-1 text-center text-[11px] font-semibold text-[var(--color-outer-space)]">Prototype</p>
-                    <div className="mt-3 space-y-2">
-                      {[
-                        { code: 'DS-V45', color: '#5360d6', br: '6BR' },
-                        { code: 'DSTH-E', color: '#f02020', br: '5BR' },
-                        { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
-                        { code: 'DSTH-M1', color: '#00c2d7', br: '4BR' },
-                      ].map(({ code, color, br }) => (
-                        <div key={code} className="flex items-center justify-between gap-2">
-                          <span className="font-semibold">{code}</span>
-                          <span className="h-4 w-9 rounded-[4px]" style={{ backgroundColor: color }} />
-                          <span className="font-semibold">{br}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {selectedAllocation && (
@@ -759,6 +745,22 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 </div>
               )}
             </div>
+            <div className="mt-3 rounded-[16px] border border-[#d1b7fb]/60 bg-white/95 p-3 text-[11px] text-[var(--color-outer-space)] shadow-sm sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#c00]">
+                <span>Bahamas - 01</span>
+                <span className="text-[var(--color-outer-space)]/80 tracking-[0.08em]">Prototype</span>
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-2">
+                {PROTOTYPE_LEGEND.map(({ code, color, br }) => (
+                  <div key={code} className="flex items-center justify-between gap-2 rounded-[10px] border border-[#d1b7fb]/50 bg-white px-2 py-1.5">
+                    <span className="text-[11px] font-semibold">{code}</span>
+                    <span className="h-4 w-10 rounded-[4px]" style={{ backgroundColor: color }} />
+                    <span className="text-[11px] font-semibold">{br}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            </>
           )}
 
           <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
