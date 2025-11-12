@@ -879,7 +879,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                             LER Reference
                           </label>
                           <div className="mt-1 flex items-center rounded-full border border-[#d1b7fb]/80 bg-white pr-3 text-sm font-semibold text-[var(--color-outer-space)] shadow-sm">
-                            <span className="pl-4 pr-2 text-[var(--color-electric-purple)]">LER-</span>
+                            <span className="pl-4 pr-2 text-[var(--color-electric-purple)] text-base">LER-</span>
                             <input
                               type="text"
                               inputMode="numeric"
@@ -887,7 +887,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                               value={lerDigits}
                               onChange={(e) => handleLerDigitsChange(e.target.value)}
                               placeholder="00000"
-                              className="flex-1 rounded-full border-0 bg-transparent py-2 text-sm text-[var(--color-outer-space)] outline-none placeholder:text-[var(--color-outer-space)]/40"
+                              className="flex-1 rounded-full border-0 bg-transparent py-2 text-base text-[var(--color-outer-space)] outline-none placeholder:text-[var(--color-outer-space)]/40"
                             />
                           </div>
                           <p className="mt-1 text-[10px] text-[var(--color-outer-space)]/50">
@@ -1026,7 +1026,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/70">
                       LER Reference
                     </label>
-                    <div className="mt-1 flex items-center rounded-full border border-[#d1b7fb]/80 bg-white pr-3 text-sm font-semibold text-[var(--color-outer-space)] shadow-sm">
+                    <div className="mt-1 flex items-center rounded-full border border-[#d1b7fb]/80 bg-white pr-3 text-base font-semibold text-[var(--color-outer-space)] shadow-sm">
                       <span className="pl-4 pr-2 text-[var(--color-electric-purple)]">LER-</span>
                       <input
                         type="text"
@@ -1035,7 +1035,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                         value={lerDigits}
                         onChange={(e) => handleLerDigitsChange(e.target.value)}
                         placeholder="00000"
-                        className="flex-1 rounded-full border-0 bg-transparent py-2 text-sm text-[var(--color-outer-space)] outline-none placeholder:text-[var(--color-outer-space)]/40"
+                        className="flex-1 rounded-full border-0 bg-transparent py-2 text-base text-[var(--color-outer-space)] outline-none placeholder:text-[var(--color-outer-space)]/40"
                       />
                     </div>
                     <p className="mt-1 text-[10px] text-[var(--color-outer-space)]/50">
