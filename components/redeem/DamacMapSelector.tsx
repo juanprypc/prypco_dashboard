@@ -329,13 +329,6 @@ export function DamacMapSelector({
     }
   };
 
-  const handleLerSuccessContinue = useCallback(() => {
-    if (onRequestProceed && selectedAllocation && lerVerifiedCode) {
-      onRequestProceed({ allocation: selectedAllocation, lerCode: lerVerifiedCode });
-    }
-    setShowLerForm(false);
-  }, [lerVerifiedCode, onRequestProceed, selectedAllocation]);
-
   const selectedAllocation = useMemo(
     () => allocations.find((a) => a.id === selectedAllocationId) || null,
     [allocations, selectedAllocationId]
