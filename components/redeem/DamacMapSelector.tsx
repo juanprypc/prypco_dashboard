@@ -638,9 +638,9 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                 ref={imageRef}
                 src={MAP_IMAGE}
                 alt="Bahamas cluster map"
-                className="block h-full w-full select-none"
+                className="block select-none"
                 draggable={false}
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
+                style={{ width: '800px', height: '560px', pointerEvents: 'none', userSelect: 'none' }}
                 loading="eager"
                 onLoad={updateAspectRatioFromImage}
               />
