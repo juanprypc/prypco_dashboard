@@ -101,6 +101,29 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     return;
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem(VIEWER_STORAGE_KEY);
+    if (stored) {
+      setAgentViewers(Number(stored));
+    } else {
+      const seed = Math.floor(Math.random() * (MAX_AGENT_VIEWERS - MIN_AGENT_VIEWERS + 1)) + MIN_AGENT_VIEWERS;
+      sessionStorage.setItem(VIEWER_STORAGE_KEY, String(seed));
+      setAgentViewers(seed);
+    }
+
+    const interval = window.setInterval(() => {
+      setAgentViewers(prev => {
+        const drift = Math.random() < 0.5 ? -1 : 1;
+        const next = Math.min(Math.max(prev + drift, MIN_AGENT_VIEWERS), MAX_AGENT_VIEWERS);
+        sessionStorage.setItem(VIEWER_STORAGE_KEY, String(next));
+        return next;
+      });
+    }, 120000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -669,7 +692,7 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
             </div>
             {!isDesktopView && (
               <div className="flex items-center gap-2 rounded-[12px] bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-900 shadow-sm">
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
                 <span>{agentViewers} agents are reviewing these units right now</span>
               </div>
             )}
@@ -869,25 +892,3 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
     </div>
   );
 }
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const stored = sessionStorage.getItem(VIEWER_STORAGE_KEY);
-    if (stored) {
-      setAgentViewers(Number(stored));
-    } else {
-      const seed = Math.floor(Math.random() * (MAX_AGENT_VIEWERS - MIN_AGENT_VIEWERS + 1)) + MIN_AGENT_VIEWERS;
-      sessionStorage.setItem(VIEWER_STORAGE_KEY, String(seed));
-      setAgentViewers(seed);
-    }
-
-    const interval = window.setInterval(() => {
-      setAgentViewers(prev => {
-        const drift = Math.random() < 0.5 ? -1 : 1;
-        const next = clamp(prev + drift, MIN_AGENT_VIEWERS, MAX_AGENT_VIEWERS);
-        sessionStorage.setItem(VIEWER_STORAGE_KEY, String(next));
-        return next;
-      });
-    }, 120000);
-
-    return () => clearInterval(interval);
-  }, []);
