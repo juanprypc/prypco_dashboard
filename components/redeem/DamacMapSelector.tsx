@@ -683,6 +683,27 @@ export function DamacMapSelector({ catalogueId, selectedAllocationId, onSelectAl
                   loading="eager"
                   onLoad={updateAspectRatioFromImage}
                 />
+
+                {!isDesktopView && (
+                  <div className="pointer-events-none absolute bottom-4 right-4 z-10 w-[160px] rounded-[16px] border border-white/30 bg-white/90 p-3 text-[11px] text-[var(--color-outer-space)] shadow-lg backdrop-blur">
+                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[#c00]">Bahamas - 01</p>
+                    <p className="mt-1 text-center text-[11px] font-semibold text-[var(--color-outer-space)]">Prototype</p>
+                    <div className="mt-3 space-y-2">
+                      {[
+                        { code: 'DS-V45', color: '#5360d6', br: '6BR' },
+                        { code: 'DSTH-E', color: '#f02020', br: '5BR' },
+                        { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
+                        { code: 'DSTH-M1', color: '#00c2d7', br: '4BR' },
+                      ].map(({ code, color, br }) => (
+                        <div key={code} className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">{code}</span>
+                          <span className="h-4 w-9 rounded-[4px]" style={{ backgroundColor: color }} />
+                          <span className="font-semibold">{br}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {selectedAllocation && (
