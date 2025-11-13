@@ -1543,10 +1543,7 @@ const referralCards: ReactNode[] = [
             ) : null}
 
             <div className="max-h-[80vh] overflow-y-auto px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
-              <div
-                className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 shadow-[0_32px_60px_-40px_rgba(13,9,59,0.45)] sm:p-6"
-                style={{ clipPath: 'inset(0 round 32px)' }}
-              >
+              <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
                 <DamacMapSelector
                   catalogueId={damacRedeemItem.id}
                   selectedAllocationId={damacSelectedAllocationId}
