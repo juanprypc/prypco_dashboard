@@ -365,12 +365,13 @@ export function DamacMapSelector({
       if (onRequestProceed && selectedAllocation && finalCode) {
         console.log("✅ Calling onRequestProceed with allocation:", selectedAllocation.id);
         onRequestProceed({ allocation: selectedAllocation, lerCode: finalCode });
+        onSelectAllocation(null);
       } else {
         console.error("❌ Cannot proceed - missing:", { hasOnRequestProceed: !!onRequestProceed, hasSelectedAllocation: !!selectedAllocation, hasFinalCode: !!finalCode });
       }
       setShowLerForm(false);
     },
-    [lerVerifiedCode, onRequestProceed, selectedAllocation],
+    [lerVerifiedCode, onRequestProceed, onSelectAllocation, selectedAllocation],
   );
 
   const availableCount = useMemo(
