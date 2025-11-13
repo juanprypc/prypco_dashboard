@@ -190,24 +190,23 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
     const requiresAgencyConfirmation = toBoolean(item.fields?.unit_allocation);
     const status = toStatus(item.fields?.status_project_allocation);
 
-    const unitAllocations = Array.isArray(item.unitAllocations)
-      ? item.unitAllocations
-          .map((allocation) => {
-            const id = typeof allocation.id === 'string' ? allocation.id.trim() : null;
-            if (!id) return null;
-            return {
-              id,
-              unitType: allocation.unitType ?? null,
-              maxStock: typeof allocation.maxStock === 'number' ? allocation.maxStock : null,
-              points: typeof allocation.points === 'number' ? allocation.points : null,
-              pictureUrl: typeof allocation.pictureUrl === 'string' ? allocation.pictureUrl : null,
-              priceAed: typeof allocation.priceAed === 'number' ? allocation.priceAed : null,
-              propertyPrice:
-                typeof allocation.propertyPrice === 'number' ? allocation.propertyPrice : undefined,
-            } satisfies CatalogueUnitAllocation;
-          })
-          .filter((allocation): allocation is CatalogueUnitAllocation => allocation !== null)
-      : [];
+    const unitAllocations: CatalogueUnitAllocation[] = [];
+    if (Array.isArray(item.unitAllocations)) {
+      for (const allocation of item.unitAllocations) {
+        const id = typeof allocation.id === 'string' ? allocation.id.trim() : null;
+        if (!id) continue;
+        unitAllocations.push({
+          id,
+          unitType: allocation.unitType ?? null,
+          maxStock: typeof allocation.maxStock === 'number' ? allocation.maxStock : null,
+          points: typeof allocation.points === 'number' ? allocation.points : null,
+          pictureUrl: typeof allocation.pictureUrl === 'string' ? allocation.pictureUrl : null,
+          priceAed: typeof allocation.priceAed === 'number' ? allocation.priceAed : null,
+          propertyPrice:
+            typeof allocation.propertyPrice === 'number' ? allocation.propertyPrice : undefined,
+        });
+      }
+    }
 
     const category: 'token' | 'reward' = unitAllocations.length > 0 ? 'token' : 'reward';
     const requiresBuyerVerification = toBoolean(item.fields?.requiresBuyerVerification);
