@@ -32,6 +32,8 @@ type Props = {
   activeView: 'loyalty' | 'catalogue' | 'learn';
   topupStatus: 'success' | 'cancel' | null;
   autoOpenRewardId?: string;
+  autoSelectAllocationId?: string;
+  autoVerifiedLerCode?: string;
   minTopup: number;
   pointsPerAed: number;
   ledgerHref: string;
@@ -245,6 +247,8 @@ export function DashboardClient({
   activeView,
   topupStatus,
   autoOpenRewardId,
+  autoSelectAllocationId,
+  autoVerifiedLerCode,
   minTopup,
   pointsPerAed,
   ledgerHref,
@@ -588,7 +592,7 @@ export function DashboardClient({
   }, []);
 
   const startStripeCheckout = useCallback(
-    async (amountAED: number, rewardId?: string) => {
+    async (amountAED: number, context?: { rewardId?: string; allocationId?: string; lerCode?: string }) => {
       if (!agentId && !agentCode) {
         throw new Error('Missing agent details.');
       }
@@ -600,7 +604,9 @@ export function DashboardClient({
           agentCode,
           amountAED,
           baseQuery,
-          rewardId,
+          rewardId: context?.rewardId,
+          allocationId: context?.allocationId,
+          lerCode: context?.lerCode,
         }),
       });
       const json = await res.json();
@@ -1001,7 +1007,11 @@ export function DashboardClient({
           const shortfall = requiredPoints - availablePoints;
           const denominator = pointsPerAed > 0 ? pointsPerAed : 1;
           const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator), minTopup);
-          await startStripeCheckout(suggestedAed, damacRedeemItem.id);
+          await startStripeCheckout(suggestedAed, {
+            rewardId: damacRedeemItem.id,
+            allocationId: allocation.id,
+            lerCode,
+          });
         } catch (error) {
           const errMessage = error instanceof Error ? error.message : 'Unable to open checkout';
           setDamacFlowError(errMessage);
@@ -1131,7 +1141,7 @@ export function DashboardClient({
     }
   }, [damacFlowStatus]);
 
-  // Auto-open reward after Stripe payment
+  // Auto-restore DAMAC flow after Stripe payment
   useEffect(() => {
     if (!autoOpenRewardId || !catalogue) return;
     const item = catalogue.find((i) => i.id === autoOpenRewardId);
@@ -1139,8 +1149,29 @@ export function DashboardClient({
 
     if (item.category === 'token' && item.id.includes('damac')) {
       setDamacRedeemItem(item);
+
+      // If we have allocation ID and LER, restore to confirmation screen
+      if (autoSelectAllocationId && autoVerifiedLerCode) {
+        const allocation = item.unitAllocations.find((a) => a.id === autoSelectAllocationId);
+        if (allocation) {
+          // Create AllocationWithStatus from catalogue allocation
+          const allocationWithStatus: AllocationWithStatus = {
+            id: allocation.id,
+            points: allocation.points ?? undefined,
+            unitType: allocation.unitType ?? undefined,
+            priceAed: allocation.priceAed ?? undefined,
+            propertyPrice: allocation.propertyPrice ?? undefined,
+            availability: 'available' as const,
+          };
+          setDamacPendingSubmission({
+            allocation: allocationWithStatus,
+            catalogueAllocation: allocation,
+            lerCode: autoVerifiedLerCode,
+          });
+        }
+      }
     }
-  }, [autoOpenRewardId, catalogue]);
+  }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue]);
 
   useEffect(() => {
     if (damacPendingSubmission) {

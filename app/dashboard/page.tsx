@@ -23,6 +23,12 @@ export default async function Dashboard({
   const rewardParam = sp?.reward;
   const rewardId = Array.isArray(rewardParam) ? rewardParam[0] : rewardParam;
 
+  const allocationParam = sp?.allocation;
+  const allocationId = Array.isArray(allocationParam) ? allocationParam[0] : allocationParam;
+
+  const lerParam = sp?.ler;
+  const lerCode = Array.isArray(lerParam) ? lerParam[0] : lerParam;
+
   const viewParam = sp?.view;
   const view = Array.isArray(viewParam) ? viewParam[0] : viewParam;
   const activeView = view === 'catalogue' ? 'catalogue' : view === 'learn' ? 'learn' : 'loyalty';
@@ -82,6 +88,8 @@ export default async function Dashboard({
         activeView={activeView}
         topupStatus={topupStatus}
         autoOpenRewardId={rewardId}
+        autoSelectAllocationId={allocationId}
+        autoVerifiedLerCode={lerCode}
         minTopup={minTopup}
         pointsPerAed={pointsPerAed}
         ledgerHref={ledgerHref}
