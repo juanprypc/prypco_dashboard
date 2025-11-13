@@ -628,7 +628,7 @@ export function DamacMapSelector({
   }, [applyZoomContinuousAt, setZoomAtPoint, isTouchDevice]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="order-2 flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4 lg:order-1">
         <p className="text-sm font-semibold text-[var(--color-outer-space)]">Available Units</p>
@@ -1186,6 +1186,7 @@ export function DamacMapSelector({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
