@@ -9,6 +9,7 @@ function requiresAuth(pathname: string): boolean {
   // Allow test page and its API endpoint without auth
   if (pathname === '/test-damac-map' || pathname.startsWith('/test-damac-map/')) return false;
   if (pathname === '/api/damac/map' || pathname.startsWith('/api/damac/map/')) return false;
+  if (pathname === '/api/damac/ler' || pathname.startsWith('/api/damac/ler/')) return false;
 
   // Protect other damac routes
   if (pathname === '/damac') return true;
