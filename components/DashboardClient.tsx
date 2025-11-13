@@ -966,7 +966,6 @@ export function DashboardClient({
   const handleDamacProceed = useCallback(
     async ({ allocation, lerCode }: { allocation: AllocationWithStatus; lerCode: string }) => {
       if (!damacRedeemItem) return;
-      console.log("🔵 handleDamacProceed called", { allocationId: allocation?.id, lerCode, hasDamacRedeemItem: !!damacRedeemItem, unitAllocationsCount: damacRedeemItem?.unitAllocations?.length });
       const matchingAllocation =
         damacRedeemItem.unitAllocations.find((unit) => unit.id === allocation.id) ?? null;
       if (!matchingAllocation) {
@@ -1009,7 +1008,6 @@ export function DashboardClient({
       }
 
       setDamacFlowError(null);
-      console.log("✅ Setting damacPendingSubmission", { allocationId: allocation.id, matchingAllocationId: matchingAllocation.id, lerCode });
       setDamacPendingSubmission({ allocation, catalogueAllocation: matchingAllocation, lerCode });
     },
     [
@@ -1260,7 +1258,6 @@ const referralCards: ReactNode[] = [
     );
   }
 
-  console.log("🎨 DashboardClient render", { hasDamacPendingSubmission: !!damacPendingSubmission, damacPendingSubmission });
   return (
     <div className="space-y-10 text-[var(--color-outer-space)]">
       <LoadingOverlay visible={loading && !rows && !error} />
