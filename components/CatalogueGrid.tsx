@@ -12,6 +12,7 @@ export type CatalogueUnitAllocation = {
   points: number | null;
   pictureUrl: string | null;
   priceAed: number | null;
+  propertyPrice?: number | null;
 };
 
 export type CatalogueDisplayItem = {

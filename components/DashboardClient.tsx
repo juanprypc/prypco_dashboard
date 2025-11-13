@@ -202,6 +202,8 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
               points: typeof allocation.points === 'number' ? allocation.points : null,
               pictureUrl: typeof allocation.pictureUrl === 'string' ? allocation.pictureUrl : null,
               priceAed: typeof allocation.priceAed === 'number' ? allocation.priceAed : null,
+              propertyPrice:
+                typeof allocation.propertyPrice === 'number' ? allocation.propertyPrice : undefined,
             } satisfies CatalogueUnitAllocation;
           })
           .filter((allocation): allocation is CatalogueUnitAllocation => allocation !== null)
