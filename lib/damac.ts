@@ -32,6 +32,9 @@ function escapeFormulaValue(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+const AIRTABLE_LER_FIELD = (process.env.AIRTABLE_LER_FIELD || 'LER').trim();
+let lerFieldUsable = AIRTABLE_LER_FIELD.length > 0;
+
 type DamacRawFields = Record<string, unknown> & {
   unit_alocation_promocode?: string;
   LER?: string;
@@ -66,9 +69,8 @@ export type DamacRedemptionRecord = {
   verifiedNote: string | null;
 };
 
-const DAMAC_FIELDS = [
+const DAMAC_BASE_FIELDS = [
   'unit_alocation_promocode',
-  'LER',
   'agent_email',
   'agent_fname',
   'agent_code',
@@ -105,9 +107,13 @@ function mapRecord(
   unitType: string | null,
 ): DamacRedemptionRecord {
   const fields = record.fields || {};
+  const lerFromDynamicField =
+    lerFieldUsable && AIRTABLE_LER_FIELD
+      ? toMaybeString((fields as Record<string, unknown>)[AIRTABLE_LER_FIELD])
+      : undefined;
   return {
     id: record.id,
-    code: toMaybeString(fields.LER) ?? toMaybeString(fields.unit_alocation_promocode) ?? null,
+    code: lerFromDynamicField ?? toMaybeString(fields.LER) ?? toMaybeString(fields.unit_alocation_promocode) ?? null,
     agentEmail: toMaybeString(fields.agent_email) ?? null,
     agentName: toMaybeString(fields.agent_fname) ?? null,
     agentCode: toMaybeString(fields.agent_code) ?? null,
@@ -124,19 +130,26 @@ function mapRecord(
   };
 }
 
-async function fetchRedemptionRecords(params: URLSearchParams): Promise<AirtableRecord<DamacRawFields>[]> {
+async function fetchRedemptionRecords(
+  params: URLSearchParams,
+  includeLerField: boolean,
+): Promise<AirtableRecord<DamacRawFields>[]> {
   const apiKey = envVar('AIRTABLE_API_KEY');
   const baseId = envVar('AIRTABLE_BASE');
   const table = envVar('AIRTABLE_TABLE_LOY');
 
   const urlBase = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}`;
-  for (const field of DAMAC_FIELDS) {
-    params.append('fields[]', field);
+  const finalParams = new URLSearchParams(params);
+  for (const field of DAMAC_BASE_FIELDS) {
+    finalParams.append('fields[]', field);
   }
-  applyStringCellFormatParams(params);
+  if (includeLerField && lerFieldUsable && AIRTABLE_LER_FIELD) {
+    finalParams.append('fields[]', AIRTABLE_LER_FIELD);
+  }
+  applyStringCellFormatParams(finalParams);
 
   const res = await scheduleAirtableRequest(() =>
-    fetch(`${urlBase}?${params.toString()}`, {
+    fetch(`${urlBase}?${finalParams.toString()}`, {
       headers: { Authorization: `Bearer ${apiKey}` },
       cache: 'no-store',
     })
@@ -152,17 +165,37 @@ async function fetchRedemptionRecords(params: URLSearchParams): Promise<Airtable
 }
 
 export async function fetchDamacRedemptionByCode(code: string): Promise<DamacRedemptionRecord | null> {
-  const params = new URLSearchParams();
   const escaped = escapeFormulaValue(code);
-  params.set('filterByFormula', `OR({LER}='${escaped}', {unit_alocation_promocode}='${escaped}')`);
-  params.set('maxRecords', '1');
+  const fallbackFormula = `{unit_alocation_promocode}='${escaped}'`;
+  const lerFormula =
+    lerFieldUsable && AIRTABLE_LER_FIELD
+      ? `OR({${AIRTABLE_LER_FIELD}}='${escaped}', ${fallbackFormula})`
+      : fallbackFormula;
 
-  const records = await fetchRedemptionRecords(params);
-  const record = records[0];
-  if (!record) return null;
+  const buildParams = (formula: string) => {
+    const params = new URLSearchParams();
+    params.set('filterByFormula', formula);
+    params.set('maxRecords', '1');
+    return params;
+  };
 
-  const unitType = toMaybeString(record.fields?.loyalty_unit_allocation) ?? null;
-  return mapRecord(record, unitType);
+  const attemptFetch = async (formula: string, includeLerField: boolean) => {
+    const records = await fetchRedemptionRecords(buildParams(formula), includeLerField);
+    const record = records[0];
+    if (!record) return null;
+    const unitType = toMaybeString(record.fields?.loyalty_unit_allocation) ?? null;
+    return mapRecord(record, unitType);
+  };
+
+  try {
+    return await attemptFetch(lerFormula, lerFieldUsable);
+  } catch (error) {
+    if (lerFieldUsable && error instanceof Error && error.message.includes('UNKNOWN_FIELD_NAME')) {
+      lerFieldUsable = false;
+      return attemptFetch(fallbackFormula, false);
+    }
+    throw error;
+  }
 }
 
 export async function fetchDamacRedemptionById(id: string): Promise<DamacRedemptionRecord | null> {
