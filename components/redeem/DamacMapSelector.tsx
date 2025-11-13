@@ -361,8 +361,12 @@ export function DamacMapSelector({
   const handleLerSuccessContinue = useCallback(
     (codeOverride?: string | null) => {
       const finalCode = codeOverride ?? lerVerifiedCode;
+      console.log("🟢 handleLerSuccessContinue", { hasOnRequestProceed: !!onRequestProceed, hasSelectedAllocation: !!selectedAllocation, selectedAllocationId: selectedAllocation?.id, hasFinalCode: !!finalCode, finalCode });
       if (onRequestProceed && selectedAllocation && finalCode) {
+        console.log("✅ Calling onRequestProceed with allocation:", selectedAllocation.id);
         onRequestProceed({ allocation: selectedAllocation, lerCode: finalCode });
+      } else {
+        console.error("❌ Cannot proceed - missing:", { hasOnRequestProceed: !!onRequestProceed, hasSelectedAllocation: !!selectedAllocation, hasFinalCode: !!finalCode });
       }
       setShowLerForm(false);
     },

@@ -966,6 +966,7 @@ export function DashboardClient({
   const handleDamacProceed = useCallback(
     async ({ allocation, lerCode }: { allocation: AllocationWithStatus; lerCode: string }) => {
       if (!damacRedeemItem) return;
+      console.log("🔵 handleDamacProceed called", { allocationId: allocation?.id, lerCode, hasDamacRedeemItem: !!damacRedeemItem, unitAllocationsCount: damacRedeemItem?.unitAllocations?.length });
       const matchingAllocation =
         damacRedeemItem.unitAllocations.find((unit) => unit.id === allocation.id) ?? null;
       if (!matchingAllocation) {
@@ -1008,6 +1009,7 @@ export function DashboardClient({
       }
 
       setDamacFlowError(null);
+      console.log("✅ Setting damacPendingSubmission", { allocationId: allocation.id, matchingAllocationId: matchingAllocation.id, lerCode });
       setDamacPendingSubmission({ allocation, catalogueAllocation: matchingAllocation, lerCode });
     },
     [
