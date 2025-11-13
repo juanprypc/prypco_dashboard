@@ -1024,6 +1024,18 @@ export function DashboardClient({
   const submitDamacRedemption = useCallback(async () => {
     if (!damacRedeemItem || !damacPendingSubmission) return;
     const { catalogueAllocation, allocation, lerCode } = damacPendingSubmission;
+
+    // Validate balance before submission
+    const requiredPoints = catalogueAllocation.points ?? null;
+    if (requiredPoints && requiredPoints > 0) {
+      const availablePoints = metrics.totalPosted;
+      if (availablePoints < requiredPoints) {
+        setDamacFlowError(`Insufficient balance. You need ${requiredPoints.toLocaleString()} points but only have ${availablePoints.toLocaleString()} points.`);
+        setDamacPendingSubmission(null);
+        return;
+      }
+    }
+
     setDamacFlowStatus('submitting');
     setDamacFlowError(null);
     try {
@@ -1055,7 +1067,7 @@ export function DashboardClient({
       setDamacFlowError(errMessage);
       setDamacFlowStatus('idle');
     }
-  }, [agentCode, agentId, damacPendingSubmission, damacRedeemItem]);
+  }, [agentCode, agentId, damacPendingSubmission, damacRedeemItem, metrics.totalPosted]);
 
   const cancelDamacPendingSubmission = useCallback(() => {
     setDamacPendingSubmission(null);
