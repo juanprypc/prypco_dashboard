@@ -880,7 +880,7 @@ export function DamacMapSelector({
                 />
               </div>
 
-              {selectedAllocation && (
+              {selectedAllocation && !onRequestProceed && (
                 <div className="pointer-events-none absolute inset-0 hidden items-center justify-center p-8 lg:flex">
                   <div className="pointer-events-auto max-w-md rounded-[20px] border border-[var(--color-outer-space)]/10 bg-white p-6 shadow-2xl">
                     <div className="flex items-start justify-between gap-3">
@@ -1039,7 +1039,7 @@ export function DamacMapSelector({
 
         <div className="h-14 sm:h-20" aria-hidden="true" />
 
-        {selectedAllocation && (
+        {selectedAllocation && !onRequestProceed && (
           <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
             <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => onSelectAllocation(null)} />
             <div className="relative rounded-t-[28px] border-t border-[var(--color-outer-space)]/10 bg-white px-6 pb-8 pt-5 shadow-2xl">
