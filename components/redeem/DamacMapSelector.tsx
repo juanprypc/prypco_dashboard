@@ -1034,7 +1034,7 @@ export function DamacMapSelector({
           </div>
         </div>
 
-        <div className="h-6 sm:h-10" aria-hidden="true" />
+        <div className="h-14 sm:h-20" aria-hidden="true" />
 
         {selectedAllocation && (
           <div className="fixed inset-x-0 bottom-0 z-50 lg:hidden">
