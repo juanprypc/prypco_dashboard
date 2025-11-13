@@ -1542,7 +1542,7 @@ const referralCards: ReactNode[] = [
               </div>
             ) : null}
 
-            <div className="max-h-[80vh] overflow-y-auto px-2 py-4 pb-10 sm:px-4 sm:pb-12">
+            <div className="max-h-[80vh] overflow-y-auto px-4 pt-6 pb-16 sm:px-8 lg:px-10">
               <DamacMapSelector
                 catalogueId={damacRedeemItem.id}
                 selectedAllocationId={damacSelectedAllocationId}
