@@ -160,8 +160,12 @@ async function fetchRedemptionRecords(
     throw new Error(`Airtable redemption error ${res.status}: ${text}`);
   }
 
-  const json = (await res.json()) as { records: AirtableRecord<DamacRawFields>[] };
+const json = (await res.json()) as { records: AirtableRecord<DamacRawFields>[] };
   return json.records ?? [];
+}
+
+function isUnknownFieldError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('UNKNOWN_FIELD_NAME');
 }
 
 export async function fetchDamacRedemptionByCode(code: string): Promise<DamacRedemptionRecord | null> {
