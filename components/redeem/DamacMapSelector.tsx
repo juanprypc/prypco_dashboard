@@ -8,6 +8,7 @@ export type AllocationWithStatus = {
   points?: number;
   unitType?: string;
   priceAed?: number;
+  propertyPrice?: number;
   plotAreaSqft?: number;
   saleableAreaSqft?: number;
   availability: 'available' | 'booked';
@@ -306,13 +307,19 @@ export function DamacMapSelector({
       setLerWarningVisible(true);
       return;
     }
+    const verifiedCode = lerCodeFromDigits(lerDigits);
+    if (!verifiedCode) {
+      setLerVerifyStatus('error');
+      setLerVerifyError('Invalid LER number.');
+      return;
+    }
     setLerVerifyError(null);
     setLerVerifyStatus('loading');
     try {
       const res = await fetch('/api/damac/ler/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ler: lerCodeFromDigits(lerDigits) }),
+        body: JSON.stringify({ ler: verifiedCode }),
       });
       const json = await res.json();
       if (!res.ok || !json?.ok) {
@@ -322,7 +329,11 @@ export function DamacMapSelector({
       }
       setLerVerifyStatus('success');
       setLerWarningVisible(false);
-      setLerVerifiedCode(lerCodeFromDigits(lerDigits));
+      setLerVerifiedCode(verifiedCode);
+      setTimeout(() => {
+        handleLerSuccessContinue(verifiedCode);
+        setLerVerifyStatus('idle');
+      }, 0);
     } catch {
       setLerVerifyStatus('error');
       setLerVerifyError('Unable to verify LER right now. Please try again.');
@@ -336,7 +347,8 @@ export function DamacMapSelector({
   useEffect(() => {
     onSelectionChange?.(selectedAllocation);
   }, [onSelectionChange, selectedAllocation]);
-  const selectedPriceFull = selectedAllocation ? formatPriceAedFull(selectedAllocation.priceAed) : null;
+  const selectedPriceValue = selectedAllocation?.propertyPrice ?? selectedAllocation?.priceAed;
+  const selectedPriceFull = selectedPriceValue ? formatPriceAedFull(selectedPriceValue) : null;
   const selectedPlotArea = selectedAllocation ? formatSqft(selectedAllocation.plotAreaSqft) : null;
   const selectedSaleableArea = selectedAllocation ? formatSqft(selectedAllocation.saleableAreaSqft) : null;
   useEffect(() => {
@@ -344,12 +356,16 @@ export function DamacMapSelector({
     setLerDigits('');
   }, [selectedAllocation]);
 
-  const handleLerSuccessContinue = useCallback(() => {
-    if (onRequestProceed && selectedAllocation && lerVerifiedCode) {
-      onRequestProceed({ allocation: selectedAllocation, lerCode: lerVerifiedCode });
-    }
-    setShowLerForm(false);
-  }, [lerVerifiedCode, onRequestProceed, selectedAllocation]);
+  const handleLerSuccessContinue = useCallback(
+    (codeOverride?: string | null) => {
+      const finalCode = codeOverride ?? lerVerifiedCode;
+      if (onRequestProceed && selectedAllocation && finalCode) {
+        onRequestProceed({ allocation: selectedAllocation, lerCode: finalCode });
+      }
+      setShowLerForm(false);
+    },
+    [lerVerifiedCode, onRequestProceed, selectedAllocation],
+  );
 
   const availableCount = useMemo(
     () => filteredAllocations.filter((a) => a.availability === 'available').length,
@@ -688,7 +704,8 @@ export function DamacMapSelector({
             filteredAllocations.map((allocation) => {
               const disabled = allocation.availability !== 'available';
               const selected = allocation.id === selectedAllocationId;
-              const compactPrice = formatPriceAedCompact(allocation.priceAed);
+              const priceValue = allocation.propertyPrice ?? allocation.priceAed;
+              const compactPrice = formatPriceAedCompact(priceValue);
               return (
                 <button
                   key={allocation.id}
@@ -966,34 +983,18 @@ export function DamacMapSelector({
                             {lerVerifyError}
                           </div>
                         )}
-                        {lerVerifyStatus === 'success' && lerVerifiedCode ? (
-                          <div className="space-y-2 rounded-[16px] border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-[11px] text-emerald-800">
-                            <div className="font-semibold">LER verified</div>
-                            <p className="text-[10px]">This reference ({lerVerifiedCode}) is valid. Continue to finalize the redemption.</p>
-                            <button
-                              type="button"
-                              className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
-                              onClick={() => {
-                                setShowLerForm(false);
-                              }}
-                            >
-                              Continue
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!lerInputValid || lerVerifyStatus === 'loading'}
-                            onClick={handleVerifyLer}
-                            className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {lerWarningVisible
-                              ? lerVerifyStatus === 'loading'
-                                ? 'Verifying...'
-                                : 'Yes, verify LER'
-                              : 'Confirm LER'}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          disabled={!lerInputValid || lerVerifyStatus === 'loading'}
+                          onClick={handleVerifyLer}
+                          className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {lerWarningVisible
+                            ? lerVerifyStatus === 'loading'
+                              ? 'Verifying...'
+                              : 'Yes, verify LER'
+                            : 'Confirm LER'}
+                        </button>
                       </div>
                     ) : (
                       <button
@@ -1147,32 +1148,18 @@ export function DamacMapSelector({
                       {lerVerifyError}
                     </div>
                   )}
-                  {lerVerifyStatus === 'success' && lerVerifiedCode ? (
-                    <div className="space-y-2 rounded-[16px] border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-[11px] text-emerald-800">
-                      <div className="font-semibold">LER verified</div>
-                      <p className="text-[10px]">This reference ({lerVerifiedCode}) is valid. Continue to finalize the redemption.</p>
-                            <button
-                              type="button"
-                              className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95"
-                              onClick={handleLerSuccessContinue}
-                            >
-                              Continue
-                            </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={!lerInputValid || lerVerifyStatus === 'loading'}
-                      onClick={handleVerifyLer}
-                      className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {lerWarningVisible
-                        ? lerVerifyStatus === 'loading'
-                          ? 'Verifying...'
-                          : 'Yes, verify LER'
-                        : 'Confirm LER'}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={!lerInputValid || lerVerifyStatus === 'loading'}
+                    onClick={handleVerifyLer}
+                    className="w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {lerWarningVisible
+                      ? lerVerifyStatus === 'loading'
+                        ? 'Verifying...'
+                        : 'Yes, verify LER'
+                      : 'Confirm LER'}
+                  </button>
                 </div>
               ) : (
                 <button

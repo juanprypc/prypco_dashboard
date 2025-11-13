@@ -26,12 +26,14 @@ Key responsibilities for the DAMAC path:
 - **State orchestration** – `damacRedeemItem`, `damacSelectedAllocationId`, `damacSelectionDetails`, `damacFlowStatus`, `damacFlowError`, and `damacConfirmedLer` drive the modal visuals and success overlay.
 - **Entry point** – `startRedeemFlow` short-circuits to the DAMAC modal whenever `item.damacIslandCampaign` is true; otherwise it falls back to the legacy allocation picker / buyer verification.
 - **Selection tracking** – The modal header reflects whichever allocation the selector reports through `onSelectionChange`.
+- **Modal framing** – The selector now renders inside a single `rounded-[32px]` wrapper owned by `DashboardClient`. That container provides the lavender border, padding, and `overflow-hidden` so the map’s drop shadows never bleed past the DAMAC dialog on mobile.
 - **Proceed handler** – `handleDamacProceed` receives the verified allocation/LER pair, performs balance checks, invokes Stripe when needed, or POSTs a redemption and transitions the modal into the success screen.
 - **Stripe fallback** – Uses the existing `startStripeCheckout` helper, so the payment experience stays in sync with other catalogue items.
 
 ### 2.3 `components/redeem/DamacMapSelector.tsx`
 - **Data fetch** – `useEffect` requests `/api/damac/map?catalogueId=...` to populate available units (ID, label, bedroom type, availability, price/points, area figures).
 - **Interaction model** – Custom zoom/pan logic with scroll/touch gestures, filters, and search. Selected units are stored via `selectedAllocationId` + `onSelectionChange`.
+- **Pricing display** – All price chips in the selector use the Airtable `property_price` field (falling back to `price_aed` only when absent) so the UI mirrors the DAMAC-provided property pricing.
 - **Viewer counter** – Session-based pseudo-random “agents viewing now” badge to reinforce urgency.
 - **LER flow** – `lerDigits` accepts numeric input only; `handleVerifyLer` reveals a warning before POSTing to `/api/damac/ler/verify`. Success stores the normalized code and invokes `onRequestProceed`.
 - **Error states** – Inline callouts cover fetch failures, verification errors, and network issues. Button states disable interactions while requests are in flight.
@@ -64,6 +66,7 @@ Key responsibilities for the DAMAC path:
 - **LER collisions** – The verification endpoint rejects any LER already stored in `loyalty_redemption`. However, there’s still a race window between verification and webhook persistence; two agents entering the same LER simultaneously could both pass verification if the first redemption hasn’t been saved yet.
 - **Network failures** – Selector fetch failures show a card-level error with a “Try again” CTA; verification errors return to the form without leaving the modal.
 - **Stripe path** – If Stripe checkout initiation fails, the error is displayed inline inside the modal and the flow resets to `idle`.
+- **Layout guardrails** – The selector no longer renders its own outer card. Any changes that reintroduce a drop shadow or overflow at the selector layer can cause the map to escape the modal border, so keep the framing logic centralized in `DashboardClient`.
 
 ## 6. Future Considerations
 

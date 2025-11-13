@@ -103,6 +103,7 @@ export type UnitAllocationFields = {
   max_stock?: number;
   Points?: number;
   price_aed?: number;
+  property_price?: number;
   Picture?: Array<{ url: string; thumbnails?: { large?: { url?: string }; small?: { url?: string } } }>;
   damacIslandcode?: string;
   'BR Type'?: string;
@@ -119,6 +120,7 @@ export type CatalogueUnitAllocation = {
   points: number | null;
   pictureUrl: string | null;
   priceAed: number | null;
+  propertyPrice: number | null;
   damacIslandcode: string | null;
   brType: string | null;
   remainingStock: number | null;
@@ -185,6 +187,7 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
       points: typeof fields.Points === 'number' ? fields.Points : null,
       pictureUrl,
       priceAed: typeof fields.price_aed === 'number' ? fields.price_aed : null,
+      propertyPrice: typeof fields.property_price === 'number' ? fields.property_price : null,
       damacIslandcode: toMaybeString(fields.damacIslandcode) ?? null,
       brType: toMaybeString(fields['BR Type']) ?? null,
       remainingStock: toMaybeNumber(fields.remaining_stock) ?? null,

@@ -6,6 +6,7 @@ type AllocationWithAvailability = {
   points: number | null;
   unitType: string | null;
   priceAed: number | null;
+  propertyPrice: number | null;
   plotAreaSqft: number | null;
   saleableAreaSqft: number | null;
   availability: 'available' | 'booked';
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
         points: allocation.points,
         unitType: allocation.unitType,
         priceAed: allocation.priceAed ?? null,
+        propertyPrice: allocation.propertyPrice ?? null,
         plotAreaSqft: allocation.plotAreaSqft ?? null,
         saleableAreaSqft: allocation.saleableAreaSqft ?? null,
         availability: isAvailable ? 'available' : 'booked',

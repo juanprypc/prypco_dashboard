@@ -163,7 +163,7 @@ export function TermsDialog({ item, mode, accepted, onAccept, onClose }: TermsDi
               </label>
             ) : null}
             {requiresScroll && !hasScrolledToEnd ? (
-              <p className="text-[11px] text-[var(--color-outer-space)]/60">
+              <p className="text-[11px] font-semibold text-[var(--color-electric-purple)]">
                 Scroll to the end of the terms to enable acceptance.
               </p>
             ) : null}
