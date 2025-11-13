@@ -1118,6 +1118,17 @@ export function DashboardClient({
     }
   }, [damacFlowStatus]);
 
+  useEffect(() => {
+    if (damacPendingSubmission) {
+      setTimeout(() => {
+        const card = document.querySelector('[class*="CONFIRM"][class*="REDEMPTION"]');
+        if (!card) {
+          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, [damacPendingSubmission]);
+
 const referralCards: ReactNode[] = [
     <ReferralCard
       key="ref-agent"
