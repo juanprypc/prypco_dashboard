@@ -166,11 +166,8 @@ async function fetchRedemptionRecords(
 
 export async function fetchDamacRedemptionByCode(code: string): Promise<DamacRedemptionRecord | null> {
   const escaped = escapeFormulaValue(code);
-  const fallbackFormula = `{unit_alocation_promocode}='${escaped}'`;
-  const lerFormula =
-    lerFieldUsable && AIRTABLE_LER_FIELD
-      ? `OR({${AIRTABLE_LER_FIELD}}='${escaped}', ${fallbackFormula})`
-      : fallbackFormula;
+  const promoFormula = `{unit_alocation_promocode}='${escaped}'`;
+  const lerFormula = `{${AIRTABLE_LER_FIELD}}='${escaped}'`;
 
   const buildParams = (formula: string) => {
     const params = new URLSearchParams();
@@ -187,12 +184,18 @@ export async function fetchDamacRedemptionByCode(code: string): Promise<DamacRed
     return mapRecord(record, unitType);
   };
 
+  // Always try legacy promo-code lookup first (never errors).
+  const promoResult = await attemptFetch(promoFormula, false);
+  if (promoResult) return promoResult;
+
+  if (!lerFieldUsable || !AIRTABLE_LER_FIELD) return null;
+
   try {
-    return await attemptFetch(lerFormula, lerFieldUsable);
+    return await attemptFetch(lerFormula, true);
   } catch (error) {
-    if (lerFieldUsable && error instanceof Error && error.message.includes('UNKNOWN_FIELD_NAME')) {
+    if (isUnknownFieldError(error)) {
       lerFieldUsable = false;
-      return attemptFetch(fallbackFormula, false);
+      return null;
     }
     throw error;
   }
