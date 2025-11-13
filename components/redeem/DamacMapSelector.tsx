@@ -22,6 +22,7 @@ type DamacMapSelectorProps = {
   onSelectAllocation: (id: string | null) => void;
   onSelectionChange?: (allocation: AllocationWithStatus | null) => void;
   onRequestProceed?: (payload: { allocation: AllocationWithStatus; lerCode: string }) => void;
+  hideOuterFrame?: boolean;
 };
 
 const MAP_IMAGE = '/images/bahamas-version1.jpg';
@@ -89,6 +90,7 @@ export function DamacMapSelector({
   onSelectAllocation,
   onSelectionChange,
   onRequestProceed,
+  hideOuterFrame = false,
 }: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -643,8 +645,8 @@ export function DamacMapSelector({
     };
   }, [applyZoomContinuousAt, setZoomAtPoint, isTouchDevice]);
 
-  return (
-    <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
+  const selectorContent = (
+    <div className="flex flex-col gap-4 lg:flex-row">
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="order-2 flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4 lg:order-1">
         <p className="text-sm font-semibold text-[var(--color-outer-space)]">Available Units</p>
@@ -1175,6 +1177,16 @@ export function DamacMapSelector({
         )}
         </div>
       </div>
+    </div>
+  );
+
+  if (hideOuterFrame) {
+    return selectorContent;
+  }
+
+  return (
+    <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
+      {selectorContent}
     </div>
   );
 }

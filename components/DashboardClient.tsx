@@ -1550,6 +1550,7 @@ const referralCards: ReactNode[] = [
                   onSelectAllocation={setDamacSelectedAllocationId}
                   onSelectionChange={setDamacSelectionDetails}
                   onRequestProceed={handleDamacProceed}
+                  hideOuterFrame
                 />
               </div>
             </div>
