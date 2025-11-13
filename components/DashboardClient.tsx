@@ -1589,19 +1589,20 @@ const referralCards: ReactNode[] = [
             ) : null}
 
             <div className="max-h-[80vh] overflow-y-auto px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
-              <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
-                <DamacMapSelector
-                  catalogueId={damacRedeemItem.id}
-                  selectedAllocationId={damacSelectedAllocationId}
-                  onSelectAllocation={setDamacSelectedAllocationId}
-                  onSelectionChange={setDamacSelectionDetails}
-                  onRequestProceed={handleDamacProceed}
-                  hideOuterFrame
-                />
-              </div>
-
-              {damacPendingSubmission ? (
-                <div className="mt-6 rounded-[28px] border border-[#d1b7fb]/70 bg-white px-5 py-5 text-[var(--color-outer-space)] shadow-[0_25px_70px_-50px_rgba(13,9,59,0.65)] sm:px-7">
+              {!damacPendingSubmission ? (
+                <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
+                  <DamacMapSelector
+                    catalogueId={damacRedeemItem.id}
+                    selectedAllocationId={damacSelectedAllocationId}
+                    onSelectAllocation={setDamacSelectedAllocationId}
+                    onSelectionChange={setDamacSelectionDetails}
+                    onRequestProceed={handleDamacProceed}
+                    hideOuterFrame
+                  />
+                </div>
+              ) : (
+                <div className="flex min-h-[60vh] items-center justify-center">
+                  <div className="w-full max-w-lg rounded-[28px] border border-[#d1b7fb]/70 bg-white px-5 py-5 text-[var(--color-outer-space)] shadow-[0_25px_70px_-50px_rgba(13,9,59,0.65)] sm:px-7">
                   <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--color-electric-purple)]">Confirm redemption</p>
                   <h4 className="mt-2 text-xl font-semibold">
                     {damacPendingSubmission.allocation.damacIslandcode ||
@@ -1657,7 +1658,8 @@ const referralCards: ReactNode[] = [
                     </button>
                   </div>
                 </div>
-              ) : null}
+                </div>
+              )}
             </div>
 
             {damacFlowStatus === 'submitting' ? (
