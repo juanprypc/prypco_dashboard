@@ -1589,7 +1589,36 @@ const referralCards: ReactNode[] = [
             ) : null}
 
             <div className="max-h-[80vh] overflow-y-auto px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
-              {!damacPendingSubmission ? (
+              {damacFlowStatus === 'success' ? (
+                <div className="flex min-h-[60vh] items-center justify-center">
+                  <div className="w-full max-w-lg space-y-4 text-center">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600">
+                      <svg viewBox="0 0 52 52" className="h-8 w-8 text-current" aria-hidden>
+                        <circle cx="26" cy="26" r="23" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.2" />
+                        <path
+                          d="M16 27.5 23.5 34l12.5-15"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                    <h4 className="text-xl font-semibold text-[var(--color-outer-space)]">Request received</h4>
+                    <p className="text-sm text-[var(--color-outer-space)]/70">
+                      {damacConfirmedLer ? `LER ${damacConfirmedLer} is now locked.` : 'Your token request has been locked.'} Our team will finalize the allocation shortly.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={closeDamacFlow}
+                      className="rounded-full bg-[var(--color-outer-space)] px-6 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
+                    >
+                      Back to store
+                    </button>
+                  </div>
+                </div>
+              ) : !damacPendingSubmission ? (
                 <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
                   <DamacMapSelector
                     catalogueId={damacRedeemItem.id}
@@ -1665,37 +1694,6 @@ const referralCards: ReactNode[] = [
             {damacFlowStatus === 'submitting' ? (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[32px] bg-white/70 text-center text-sm font-semibold text-[var(--color-outer-space)]">
                 Processing your request…
-              </div>
-            ) : null}
-
-            {damacFlowStatus === 'success' ? (
-              <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[32px] bg-white/95 px-6 text-center text-[var(--color-outer-space)]">
-                <div className="space-y-4">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600">
-                    <svg viewBox="0 0 52 52" className="h-8 w-8 text-current" aria-hidden>
-                      <circle cx="26" cy="26" r="23" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.2" />
-                      <path
-                        d="M16 27.5 23.5 34l12.5-15"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                  <h4 className="text-xl font-semibold">Request received</h4>
-                  <p className="text-sm text-[var(--color-outer-space)]/70">
-                    {damacConfirmedLer ? `LER ${damacConfirmedLer} is now locked.` : 'Your token request has been locked.'} Our team will finalize the allocation shortly.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={closeDamacFlow}
-                    className="rounded-full bg-[var(--color-outer-space)] px-6 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
-                  >
-                    Back to store
-                  </button>
-                </div>
               </div>
             ) : null}
           </div>
