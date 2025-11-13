@@ -10,7 +10,7 @@ This document captures how the bespoke DAMAC Islands 2 token experience works to
 4. **Map selection** – `DamacMapSelector` fetches allocations from `/api/damac/map`, shows availability overlays, filters (search, bedroom type), zoom/pan helpers, and highlights the current selection. Selecting a unit updates both `selectedAllocationId` (to persist selection) and the `damacSelectionDetails` preview in the modal header (`components/redeem/DamacMapSelector.tsx:6-360`, `components/DashboardClient.tsx:1522-1533`).
 5. **LER warning → verification** – Tapping “Confirm LER” on the selector first reveals a warning (“submitting an invalid LER forfeits funds”), then POSTs to `/api/damac/ler/verify`. Success hides the form and enables the “Continue” button; failures show inline errors without leaving the screen (`components/redeem/DamacMapSelector.tsx:280-340`).
 6. **Points sufficiency branch** – The selector calls `onRequestProceed({ allocation, lerCode })`. `DashboardClient.handleDamacProceed` looks up the matching Airtable allocation record, computes the points requirement, and compares it to the agent’s balance:
-   - **Enough points** – `/api/redeem` is invoked with the allocation metadata + `damacLerReference`. Success flips the modal into the “Request received” state and locks the token (`components/DashboardClient.tsx:945-1020`, `1517-1594`, `app/api/redeem/route.ts:1-86`).
+   - **Enough points** – A confirmation card appears inline inside the modal. Once the agent taps “Confirm & redeem”, the app POSTs to `/api/redeem` with the allocation metadata + `damacLerReference`, then shows the “Request received” overlay (`components/DashboardClient.tsx:945-1110`, `1517-1610`, `app/api/redeem/route.ts:1-86`).
    - **Insufficient points** – The flow jumps to the existing Stripe checkout helper (`startStripeCheckout`), with the shortfall converted into AED based on `pointsPerAed` and `minTopup` (`components/DashboardClient.tsx:959-987`).
 7. **Webhook persistence** – `/api/redeem` packages all details and POSTs them to `AIRTABLE_REDEEM_WEBHOOK`. Downstream automations (outside this repo) record the redemption, including the `damacLerReference`, so subsequent LER verification requests will be blocked.
 
@@ -35,7 +35,7 @@ Key responsibilities for the DAMAC path:
 - **Interaction model** – Custom zoom/pan logic with scroll/touch gestures, filters, and search. Selected units are stored via `selectedAllocationId` + `onSelectionChange`.
 - **Pricing display** – All price chips in the selector use the Airtable `property_price` field (falling back to `price_aed` only when absent) so the UI mirrors the DAMAC-provided property pricing.
 - **Viewer counter** – Session-based pseudo-random “agents viewing now” badge to reinforce urgency.
-- **LER flow** – `lerDigits` accepts numeric input only; `handleVerifyLer` reveals a warning before POSTing to `/api/damac/ler/verify`. Success stores the normalized code and invokes `onRequestProceed`.
+- **LER flow** – `lerDigits` accepts numeric input only; `handleVerifyLer` reveals a warning before POSTing to `/api/damac/ler/verify`. Success stores the normalized code, closes the form, and hands control back to the dashboard so it can either show the confirmation card (enough points) or the Stripe path (insufficient points).
 - **Error states** – Inline callouts cover fetch failures, verification errors, and network issues. Button states disable interactions while requests are in flight.
 - **Exports** – The component exports `AllocationWithStatus` (id, availability, metadata) so the dashboard can re-use a typed shape when performing balance math.
 
@@ -55,7 +55,7 @@ Key responsibilities for the DAMAC path:
 ## 4. Data & Environment Dependencies
 
 - **Catalogue source** – `lib/airtable.fetchLoyaltyCatalogue` augments each `CatalogueDisplayItem` with `damacIslandCampaign`, allocation metadata, and T&C details. The DAMAC flow assumes the DAMAC token record has active allocations in Airtable (table names from `AIRTABLE_TABLE_UNIT_ALLOCATIONS` and `AIRTABLE_TABLE_LOY`).
-- **Redemption lookups** – `/api/damac/ler/verify` depends on `AIRTABLE_API_KEY`, `AIRTABLE_BASE`, and `AIRTABLE_TABLE_LOY` to query the `loyalty_redemption` table for existing LER codes.
+- **Redemption lookups** – `/api/damac/ler/verify` depends on `AIRTABLE_API_KEY`, `AIRTABLE_BASE`, and `AIRTABLE_TABLE_LOY` to query the `loyalty_redemption` table for existing LER codes, matching against the `LER` field (with a legacy fallback to `unit_alocation_promocode`).
 - **Webhook** – `/api/redeem` requires `AIRTABLE_REDEEM_WEBHOOK`; failing to set it returns a 500 (“Webhook not configured”).
 - **Auth** – Middleware keeps `/damac*` and `/api/damac/*` behind HTTP Basic Auth *except* for `/api/damac/map` and `/api/damac/ler/*`, which need to be publicly callable from the dashboard session.
 

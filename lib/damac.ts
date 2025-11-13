@@ -34,6 +34,7 @@ function escapeFormulaValue(value: string): string {
 
 type DamacRawFields = Record<string, unknown> & {
   unit_alocation_promocode?: string;
+  LER?: string;
   agent_email?: string;
   agent_fname?: string;
   agent_code?: string;
@@ -67,6 +68,7 @@ export type DamacRedemptionRecord = {
 
 const DAMAC_FIELDS = [
   'unit_alocation_promocode',
+  'LER',
   'agent_email',
   'agent_fname',
   'agent_code',
@@ -105,7 +107,7 @@ function mapRecord(
   const fields = record.fields || {};
   return {
     id: record.id,
-    code: toMaybeString(fields.unit_alocation_promocode) ?? null,
+    code: toMaybeString(fields.LER) ?? toMaybeString(fields.unit_alocation_promocode) ?? null,
     agentEmail: toMaybeString(fields.agent_email) ?? null,
     agentName: toMaybeString(fields.agent_fname) ?? null,
     agentCode: toMaybeString(fields.agent_code) ?? null,
@@ -151,7 +153,8 @@ async function fetchRedemptionRecords(params: URLSearchParams): Promise<Airtable
 
 export async function fetchDamacRedemptionByCode(code: string): Promise<DamacRedemptionRecord | null> {
   const params = new URLSearchParams();
-  params.set('filterByFormula', `{unit_alocation_promocode}='${escapeFormulaValue(code)}'`);
+  const escaped = escapeFormulaValue(code);
+  params.set('filterByFormula', `OR({LER}='${escaped}', {unit_alocation_promocode}='${escaped}')`);
   params.set('maxRecords', '1');
 
   const records = await fetchRedemptionRecords(params);

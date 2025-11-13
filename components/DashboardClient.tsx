@@ -124,6 +124,11 @@ const LEARN_FAQ_ITEMS: Array<{ question: string; answer: ReactNode }> = [
   },
 ];
 
+const formatAedFull = (value?: number | null): string => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+  return `AED ${value.toLocaleString()}`;
+};
+
 function normaliseTopupAmount(value: number, minAmount: number): number {
   if (!Number.isFinite(value) || value <= 0) return minAmount;
   const multiples = Math.max(1, Math.ceil(value / minAmount));
@@ -280,6 +285,11 @@ export function DashboardClient({
   const [damacFlowStatus, setDamacFlowStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [damacFlowError, setDamacFlowError] = useState<string | null>(null);
   const [damacConfirmedLer, setDamacConfirmedLer] = useState<string | null>(null);
+  const [damacPendingSubmission, setDamacPendingSubmission] = useState<{
+    allocation: AllocationWithStatus;
+    catalogueAllocation: CatalogueUnitAllocation;
+    lerCode: string;
+  } | null>(null);
   const searchParams = useSearchParams();
 
   // Initialize filter from URL or default to 'all'
@@ -436,7 +446,18 @@ export function DashboardClient({
     setDamacFlowStatus('idle');
     setDamacFlowError(null);
     setDamacConfirmedLer(null);
+    setDamacPendingSubmission(null);
   }, []);
+
+  useEffect(() => {
+    setDamacPendingSubmission(null);
+  }, [damacSelectedAllocationId]);
+
+  useEffect(() => {
+    if (!damacRedeemItem) {
+      setDamacPendingSubmission(null);
+    }
+  }, [damacRedeemItem]);
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
@@ -984,36 +1005,8 @@ export function DashboardClient({
         return;
       }
 
-      setDamacFlowStatus('submitting');
       setDamacFlowError(null);
-      try {
-        const res = await fetch('/api/redeem', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            agentId: agentId ?? null,
-            agentCode: agentCode ?? null,
-            rewardId: damacRedeemItem.id,
-            rewardName: damacRedeemItem.name,
-            rewardPoints: matchingAllocation.points ?? damacRedeemItem.points ?? null,
-            priceAed: matchingAllocation.priceAed ?? damacRedeemItem.priceAED ?? null,
-            unitAllocationId: matchingAllocation.id,
-            unitAllocationLabel: matchingAllocation.unitType ?? allocation.damacIslandcode ?? null,
-            unitAllocationPoints: matchingAllocation.points ?? null,
-            damacLerReference: lerCode,
-          }),
-        });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          throw new Error(json?.error || 'Redemption failed');
-        }
-        setDamacConfirmedLer(lerCode);
-        setDamacFlowStatus('success');
-      } catch (error) {
-        const errMessage = error instanceof Error ? error.message : 'Unable to submit redemption';
-        setDamacFlowError(errMessage);
-        setDamacFlowStatus('idle');
-      }
+      setDamacPendingSubmission({ allocation, catalogueAllocation: matchingAllocation, lerCode });
     },
     [
       agentCode,
@@ -1025,6 +1018,46 @@ export function DashboardClient({
       startStripeCheckout,
     ],
   );
+
+  const submitDamacRedemption = useCallback(async () => {
+    if (!damacRedeemItem || !damacPendingSubmission) return;
+    const { catalogueAllocation, allocation, lerCode } = damacPendingSubmission;
+    setDamacFlowStatus('submitting');
+    setDamacFlowError(null);
+    try {
+      const res = await fetch('/api/redeem', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          agentId: agentId ?? null,
+          agentCode: agentCode ?? null,
+          rewardId: damacRedeemItem.id,
+          rewardName: damacRedeemItem.name,
+          rewardPoints: catalogueAllocation.points ?? damacRedeemItem.points ?? null,
+          priceAed: catalogueAllocation.priceAed ?? damacRedeemItem.priceAED ?? null,
+          unitAllocationId: catalogueAllocation.id,
+          unitAllocationLabel: catalogueAllocation.unitType ?? allocation.damacIslandcode ?? null,
+          unitAllocationPoints: catalogueAllocation.points ?? null,
+          damacLerReference: lerCode,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || 'Redemption failed');
+      }
+      setDamacConfirmedLer(lerCode);
+      setDamacPendingSubmission(null);
+      setDamacFlowStatus('success');
+    } catch (error) {
+      const errMessage = error instanceof Error ? error.message : 'Unable to submit redemption';
+      setDamacFlowError(errMessage);
+      setDamacFlowStatus('idle');
+    }
+  }, [agentCode, agentId, damacPendingSubmission, damacRedeemItem]);
+
+  const cancelDamacPendingSubmission = useCallback(() => {
+    setDamacPendingSubmission(null);
+  }, []);
 
   const topEarningCards = useMemo<ReactNode[]>(() => {
     if (rows === null) {
@@ -1553,6 +1586,65 @@ const referralCards: ReactNode[] = [
                   hideOuterFrame
                 />
               </div>
+
+              {damacPendingSubmission ? (
+                <div className="mt-6 rounded-[28px] border border-[#d1b7fb]/70 bg-white px-5 py-5 text-[var(--color-outer-space)] shadow-[0_25px_70px_-50px_rgba(13,9,59,0.65)] sm:px-7">
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--color-electric-purple)]">Confirm redemption</p>
+                  <h4 className="mt-2 text-xl font-semibold">
+                    {damacPendingSubmission.allocation.damacIslandcode ||
+                      damacPendingSubmission.catalogueAllocation.unitType ||
+                      'Selected unit'}
+                  </h4>
+                  <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">Points required</dt>
+                      <dd className="mt-1 text-lg font-semibold">
+                        {damacPendingSubmission.catalogueAllocation.points?.toLocaleString() ?? '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">Price</dt>
+                      <dd className="mt-1 text-lg font-semibold">
+                        {formatAedFull(
+                          damacPendingSubmission.catalogueAllocation.propertyPrice ??
+                            damacPendingSubmission.catalogueAllocation.priceAed ??
+                            damacPendingSubmission.allocation.propertyPrice ??
+                            damacPendingSubmission.allocation.priceAed ??
+                            null,
+                        )}
+                      </dd>
+                    </div>
+                    {damacPendingSubmission.allocation.brType ? (
+                      <div>
+                        <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">Prototype</dt>
+                        <dd className="mt-1 text-base font-semibold">{damacPendingSubmission.allocation.brType}</dd>
+                      </div>
+                    ) : null}
+                    <div>
+                      <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">LER</dt>
+                      <dd className="mt-1 text-base font-semibold">{damacPendingSubmission.lerCode}</dd>
+                    </div>
+                  </dl>
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={cancelDamacPendingSubmission}
+                      className="inline-flex items-center justify-center rounded-full border border-[var(--color-outer-space)]/20 px-5 py-2.5 text-sm font-semibold text-[var(--color-outer-space)]/70 transition hover:border-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]"
+                      disabled={damacFlowStatus === 'submitting'}
+                    >
+                      Change selection
+                    </button>
+                    <button
+                      type="button"
+                      onClick={submitDamacRedemption}
+                      disabled={damacFlowStatus === 'submitting'}
+                      className="inline-flex min-w-[180px] items-center justify-center rounded-full bg-[var(--color-outer-space)] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:opacity-60"
+                    >
+                      {damacFlowStatus === 'submitting' ? 'Submitting…' : 'Confirm & redeem'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {damacFlowStatus === 'submitting' ? (
