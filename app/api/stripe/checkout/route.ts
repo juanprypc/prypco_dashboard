@@ -8,6 +8,7 @@ type CheckoutPayload = {
   agentCode?: string;
   baseQuery?: string;
   amountAED?: number;
+  rewardId?: string;
 };
 
 const STRIPE_MAX_AED = Number(process.env.STRIPE_MAX_AED || 999999);
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
     const baseParams = new URLSearchParams(body.baseQuery || '');
     if (agentId && !baseParams.has('agent')) baseParams.set('agent', agentId);
     if (agentCode && !baseParams.has('agentCode')) baseParams.set('agentCode', agentCode);
+    if (body.rewardId && !baseParams.has('reward')) baseParams.set('reward', body.rewardId);
 
     const successParams = new URLSearchParams(baseParams);
     successParams.set('topup', 'success');

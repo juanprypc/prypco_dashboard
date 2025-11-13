@@ -31,6 +31,7 @@ type Props = {
   identifierLabel: string;
   activeView: 'loyalty' | 'catalogue' | 'learn';
   topupStatus: 'success' | 'cancel' | null;
+  autoOpenRewardId?: string;
   minTopup: number;
   pointsPerAed: number;
   ledgerHref: string;
@@ -243,6 +244,7 @@ export function DashboardClient({
   identifierLabel,
   activeView,
   topupStatus,
+  autoOpenRewardId,
   minTopup,
   pointsPerAed,
   ledgerHref,
@@ -586,7 +588,7 @@ export function DashboardClient({
   }, []);
 
   const startStripeCheckout = useCallback(
-    async (amountAED: number) => {
+    async (amountAED: number, rewardId?: string) => {
       if (!agentId && !agentCode) {
         throw new Error('Missing agent details.');
       }
@@ -598,6 +600,7 @@ export function DashboardClient({
           agentCode,
           amountAED,
           baseQuery,
+          rewardId,
         }),
       });
       const json = await res.json();
@@ -998,7 +1001,7 @@ export function DashboardClient({
           const shortfall = requiredPoints - availablePoints;
           const denominator = pointsPerAed > 0 ? pointsPerAed : 1;
           const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator), minTopup);
-          await startStripeCheckout(suggestedAed);
+          await startStripeCheckout(suggestedAed, damacRedeemItem.id);
         } catch (error) {
           const errMessage = error instanceof Error ? error.message : 'Unable to open checkout';
           setDamacFlowError(errMessage);
@@ -1127,6 +1130,17 @@ export function DashboardClient({
       setForceFreshLoyalty(true);
     }
   }, [damacFlowStatus]);
+
+  // Auto-open reward after Stripe payment
+  useEffect(() => {
+    if (!autoOpenRewardId || !catalogue) return;
+    const item = catalogue.find((i) => i.id === autoOpenRewardId);
+    if (!item) return;
+
+    if (item.category === 'token' && item.id.includes('damac')) {
+      setDamacRedeemItem(item);
+    }
+  }, [autoOpenRewardId, catalogue]);
 
   useEffect(() => {
     if (damacPendingSubmission) {
