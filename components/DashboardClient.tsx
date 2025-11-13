@@ -59,6 +59,7 @@ type CatalogueResponseItem = {
     points: number | null;
     pictureUrl: string | null;
     priceAed: number | null;
+    propertyPrice?: number | null;
   }>;
 };
 
