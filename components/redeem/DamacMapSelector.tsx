@@ -779,8 +779,8 @@ export function DamacMapSelector({
       </div>
 
         <div className="order-1 relative flex-1 lg:order-2">
-        <div className="rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4">
-          <div className="mb-3 flex flex-col gap-3">
+        <div className="bg-white">
+          <div className="mb-4 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex-1">
                 <p className="text-sm font-semibold text-[var(--color-outer-space)]">Bahamas Cluster Map</p>
@@ -1033,7 +1033,7 @@ export function DamacMapSelector({
             </>
           )}
 
-          <div className="mt-2 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
+          <div className="mt-4 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between">
             <p className="text-[10px] text-[var(--color-outer-space)]/50">{interactionHint}</p>
             <a href={MAP_IMAGE_ORIGINAL} download="Bahamas-Cluster-Map.jpg" className="text-[10px] text-[var(--color-electric-purple)] hover:underline">
               Download map
