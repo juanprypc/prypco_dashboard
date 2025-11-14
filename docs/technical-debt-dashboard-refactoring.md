@@ -362,6 +362,12 @@ Now that `DamacRedemptionFlow` is live, the next increment focuses on the generi
 
 Deliverable: `DashboardClient.tsx` should no longer render any `<RedeemDialog>` or `<UnitAllocationDialog>` directly; instead it injects shared context + renders `TokenRedemptionFlow` / `SimpleRedemptionFlow` similar to the DAMAC integration.
 
+**Phase 3 progress (current):**
+- ✅ `RedemptionProvider` now wraps dashboard content and exposes `hasAcceptedTerms`, `showTermsDialog`, and `requireTermsAcceptance`.
+- ✅ `useBuyerVerification` hook owns buyer verification state; token and simple flows reuse it instead of maintaining local dialog plumbing.
+- ✅ RTL smoke tests (`components/redeem/context/__tests__/RedemptionContext.test.tsx`, `components/redeem/flows/__tests__/*.test.tsx`) run via `npm run test`.
+- ⏳ DamacMapSelector split + shared analytics helpers remain outstanding.
+
 ---
 
 ## Refactoring Plan
@@ -581,15 +587,15 @@ git push origin staging
 - **PR review time:** 30-60 minutes
 - **Time to understand DAMAC flow:** 60+ minutes
 
-### After Refactor (Target)
+### After Refactor (Current)
 
-- **Lines in DashboardClient:** 600-800 (-1,100 lines)
-- **Lines in DamacRedemptionFlow:** ~400
-- **Lines in TokenRedemptionFlow:** ~200
-- **Lines in SimpleRedemptionFlow:** ~150
-- **Cyclomatic complexity:** Medium (each file)
-- **PR review time:** 15-20 minutes
-- **Time to understand DAMAC flow:** 20 minutes
+- **Lines in DashboardClient:** 1,434 (down ~25%) with only orchestration/analytics code.
+- **Lines in DamacRedemptionFlow:** 416
+- **Lines in TokenRedemptionFlow:** 179
+- **Lines in SimpleRedemptionFlow:** 136
+- **Shared context/hooks:** `RedemptionProvider` + `useBuyerVerification`.
+- **Automated tests:** 3 RTL smoke suites (`RedemptionContext`, `SimpleRedemptionFlow`, `TokenRedemptionFlow`) runnable via `npm run test`.
+- **Time to wire new flow:** < 1 day (no dashboard changes required).
 
 ---
 
@@ -635,10 +641,11 @@ git push origin staging
    - [ ] Browser back button
    - [ ] Multiple tabs open
 
-**Automated Testing (Optional):**
-- Component tests for DamacRedemptionFlow
-- Integration tests for full flow
-- Snapshot tests for UI
+**Automated Testing (Status):**
+- `components/redeem/context/__tests__/RedemptionContext.test.tsx`
+- `components/redeem/flows/__tests__/SimpleRedemptionFlow.test.tsx`
+- `components/redeem/flows/__tests__/TokenRedemptionFlow.test.tsx`
+- Run via `npm run test` (Vitest + Testing Library).
 
 ### Phase 2 & 3 Testing
 

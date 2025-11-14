@@ -5,8 +5,7 @@ import type { CatalogueDisplayItem, CatalogueUnitAllocation } from '@/components
 import { UnitAllocationDialog } from '../UnitAllocationDialog';
 import { BuyerVerificationDialog } from '../BuyerVerificationDialog';
 import { RedeemDialog } from '../RedeemDialog';
-
-type BuyerDetails = { firstName: string; phoneLast4: string };
+import { useBuyerVerification } from '../hooks/useBuyerVerification';
 
 type TokenRedemptionFlowProps = {
   item: CatalogueDisplayItem;
@@ -38,9 +37,15 @@ export function TokenRedemptionFlow({
   const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [redeemStatus, setRedeemStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
-  const [buyerVerificationOpen, setBuyerVerificationOpen] = useState(false);
-  const [buyerVerificationAllocation, setBuyerVerificationAllocation] = useState<CatalogueUnitAllocation | null>(null);
-  const [preFilledBuyerDetails, setPreFilledBuyerDetails] = useState<BuyerDetails | null>(null);
+  const {
+    isOpen: buyerVerificationOpen,
+    pendingSelection: buyerVerificationAllocation,
+    prefilledDetails,
+    ensureVerification,
+    handleSubmit: handleBuyerVerificationSubmit,
+    handleClose: closeBuyerVerificationDialog,
+    reset: resetBuyerVerification,
+  } = useBuyerVerification<CatalogueUnitAllocation>();
 
   const allocations = useMemo(() => item.unitAllocations ?? [], [item.unitAllocations]);
 
@@ -50,31 +55,26 @@ export function TokenRedemptionFlow({
     setShowUnitDialog(true);
     setRedeemStatus('idle');
     setRedeemMessage(null);
-    setBuyerVerificationAllocation(null);
-    setBuyerVerificationOpen(false);
-    setPreFilledBuyerDetails(null);
+    resetBuyerVerification();
     onClose();
-  }, [onClose]);
+  }, [onClose, resetBuyerVerification]);
+
+  const showRedeemDialog = useCallback((allocation: CatalogueUnitAllocation | null) => {
+    if (!allocation) return;
+    setSelectedUnitAllocation(allocation);
+    setRedeemStatus('idle');
+    setRedeemMessage(null);
+    setShowUnitDialog(false);
+  }, []);
 
   const beginRedeem = useCallback(
-    (allocation: CatalogueUnitAllocation, buyerDetails?: BuyerDetails) => {
-      const requiresBuyerVerification = item.requiresBuyerVerification === true;
-      const details = buyerDetails ?? preFilledBuyerDetails;
-      if (requiresBuyerVerification && !details) {
-        setBuyerVerificationAllocation(allocation);
-        setBuyerVerificationOpen(true);
-        return;
-      }
-
-      if (buyerDetails) {
-        setPreFilledBuyerDetails(buyerDetails);
-      }
-
-      setSelectedUnitAllocation(allocation);
-      setRedeemStatus('idle');
-      setRedeemMessage(null);
+    (allocation: CatalogueUnitAllocation) => {
+      ensureVerification(allocation, item.requiresBuyerVerification === true, (verifiedAllocation) => {
+        if (!verifiedAllocation) return;
+        showRedeemDialog(verifiedAllocation);
+      });
     },
-    [item, preFilledBuyerDetails],
+    [ensureVerification, item.requiresBuyerVerification, showRedeemDialog],
   );
 
   const confirmUnitAllocation = useCallback(() => {
@@ -82,18 +82,7 @@ export function TokenRedemptionFlow({
     const chosen = allocations.find((allocation) => allocation.id === unitAllocationSelection);
     if (!chosen) return;
     beginRedeem(chosen);
-    setShowUnitDialog(false);
   }, [allocations, beginRedeem, unitAllocationSelection]);
-
-  const handleBuyerVerificationSubmit = useCallback(
-    (details: BuyerDetails) => {
-      const allocation = buyerVerificationAllocation;
-      if (!allocation) return;
-      setBuyerVerificationOpen(false);
-      beginRedeem(allocation, details);
-    },
-    [beginRedeem, buyerVerificationAllocation],
-  );
 
   const handleRedeemSubmit = useCallback(
     async ({ customerFirstName, customerPhoneLast4 }: { customerFirstName: string; customerPhoneLast4: string }) => {
@@ -141,10 +130,9 @@ export function TokenRedemptionFlow({
   );
 
   const handleBuyerVerificationClose = useCallback(() => {
-    setBuyerVerificationOpen(false);
-    setBuyerVerificationAllocation(null);
+    closeBuyerVerificationDialog();
     resetFlow();
-  }, [resetFlow]);
+  }, [closeBuyerVerificationDialog, resetFlow]);
 
   return (
     <>
@@ -181,7 +169,7 @@ export function TokenRedemptionFlow({
           baseQuery={baseQuery}
           termsAccepted={termsAccepted}
           onShowTerms={onShowTerms}
-          preFilledDetails={preFilledBuyerDetails}
+          preFilledDetails={prefilledDetails}
           onSubmit={handleRedeemSubmit}
           onClose={resetFlow}
         />

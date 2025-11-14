@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { CatalogueDisplayItem } from '@/components/CatalogueGrid';
 import { BuyerVerificationDialog } from '../BuyerVerificationDialog';
 import { RedeemDialog } from '../RedeemDialog';
-
-type BuyerDetails = { firstName: string; phoneLast4: string };
+import { useBuyerVerification } from '../hooks/useBuyerVerification';
 
 type SimpleRedemptionFlowProps = {
   item: CatalogueDisplayItem;
@@ -34,50 +33,35 @@ export function SimpleRedemptionFlow({
 }: SimpleRedemptionFlowProps) {
   const [redeemStatus, setRedeemStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
-  const [buyerVerificationOpen, setBuyerVerificationOpen] = useState(false);
-  const [preFilledBuyerDetails, setPreFilledBuyerDetails] = useState<BuyerDetails | null>(null);
   const [redeemDialogOpen, setRedeemDialogOpen] = useState(false);
+  const {
+    isOpen: buyerVerificationOpen,
+    prefilledDetails,
+    ensureVerification,
+    handleSubmit: handleBuyerVerificationSubmit,
+    handleClose: closeBuyerVerificationDialog,
+    reset: resetBuyerVerification,
+  } = useBuyerVerification<null>();
 
   const resetFlow = useCallback(() => {
     setRedeemStatus('idle');
     setRedeemMessage(null);
-    setBuyerVerificationOpen(false);
-    setPreFilledBuyerDetails(null);
+    resetBuyerVerification();
     setRedeemDialogOpen(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, resetBuyerVerification]);
 
-  const beginRedeem = useCallback(
-    (buyerDetails?: BuyerDetails) => {
-      const requiresBuyerVerification = item.requiresBuyerVerification === true;
-      const details = buyerDetails ?? preFilledBuyerDetails;
-      if (requiresBuyerVerification && !details) {
-        setBuyerVerificationOpen(true);
-        return;
-      }
-
-      if (buyerDetails) {
-        setPreFilledBuyerDetails(buyerDetails);
-      }
-
+  const beginRedeem = useCallback(() => {
+    ensureVerification(null, item.requiresBuyerVerification === true, () => {
       setRedeemStatus('idle');
       setRedeemMessage(null);
       setRedeemDialogOpen(true);
-    },
-    [item, preFilledBuyerDetails],
-  );
+    });
+  }, [ensureVerification, item.requiresBuyerVerification]);
 
   useEffect(() => {
     beginRedeem();
   }, [beginRedeem]);
-
-  const handleBuyerVerificationSubmit = useCallback(
-    (details: BuyerDetails) => {
-      setBuyerVerificationOpen(false);
-      beginRedeem(details);
-    },
-    [beginRedeem],
-  );
 
   const handleRedeemSubmit = useCallback(
     async ({ customerFirstName, customerPhoneLast4 }: { customerFirstName: string; customerPhoneLast4: string }) => {
@@ -119,9 +103,9 @@ export function SimpleRedemptionFlow({
   );
 
   const handleBuyerVerificationClose = useCallback(() => {
-    setBuyerVerificationOpen(false);
+    closeBuyerVerificationDialog();
     resetFlow();
-  }, [resetFlow]);
+  }, [closeBuyerVerificationDialog, resetFlow]);
 
   return (
     <>
@@ -144,7 +128,7 @@ export function SimpleRedemptionFlow({
           onClose={resetFlow}
           onShowTerms={onShowTerms}
           termsAccepted={termsAccepted}
-          preFilledDetails={preFilledBuyerDetails}
+          preFilledDetails={prefilledDetails}
         />
       ) : null}
     </>

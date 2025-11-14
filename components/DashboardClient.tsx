@@ -16,7 +16,13 @@ import { BackToAppButton } from './BackToAppButton';
 import LearnMoreGraphic from '@/image_assets/Frame 1.png';
 import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
 import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
-import { TermsDialog, DamacRedemptionFlow, TokenRedemptionFlow, SimpleRedemptionFlow } from './redeem';
+import {
+  DamacRedemptionFlow,
+  TokenRedemptionFlow,
+  SimpleRedemptionFlow,
+  RedemptionProvider,
+  useRedemptionContext,
+} from './redeem';
 
 type Props = {
   agentId?: string;
@@ -227,7 +233,15 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
 
 const ActivitySection = lazy(() => import('./ActivitySection'));
 
-export function DashboardClient({
+export function DashboardClient(props: Props) {
+  return (
+    <RedemptionProvider>
+      <DashboardContent {...props} />
+    </RedemptionProvider>
+  );
+}
+
+function DashboardContent({
   agentId,
   agentCode,
   identifierLabel,
@@ -259,17 +273,14 @@ export function DashboardClient({
   const cataloguePrefetchedRef = useRef(false);
   const catalogueFetchPromiseRef = useRef<Promise<void> | null>(null);
   const catalogueTrackedRef = useRef(false);
-  const [pendingRedeemItem, setPendingRedeemItem] = useState<CatalogueDisplayItem | null>(null);
-  const [termsDialogItem, setTermsDialogItem] = useState<CatalogueDisplayItem | null>(null);
-  const [termsDialogMode, setTermsDialogMode] = useState<'view' | 'redeem'>('view');
   const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
-  const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
   const [damacRedeemItem, setDamacRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [damacAutoRestore, setDamacAutoRestore] = useState<{ allocationId: string; lerCode: string } | null>(null);
   const [tokenRedeemItem, setTokenRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [simpleRedeemItem, setSimpleRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const searchParams = useSearchParams();
+  const { hasAcceptedTerms, showTermsDialog, requireTermsAcceptance } = useRedemptionContext();
 
   // Initialize filter from URL or default to 'all'
   const [catalogueFilter, setCatalogueFilter] = useState<'all' | 'token' | 'reward'>(() => {
@@ -299,14 +310,6 @@ export function DashboardClient({
       router.replace(`?${params.toString()}`, { scroll: false });
     },
     [searchParams, router],
-  );
-
-  const hasAcceptedTerms = useCallback(
-    (item: CatalogueDisplayItem | null) => {
-      if (!item || !item.termsActive) return true;
-      return item.id === termsAcceptedItemId;
-    },
-    [termsAcceptedItemId],
   );
 
   // Filter catalogue items based on selected category
@@ -360,12 +363,10 @@ export function DashboardClient({
 
   const handleTokenFlowClose = useCallback(() => {
     setTokenRedeemItem(null);
-    setTermsAcceptedItemId(null);
   }, []);
 
   const handleSimpleFlowClose = useCallback(() => {
     setSimpleRedeemItem(null);
-    setTermsAcceptedItemId(null);
   }, []);
 
   const handleRequestRedeem = useCallback(
@@ -383,47 +384,18 @@ export function DashboardClient({
           return;
         }
       }
-      if (item.termsActive) {
-        setTermsAcceptedItemId(null);
-        setPendingRedeemItem(item);
-        setTermsDialogItem(item);
-        setTermsDialogMode('redeem');
+      if (item.termsActive && !hasAcceptedTerms(item)) {
+        requireTermsAcceptance(item, () => startRedeemFlow(item));
         return;
       }
       startRedeemFlow(item);
     },
-    [analyticsAgentId, startRedeemFlow],
+    [analyticsAgentId, hasAcceptedTerms, requireTermsAcceptance, startRedeemFlow],
   );
 
   const handleShowTerms = useCallback((item: CatalogueDisplayItem) => {
-    setPendingRedeemItem(null);
-    setTermsDialogItem(item);
-    setTermsDialogMode('view');
-  }, []);
-
-  const handleTermsAccept = useCallback(
-    (item: CatalogueDisplayItem) => {
-      setTermsAcceptedItemId(item.id);
-      if (termsDialogMode === 'redeem') {
-        const target = pendingRedeemItem ?? item;
-        setTermsDialogItem(null);
-        setTermsDialogMode('view');
-        setPendingRedeemItem(null);
-        if (target) startRedeemFlow(target);
-      } else {
-        setTermsDialogItem(null);
-        setTermsDialogMode('view');
-        setPendingRedeemItem(null);
-      }
-    },
-    [pendingRedeemItem, startRedeemFlow, termsDialogMode],
-  );
-
-  const handleTermsClose = useCallback(() => {
-    setTermsDialogItem(null);
-    setTermsDialogMode('view');
-    setPendingRedeemItem(null);
-  }, []);
+    showTermsDialog(item);
+  }, [showTermsDialog]);
 
   const isMountedRef = useRef(true);
   const currentTab: 'dashboard' | 'store' | 'learn' =
@@ -1342,16 +1314,6 @@ const referralCards: ReactNode[] = [
           />
         </section>
       )}
-      {termsDialogItem ? (
-        <TermsDialog
-          item={termsDialogItem}
-          mode={termsDialogMode}
-          accepted={hasAcceptedTerms(termsDialogItem)}
-          onAccept={handleTermsAccept}
-          onClose={handleTermsClose}
-        />
-      ) : null}
-
       {waitlistMessage ? (
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4"

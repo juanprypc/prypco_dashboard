@@ -8,3 +8,5 @@ export { DamacInsufficientBalanceModal } from './components/DamacInsufficientBal
 export { DamacRedemptionFlow } from './flows/DamacRedemptionFlow';
 export { TokenRedemptionFlow } from './flows/TokenRedemptionFlow';
 export { SimpleRedemptionFlow } from './flows/SimpleRedemptionFlow';
+export { RedemptionProvider, useRedemptionContext } from './context/RedemptionContext';
+export { useBuyerVerification } from './hooks/useBuyerVerification';
