@@ -69,8 +69,12 @@ export function TokenRedemptionFlow({
 
   const beginRedeem = useCallback(
     (allocation: CatalogueUnitAllocation) => {
+      setShowUnitDialog(false);
       ensureVerification(allocation, item.requiresBuyerVerification === true, (verifiedAllocation) => {
-        if (!verifiedAllocation) return;
+        if (!verifiedAllocation) {
+          setShowUnitDialog(true);
+          return;
+        }
         showRedeemDialog(verifiedAllocation);
       });
     },
