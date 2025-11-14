@@ -21,9 +21,8 @@ import {
   RedeemDialog,
   TermsDialog,
   UnitAllocationDialog,
-  DamacMapSelector,
+  DamacRedemptionFlow,
 } from './redeem';
-import type { AllocationWithStatus } from './redeem';
 
 type Props = {
   agentId?: string;
@@ -132,12 +131,6 @@ const formatAedFull = (value?: number | null): string => {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
   return `AED ${value.toLocaleString()}`;
 };
-
-function normaliseTopupAmount(value: number, minAmount: number): number {
-  if (!Number.isFinite(value) || value <= 0) return minAmount;
-  const multiples = Math.max(1, Math.ceil(value / minAmount));
-  return multiples * minAmount;
-}
 
 function monthKey(dateIso: string): string {
   const d = new Date(dateIso);
@@ -288,25 +281,7 @@ export function DashboardClient({
   const [buyerVerificationAllocation, setBuyerVerificationAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [preFilledBuyerDetails, setPreFilledBuyerDetails] = useState<{ firstName: string; phoneLast4: string } | null>(null);
   const [damacRedeemItem, setDamacRedeemItem] = useState<CatalogueDisplayItem | null>(null);
-  const [damacSelectedAllocationId, setDamacSelectedAllocationId] = useState<string | null>(null);
-  const [damacSelectionDetails, setDamacSelectionDetails] = useState<AllocationWithStatus | null>(null);
-  const [damacFlowStatus, setDamacFlowStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
-  const [damacFlowError, setDamacFlowError] = useState<string | null>(null);
-  const [damacConfirmedLer, setDamacConfirmedLer] = useState<string | null>(null);
-  const [damacPendingSubmission, setDamacPendingSubmission] = useState<{
-    allocation: AllocationWithStatus;
-    catalogueAllocation: CatalogueUnitAllocation;
-    lerCode: string;
-  } | null>(null);
-  const [damacInsufficientBalanceModal, setDamacInsufficientBalanceModal] = useState<{
-    requiredPoints: number;
-    availablePoints: number;
-    shortfall: number;
-    suggestedAed: number;
-    allocation: AllocationWithStatus;
-    catalogueAllocation: CatalogueUnitAllocation;
-    lerCode: string;
-  } | null>(null);
+  const [damacAutoRestore, setDamacAutoRestore] = useState<{ allocationId: string; lerCode: string } | null>(null);
   const searchParams = useSearchParams();
 
   // Initialize filter from URL or default to 'all'
@@ -397,11 +372,7 @@ export function DashboardClient({
     (item: CatalogueDisplayItem) => {
       if (item.damacIslandCampaign) {
         setDamacRedeemItem(item);
-        setDamacSelectedAllocationId(null);
-        setDamacSelectionDetails(null);
-        setDamacFlowStatus('idle');
-        setDamacFlowError(null);
-        setDamacConfirmedLer(null);
+        setDamacAutoRestore(null);
         return;
       }
       const allocations = item.unitAllocations;
@@ -415,6 +386,19 @@ export function DashboardClient({
     },
     [beginRedeem],
   );
+
+  const closeDamacFlow = useCallback(() => {
+    setDamacRedeemItem(null);
+    setDamacAutoRestore(null);
+  }, []);
+
+  const handleDamacAutoRestoreConsumed = useCallback(() => {
+    setDamacAutoRestore(null);
+  }, []);
+
+  const handleDamacSuccess = useCallback(() => {
+    setForceFreshLoyalty(true);
+  }, []);
 
   const closeUnitAllocationDialog = useCallback(() => {
     setUnitAllocationDialogItem(null);
@@ -465,16 +449,6 @@ export function DashboardClient({
     setDamacConfirmedLer(null);
     setDamacPendingSubmission(null);
   }, []);
-
-  useEffect(() => {
-    setDamacPendingSubmission(null);
-  }, [damacSelectedAllocationId]);
-
-  useEffect(() => {
-    if (!damacRedeemItem) {
-      setDamacPendingSubmission(null);
-    }
-  }, [damacRedeemItem]);
 
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
@@ -981,140 +955,6 @@ export function DashboardClient({
 
   const topHighlightItems = useMemo(() => metrics.pointsByType.slice(0, 3), [metrics.pointsByType]);
 
-  const handleDamacProceed = useCallback(
-    async ({ allocation, lerCode }: { allocation: AllocationWithStatus; lerCode: string }) => {
-      if (!damacRedeemItem) return;
-      const matchingAllocation =
-        damacRedeemItem.unitAllocations.find((unit) => unit.id === allocation.id) ?? null;
-      if (!matchingAllocation) {
-        setDamacFlowError('Selected unit is no longer available. Please pick another option.');
-        setDamacSelectedAllocationId(null);
-        setDamacSelectionDetails(null);
-        return;
-      }
-
-      const requiredPoints =
-        typeof matchingAllocation.points === 'number'
-          ? matchingAllocation.points
-          : typeof allocation.points === 'number'
-            ? allocation.points
-            : null;
-      if (!requiredPoints || requiredPoints <= 0) {
-        setDamacFlowError('This unit is missing a points value. Please choose another unit.');
-        return;
-      }
-      if (!agentId && !agentCode) {
-        setDamacFlowError('Missing agent identifiers.');
-        return;
-      }
-
-      const availablePoints = metrics.totalPosted;
-      if (availablePoints < requiredPoints) {
-        // Show interstitial modal instead of directly redirecting to Stripe
-        setDamacFlowError(null);
-        const shortfall = requiredPoints - availablePoints;
-        const denominator = pointsPerAed > 0 ? pointsPerAed : 1;
-        const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator), minTopup);
-        setDamacInsufficientBalanceModal({
-          requiredPoints,
-          availablePoints,
-          shortfall,
-          suggestedAed,
-          allocation,
-          catalogueAllocation: matchingAllocation,
-          lerCode,
-        });
-        return;
-      }
-
-      setDamacFlowError(null);
-      setDamacPendingSubmission({ allocation, catalogueAllocation: matchingAllocation, lerCode });
-    },
-    [
-      agentCode,
-      agentId,
-      damacRedeemItem,
-      metrics.totalPosted,
-      minTopup,
-      pointsPerAed,
-    ],
-  );
-
-  const submitDamacRedemption = useCallback(async () => {
-    if (!damacRedeemItem || !damacPendingSubmission) return;
-    const { catalogueAllocation, allocation, lerCode } = damacPendingSubmission;
-
-    // Validate balance before submission
-    const requiredPoints = catalogueAllocation.points ?? null;
-    if (requiredPoints && requiredPoints > 0) {
-      const availablePoints = metrics.totalPosted;
-      if (availablePoints < requiredPoints) {
-        setDamacFlowError(`Insufficient balance. You need ${requiredPoints.toLocaleString()} points but only have ${availablePoints.toLocaleString()} points.`);
-        setDamacPendingSubmission(null);
-        return;
-      }
-    }
-
-    setDamacFlowStatus('submitting');
-    setDamacFlowError(null);
-    try {
-      const res = await fetch('/api/redeem', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          agentId: agentId ?? null,
-          agentCode: agentCode ?? null,
-          rewardId: damacRedeemItem.id,
-          rewardName: damacRedeemItem.name,
-          rewardPoints: catalogueAllocation.points ?? damacRedeemItem.points ?? null,
-          priceAed: catalogueAllocation.priceAed ?? damacRedeemItem.priceAED ?? null,
-          unitAllocationId: catalogueAllocation.id,
-          unitAllocationLabel: catalogueAllocation.unitType ?? allocation.damacIslandcode ?? null,
-          unitAllocationPoints: catalogueAllocation.points ?? null,
-          damacLerReference: lerCode,
-        }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json?.error || 'Redemption failed');
-      }
-      setDamacConfirmedLer(lerCode);
-      setDamacPendingSubmission(null);
-      setDamacFlowStatus('success');
-    } catch (error) {
-      const errMessage = error instanceof Error ? error.message : 'Unable to submit redemption';
-      setDamacFlowError(errMessage);
-      setDamacFlowStatus('idle');
-    }
-  }, [agentCode, agentId, damacPendingSubmission, damacRedeemItem, metrics.totalPosted]);
-
-  const handleBuyPointsForDamac = useCallback(async () => {
-    if (!damacInsufficientBalanceModal || !damacRedeemItem) return;
-    setDamacFlowStatus('submitting');
-    setDamacFlowError(null);
-    try {
-      await startStripeCheckout(damacInsufficientBalanceModal.suggestedAed, {
-        rewardId: damacRedeemItem.id,
-        allocationId: damacInsufficientBalanceModal.allocation.id,
-        lerCode: damacInsufficientBalanceModal.lerCode,
-      });
-    } catch (error) {
-      const errMessage = error instanceof Error ? error.message : 'Unable to open checkout';
-      setDamacFlowError(errMessage);
-      setDamacFlowStatus('idle');
-    } finally {
-      setDamacInsufficientBalanceModal(null);
-    }
-  }, [damacInsufficientBalanceModal, damacRedeemItem, startStripeCheckout]);
-
-  const closeDamacInsufficientBalanceModal = useCallback(() => {
-    setDamacInsufficientBalanceModal(null);
-  }, []);
-
-  const cancelDamacPendingSubmission = useCallback(() => {
-    setDamacPendingSubmission(null);
-  }, []);
-
   const topEarningCards = useMemo<ReactNode[]>(() => {
     if (rows === null) {
       return Array.from({ length: 3 }, (_, i) => (
@@ -1164,12 +1004,6 @@ export function DashboardClient({
     return () => clearTimeout(timer);
   }, [waitlistMessage]);
 
-  useEffect(() => {
-    if (damacFlowStatus === 'success') {
-      setForceFreshLoyalty(true);
-    }
-  }, [damacFlowStatus]);
-
   // Auto-restore DAMAC flow after Stripe payment
   useEffect(() => {
     if (!autoOpenRewardId || !catalogue) return;
@@ -1178,40 +1012,16 @@ export function DashboardClient({
 
     if (item.category === 'token' && item.id.includes('damac')) {
       setDamacRedeemItem(item);
-
-      // If we have allocation ID and LER, restore to confirmation screen
       if (autoSelectAllocationId && autoVerifiedLerCode) {
-        const allocation = item.unitAllocations.find((a) => a.id === autoSelectAllocationId);
-        if (allocation) {
-          // Create AllocationWithStatus from catalogue allocation
-          const allocationWithStatus: AllocationWithStatus = {
-            id: allocation.id,
-            points: allocation.points ?? undefined,
-            unitType: allocation.unitType ?? undefined,
-            priceAed: allocation.priceAed ?? undefined,
-            propertyPrice: allocation.propertyPrice ?? undefined,
-            availability: 'available' as const,
-          };
-          setDamacPendingSubmission({
-            allocation: allocationWithStatus,
-            catalogueAllocation: allocation,
-            lerCode: autoVerifiedLerCode,
-          });
-        }
+        setDamacAutoRestore({
+          allocationId: autoSelectAllocationId,
+          lerCode: autoVerifiedLerCode,
+        });
+      } else {
+        setDamacAutoRestore(null);
       }
     }
   }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue]);
-
-  useEffect(() => {
-    if (damacPendingSubmission) {
-      setTimeout(() => {
-        const card = document.querySelector('[class*="CONFIRM"][class*="REDEMPTION"]');
-        if (!card) {
-          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        }
-      }, 100);
-    }
-  }, [damacPendingSubmission]);
 
 const referralCards: ReactNode[] = [
     <ReferralCard
@@ -1647,201 +1457,21 @@ const referralCards: ReactNode[] = [
       ) : null}
 
       {damacRedeemItem ? (
-        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-2 py-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-6xl rounded-[32px] border border-[#d1b7fb] bg-white shadow-[0_40px_90px_-45px_rgba(13,9,59,0.65)]">
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#d1b7fb]/60 px-6 py-4">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--color-electric-purple)]">Damac Islands</p>
-                <h3 className="text-2xl font-semibold text-[var(--color-outer-space)]">{damacRedeemItem.name}</h3>
-                <p className="text-sm text-[var(--color-outer-space)]/70">
-                  {damacSelectionDetails
-                    ? `Selected ${damacSelectionDetails.damacIslandcode || damacSelectionDetails.unitType || 'unit'}`
-                    : 'Select a unit to continue'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeDamacFlow}
-                className="rounded-full border border-[var(--color-outer-space)]/20 px-4 py-1.5 text-sm font-medium text-[var(--color-outer-space)]/70 transition hover:border-[var(--color-outer-space)]/60 hover:text-[var(--color-outer-space)]"
-              >
-                Close
-              </button>
-            </div>
-
-            {damacFlowError ? (
-              <div className="mx-6 mt-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {damacFlowError}
-              </div>
-            ) : null}
-
-            <div className="max-h-[80vh] overflow-y-auto px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
-              {damacFlowStatus === 'success' ? (
-                <div className="flex min-h-[60vh] items-center justify-center">
-                  <div className="w-full max-w-lg space-y-4 text-center">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600">
-                      <svg viewBox="0 0 52 52" className="h-8 w-8 text-current" aria-hidden>
-                        <circle cx="26" cy="26" r="23" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.2" />
-                        <path
-                          d="M16 27.5 23.5 34l12.5-15"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-                    <h4 className="text-xl font-semibold text-[var(--color-outer-space)]">Request received</h4>
-                    <p className="text-sm text-[var(--color-outer-space)]/70">
-                      {damacConfirmedLer ? `LER ${damacConfirmedLer} is now locked.` : 'Your token request has been locked.'} Our team will finalize the allocation shortly.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={closeDamacFlow}
-                      className="rounded-full bg-[var(--color-outer-space)] px-6 py-2 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
-                    >
-                      Back to store
-                    </button>
-                  </div>
-                </div>
-              ) : !damacPendingSubmission ? (
-                <div className="rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6 overflow-hidden">
-                  <DamacMapSelector
-                    catalogueId={damacRedeemItem.id}
-                    selectedAllocationId={damacSelectedAllocationId}
-                    onSelectAllocation={setDamacSelectedAllocationId}
-                    onSelectionChange={setDamacSelectionDetails}
-                    onRequestProceed={handleDamacProceed}
-                    hideOuterFrame
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-[60vh] items-center justify-center">
-                  <div className="w-full max-w-lg rounded-[28px] border border-[#d1b7fb]/70 bg-white px-5 py-5 text-[var(--color-outer-space)] shadow-[0_25px_70px_-50px_rgba(13,9,59,0.65)] sm:px-7">
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--color-electric-purple)]">Confirm redemption</p>
-                  <h4 className="mt-2 text-xl font-semibold">
-                    {damacPendingSubmission.allocation.damacIslandcode ||
-                      damacPendingSubmission.catalogueAllocation.unitType ||
-                      'Selected unit'}
-                  </h4>
-                  <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">Points required</dt>
-                      <dd className="mt-1 text-lg font-semibold">
-                        {damacPendingSubmission.catalogueAllocation.points?.toLocaleString() ?? '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">Price</dt>
-                      <dd className="mt-1 text-lg font-semibold">
-                        {formatAedFull(
-                          damacPendingSubmission.catalogueAllocation.propertyPrice ??
-                            damacPendingSubmission.catalogueAllocation.priceAed ??
-                            damacPendingSubmission.allocation.propertyPrice ??
-                            damacPendingSubmission.allocation.priceAed ??
-                            null,
-                        )}
-                      </dd>
-                    </div>
-                    {damacPendingSubmission.allocation.brType ? (
-                      <div>
-                        <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">Prototype</dt>
-                        <dd className="mt-1 text-base font-semibold">{damacPendingSubmission.allocation.brType}</dd>
-                      </div>
-                    ) : null}
-                    <div>
-                      <dt className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/60">LER</dt>
-                      <dd className="mt-1 text-base font-semibold">{damacPendingSubmission.lerCode}</dd>
-                    </div>
-                  </dl>
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={cancelDamacPendingSubmission}
-                      className="inline-flex items-center justify-center rounded-full border border-[var(--color-outer-space)]/20 px-5 py-2.5 text-sm font-semibold text-[var(--color-outer-space)]/70 transition hover:border-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)]"
-                      disabled={damacFlowStatus === 'submitting'}
-                    >
-                      Change selection
-                    </button>
-                    <button
-                      type="button"
-                      onClick={submitDamacRedemption}
-                      disabled={damacFlowStatus === 'submitting'}
-                      className="inline-flex min-w-[180px] items-center justify-center rounded-full bg-[var(--color-outer-space)] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:opacity-60"
-                    >
-                      {damacFlowStatus === 'submitting' ? 'Submitting…' : 'Confirm & redeem'}
-                    </button>
-                  </div>
-                </div>
-                </div>
-              )}
-            </div>
-
-            {damacFlowStatus === 'submitting' ? (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[32px] bg-white/70 text-center text-sm font-semibold text-[var(--color-outer-space)]">
-                Processing your request…
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {damacInsufficientBalanceModal ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-[24px] border border-[#d1b7fb]/70 bg-white p-6 text-[var(--color-outer-space)] shadow-[0_30px_80px_-40px_rgba(13,9,59,0.7)]">
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-amber-200 bg-amber-50 text-amber-600">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-7 w-7">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-[var(--color-outer-space)]">Insufficient Points</h3>
-              <p className="mt-3 text-sm text-[var(--color-outer-space)]/70 leading-relaxed">
-                You don&apos;t have enough points for this unit. Buy more points to continue with your redemption.
-              </p>
-
-              <div className="mt-5 space-y-2 rounded-[16px] border border-[#d1b7fb]/50 bg-[#f8f5ff] px-4 py-3.5 text-left">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-[var(--color-outer-space)]/60">Required:</span>
-                  <span className="font-semibold text-[var(--color-outer-space)]">{damacInsufficientBalanceModal.requiredPoints.toLocaleString()} points</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-[var(--color-outer-space)]/60">You have:</span>
-                  <span className="font-semibold text-[var(--color-outer-space)]">{damacInsufficientBalanceModal.availablePoints.toLocaleString()} points</span>
-                </div>
-                <div className="mt-2 border-t border-[#d1b7fb]/40 pt-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-[var(--color-outer-space)]/60">You need:</span>
-                    <span className="font-bold text-[var(--color-electric-purple)]">{damacInsufficientBalanceModal.shortfall.toLocaleString()} more points</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-4 text-xs text-[var(--color-outer-space)]/50">
-                Suggested top-up: {formatAedFull(damacInsufficientBalanceModal.suggestedAed)} ({(damacInsufficientBalanceModal.suggestedAed * pointsPerAed).toLocaleString()} points)
-              </p>
-            </div>
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row-reverse">
-              <button
-                type="button"
-                onClick={handleBuyPointsForDamac}
-                disabled={damacFlowStatus === 'submitting'}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-[var(--color-outer-space)] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c] disabled:opacity-60"
-              >
-                {damacFlowStatus === 'submitting' ? 'Processing…' : 'Buy Points'}
-              </button>
-              <button
-                type="button"
-                onClick={closeDamacInsufficientBalanceModal}
-                disabled={damacFlowStatus === 'submitting'}
-                className="inline-flex flex-1 items-center justify-center rounded-full border border-[var(--color-outer-space)]/20 px-6 py-3 text-sm font-semibold text-[var(--color-outer-space)]/70 transition hover:border-[var(--color-outer-space)]/50 hover:text-[var(--color-outer-space)] disabled:opacity-60"
-              >
-                Go Back
-              </button>
-            </div>
-          </div>
-        </div>
+        <DamacRedemptionFlow
+          key={damacRedeemItem.id}
+          item={damacRedeemItem}
+          agentId={agentId}
+          agentCode={agentCode}
+          availablePoints={metrics.totalPosted}
+          minTopup={minTopup}
+          pointsPerAed={pointsPerAed}
+          formatAedFull={formatAedFull}
+          startStripeCheckout={startStripeCheckout}
+          autoRestore={damacAutoRestore}
+          onAutoRestoreConsumed={handleDamacAutoRestoreConsumed}
+          onClose={closeDamacFlow}
+          onSuccess={handleDamacSuccess}
+        />
       ) : null}
 
       {unitAllocationDialogItem ? (
