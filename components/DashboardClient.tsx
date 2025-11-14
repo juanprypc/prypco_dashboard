@@ -1797,7 +1797,7 @@ const referralCards: ReactNode[] = [
               </div>
               <h3 className="text-xl font-semibold text-[var(--color-outer-space)]">Insufficient Points</h3>
               <p className="mt-3 text-sm text-[var(--color-outer-space)]/70 leading-relaxed">
-                You don't have enough points for this unit. Buy more points to continue with your redemption.
+                You don&apos;t have enough points for this unit. Buy more points to continue with your redemption.
               </p>
 
               <div className="mt-5 space-y-2 rounded-[16px] border border-[#d1b7fb]/50 bg-[#f8f5ff] px-4 py-3.5 text-left">
