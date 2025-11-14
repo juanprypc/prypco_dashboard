@@ -650,7 +650,7 @@ export function DamacMapSelector({
   }, [applyZoomContinuousAt, setZoomAtPoint, isTouchDevice]);
 
   const selectorContent = (
-    <div className="bg-white rounded-[24px] overflow-hidden">
+    <div>
       <div className="flex flex-col gap-0 lg:flex-row">
         <div className="flex flex-col gap-0 lg:flex-row">
           <div className="order-2 flex-1 p-4 lg:order-1">
