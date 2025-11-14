@@ -440,16 +440,6 @@ export function DashboardClient({
     setBuyerVerificationAllocation(null);
   }, []);
 
-  const closeDamacFlow = useCallback(() => {
-    setDamacRedeemItem(null);
-    setDamacSelectedAllocationId(null);
-    setDamacSelectionDetails(null);
-    setDamacFlowStatus('idle');
-    setDamacFlowError(null);
-    setDamacConfirmedLer(null);
-    setDamacPendingSubmission(null);
-  }, []);
-
   const handleRequestRedeem = useCallback(
     (item: CatalogueDisplayItem) => {
       if (!item.damacIslandCampaign && item.status) {
