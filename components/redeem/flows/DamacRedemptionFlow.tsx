@@ -262,8 +262,16 @@ export function DamacRedemptionFlow({
 
   return (
     <>
-      <div className="fixed inset-0 z-[65] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-2 py-4 backdrop-blur-sm">
-        <div className="relative w-full max-w-6xl rounded-[32px] border border-[#d1b7fb] bg-white shadow-[0_40px_90px_-45px_rgba(13,9,59,0.65)]">
+      <div
+        className="fixed inset-0 z-[65] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-2 py-4 backdrop-blur-sm"
+        onTouchMove={(e) => e.preventDefault()}
+        onWheel={(e) => e.preventDefault()}
+      >
+        <div
+          className="relative w-full max-w-6xl rounded-[32px] border border-[#d1b7fb] bg-white shadow-[0_40px_90px_-45px_rgba(13,9,59,0.65)]"
+          onTouchMove={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#d1b7fb]/60 px-6 py-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--color-electric-purple)]">Damac Islands</p>
