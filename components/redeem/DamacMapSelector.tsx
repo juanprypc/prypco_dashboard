@@ -650,9 +650,10 @@ export function DamacMapSelector({
   }, [applyZoomContinuousAt, setZoomAtPoint, isTouchDevice]);
 
   const selectorContent = (
-    <div className="flex flex-col gap-4 lg:flex-row">
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="order-2 flex-1 rounded-[24px] border border-[#d1b7fb]/60 bg-white p-4 lg:order-1">
+    <div className="bg-white rounded-[24px] overflow-hidden">
+      <div className="flex flex-col gap-0 lg:flex-row">
+        <div className="flex flex-col gap-0 lg:flex-row">
+          <div className="order-2 flex-1 p-4 lg:order-1">
         <p className="text-sm font-semibold text-[var(--color-outer-space)]">Available Units</p>
         <p className="text-[11px] text-[var(--color-outer-space)]/60">
           {loading ? 'Loading...' : `${availableCount} available of ${filteredAllocations.length} units`}
@@ -776,10 +777,10 @@ export function DamacMapSelector({
             <p className="py-8 text-center text-sm text-[var(--color-outer-space)]/40">No units found</p>
           )}
         </div>
-      </div>
+        </div>
 
-        <div className="order-1 relative flex-1 lg:order-2">
-        <div className="bg-white">
+        <div className="order-1 relative flex-1 lg:order-2 border-b border-[#d1b7fb]/30 pb-4 mb-4 lg:border-b-0 lg:border-r lg:pr-4 lg:mr-4 lg:pb-0 lg:mb-0">
+        <div className="p-4">
           <div className="mb-4 flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex-1">
@@ -1180,6 +1181,7 @@ export function DamacMapSelector({
           </div>
         )}
         </div>
+      </div>
       </div>
     </div>
   );
