@@ -1008,7 +1008,7 @@ export function DamacMapSelector({
                         className="mt-5 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#150f4c]"
                         onClick={() => setShowLerForm(true)}
                       >
-                        Proceed to Payment
+                        Proceed to Redemption
                       </button>
                     )}
                   </div>
@@ -1173,7 +1173,7 @@ export function DamacMapSelector({
                   className="mt-6 w-full rounded-full bg-[var(--color-outer-space)] px-4 py-4 text-base font-semibold text-white transition active:scale-95"
                   onClick={() => setShowLerForm(true)}
                 >
-                  Proceed to Payment
+                  Proceed to Redemption
                 </button>
               )}
             </div>
