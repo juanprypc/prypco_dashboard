@@ -262,8 +262,8 @@ export function DamacRedemptionFlow({
 
   return (
     <>
-      <div className="fixed inset-0 z-[65] flex items-center justify-center bg-[var(--color-desert-dust)]/80 px-2 py-4 backdrop-blur-sm">
-        <div className="relative w-full max-w-6xl rounded-[32px] border border-[#d1b7fb] bg-white shadow-[0_40px_90px_-45px_rgba(13,9,59,0.65)]">
+      <div className="fixed inset-0 z-[65] bg-white">
+        <div className="relative h-full w-full flex flex-col">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#d1b7fb]/60 px-6 py-4">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--color-electric-purple)]">Damac Islands</p>
@@ -287,7 +287,7 @@ export function DamacRedemptionFlow({
             <div className="mx-6 mt-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{flowError}</div>
           ) : null}
 
-          <div className="max-h-[80vh] overflow-y-auto overflow-x-hidden bg-white px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
             {flowStatus === 'success' ? (
               <div className="flex min-h-[60vh] items-center justify-center">
                 <div className="w-full max-w-lg space-y-4 text-center">
