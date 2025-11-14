@@ -58,7 +58,7 @@ export function RedeemDialog({
   const termsSatisfied = !item.termsActive || termsAccepted;
   const trimmedFirstName = customerFirstName.trim();
   const trimmedPhone = customerPhoneLast4.trim();
-  const requiresBuyerVerification = !!unitAllocation || item.requiresBuyerVerification === true;
+  const requiresBuyerVerification = item.requiresBuyerVerification === true;
   const firstNameValid = !requiresBuyerVerification || (preFilledDetails ? true : trimmedFirstName.length > 0);
   const phoneValid = !requiresBuyerVerification || (preFilledDetails ? true : /^\d{4}$/.test(trimmedPhone));
   const statusConfig = item.status ? getCatalogueStatusConfig(item.status) : null;

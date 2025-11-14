@@ -58,7 +58,7 @@ export function TokenRedemptionFlow({
 
   const beginRedeem = useCallback(
     (allocation: CatalogueUnitAllocation, buyerDetails?: BuyerDetails) => {
-      const requiresBuyerVerification = !!allocation || item.requiresBuyerVerification === true;
+      const requiresBuyerVerification = item.requiresBuyerVerification === true;
       const details = buyerDetails ?? preFilledBuyerDetails;
       if (requiresBuyerVerification && !details) {
         setBuyerVerificationAllocation(allocation);
