@@ -6,3 +6,5 @@ export { DamacMapSelector } from './DamacMapSelector';
 export type { AllocationWithStatus } from './DamacMapSelector';
 export { DamacInsufficientBalanceModal } from './components/DamacInsufficientBalanceModal';
 export { DamacRedemptionFlow } from './flows/DamacRedemptionFlow';
+export { TokenRedemptionFlow } from './flows/TokenRedemptionFlow';
+export { SimpleRedemptionFlow } from './flows/SimpleRedemptionFlow';

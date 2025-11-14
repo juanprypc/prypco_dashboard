@@ -328,6 +328,40 @@ This section translates the high-level concept into concrete steps so we can sta
 
 With this blueprint we can transition from planning to execution immediately after launch without re-negotiating scope.
 
+### Phase 2 Work Breakdown – Token & Simple Flows (Target week 2-3)
+
+Now that `DamacRedemptionFlow` is live, the next increment focuses on the generic/token and simple reward paths that still live inside `DashboardClient.tsx`.
+
+1. **Create TokenRedemptionFlow Shell**
+   - File: `components/redeem/flows/TokenRedemptionFlow.tsx`.
+   - Props: `RedemptionFlowProps` + callbacks for buyer verification, terms gating, and opening the shared `RedeemDialog`.
+   - State to move: `unitAllocationDialogItem`, `unitAllocationSelection`, `selectedUnitAllocation`.
+   - Logic to move: `closeUnitAllocationDialog`, `confirmUnitAllocation`, and the token branch inside `startRedeemFlow`.
+   - UI to move: `<UnitAllocationDialog>` rendering.
+
+2. **Create SimpleRedemptionFlow**
+   - File: `components/redeem/flows/SimpleRedemptionFlow.tsx`.
+   - Owns `redeemItem`, `redeemStatus`, `redeemMessage`, and the submit handler currently passed into `RedeemDialog`.
+   - Flow should reuse the same API call helper as the token flow (extract to `lib/redeem.ts`).
+
+3. **Shared Hooks / Context**
+   - Introduce `useBuyerVerification()` and `useTermsGate()` (or a `RedeemFlowProvider`) under `components/redeem/hooks/` to centralize:
+     - `buyerVerificationDialogItem`, `buyerVerificationAllocation`, `preFilledBuyerDetails`.
+     - `termsDialogItem`, `termsDialogMode`, `termsAcceptedItemId`, `pendingRedeemItem`.
+   - Dashboard becomes responsible only for providing callbacks (open terms, open buyer verification) rather than mutating dialog state directly.
+
+4. **DashboardClient Simplification**
+   - Reduce the redemption handling to a small state machine: `activeFlow` enum + `activeItem`.
+   - `startRedeemFlow` simply decides which flow to display.
+   - Remove remaining redemption-specific `useState` hooks once flows own their data.
+
+5. **Testing & Rollout**
+   - Manual smoke tests: unit-allocation redemption, simple reward redemption, buyer verification detour, terms-required journey.
+   - Add RTL tests for each new flow verifying status transitions and dialog wiring.
+   - Deploy behind a feature flag or environment toggle if incremental rollout is preferred.
+
+Deliverable: `DashboardClient.tsx` should no longer render any `<RedeemDialog>` or `<UnitAllocationDialog>` directly; instead it injects shared context + renders `TokenRedemptionFlow` / `SimpleRedemptionFlow` similar to the DAMAC integration.
+
 ---
 
 ## Refactoring Plan

@@ -16,13 +16,7 @@ import { BackToAppButton } from './BackToAppButton';
 import LearnMoreGraphic from '@/image_assets/Frame 1.png';
 import { getCatalogueStatusConfig } from '@/lib/catalogueStatus';
 import { emitAnalyticsEvent } from '@/lib/clientAnalytics';
-import {
-  BuyerVerificationDialog,
-  RedeemDialog,
-  TermsDialog,
-  UnitAllocationDialog,
-  DamacRedemptionFlow,
-} from './redeem';
+import { TermsDialog, DamacRedemptionFlow, TokenRedemptionFlow, SimpleRedemptionFlow } from './redeem';
 
 type Props = {
   agentId?: string;
@@ -265,23 +259,16 @@ export function DashboardClient({
   const cataloguePrefetchedRef = useRef(false);
   const catalogueFetchPromiseRef = useRef<Promise<void> | null>(null);
   const catalogueTrackedRef = useRef(false);
-  const [redeemItem, setRedeemItem] = useState<CatalogueDisplayItem | null>(null);
-  const [redeemStatus, setRedeemStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
-  const [redeemMessage, setRedeemMessage] = useState<string | null>(null);
   const [pendingRedeemItem, setPendingRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [termsDialogItem, setTermsDialogItem] = useState<CatalogueDisplayItem | null>(null);
   const [termsDialogMode, setTermsDialogMode] = useState<'view' | 'redeem'>('view');
-  const [unitAllocationDialogItem, setUnitAllocationDialogItem] = useState<CatalogueDisplayItem | null>(null);
-  const [unitAllocationSelection, setUnitAllocationSelection] = useState<string | null>(null);
   const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
-  const [selectedUnitAllocation, setSelectedUnitAllocation] = useState<CatalogueUnitAllocation | null>(null);
   const [forceFreshLoyalty, setForceFreshLoyalty] = useState(false);
   const [termsAcceptedItemId, setTermsAcceptedItemId] = useState<string | null>(null);
-  const [buyerVerificationDialogItem, setBuyerVerificationDialogItem] = useState<CatalogueDisplayItem | null>(null);
-  const [buyerVerificationAllocation, setBuyerVerificationAllocation] = useState<CatalogueUnitAllocation | null>(null);
-  const [preFilledBuyerDetails, setPreFilledBuyerDetails] = useState<{ firstName: string; phoneLast4: string } | null>(null);
   const [damacRedeemItem, setDamacRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const [damacAutoRestore, setDamacAutoRestore] = useState<{ allocationId: string; lerCode: string } | null>(null);
+  const [tokenRedeemItem, setTokenRedeemItem] = useState<CatalogueDisplayItem | null>(null);
+  const [simpleRedeemItem, setSimpleRedeemItem] = useState<CatalogueDisplayItem | null>(null);
   const searchParams = useSearchParams();
 
   // Initialize filter from URL or default to 'all'
@@ -341,33 +328,6 @@ export function DashboardClient({
     };
   }, [catalogue]);
 
-  const beginRedeem = useCallback(
-    (
-      item: CatalogueDisplayItem,
-      allocation: CatalogueUnitAllocation | null,
-      buyerDetails?: { firstName: string; phoneLast4: string },
-    ) => {
-      const requiresBuyerVerification = !!allocation || item.requiresBuyerVerification === true;
-      const details = buyerDetails ?? preFilledBuyerDetails;
-
-      if (requiresBuyerVerification && !details) {
-        setBuyerVerificationDialogItem(item);
-        setBuyerVerificationAllocation(allocation);
-        return;
-      }
-
-      if (buyerDetails) {
-        setPreFilledBuyerDetails(buyerDetails);
-      }
-
-      setRedeemItem(item);
-      setSelectedUnitAllocation(allocation);
-      setRedeemStatus('idle');
-      setRedeemMessage(null);
-    },
-    [preFilledBuyerDetails],
-  );
-
   const startRedeemFlow = useCallback(
     (item: CatalogueDisplayItem) => {
       if (item.damacIslandCampaign) {
@@ -376,15 +336,13 @@ export function DashboardClient({
         return;
       }
       const allocations = item.unitAllocations;
-      setSelectedUnitAllocation(null);
       if (allocations.length > 0) {
-        setUnitAllocationDialogItem(item);
-        setUnitAllocationSelection(null);
+        setTokenRedeemItem(item);
         return;
       }
-      beginRedeem(item, null);
+      setSimpleRedeemItem(item);
     },
-    [beginRedeem],
+    [],
   );
 
   const closeDamacFlow = useCallback(() => {
@@ -400,44 +358,14 @@ export function DashboardClient({
     setForceFreshLoyalty(true);
   }, []);
 
-  const closeUnitAllocationDialog = useCallback(() => {
-    setUnitAllocationDialogItem(null);
-    setUnitAllocationSelection(null);
+  const handleTokenFlowClose = useCallback(() => {
+    setTokenRedeemItem(null);
+    setTermsAcceptedItemId(null);
   }, []);
 
-  const confirmUnitAllocation = useCallback(() => {
-    if (!unitAllocationDialogItem) return;
-    const selectionId = unitAllocationSelection;
-    if (!selectionId) return;
-    const allocations = unitAllocationDialogItem.unitAllocations;
-    const chosen = allocations.find((allocation) => allocation.id === selectionId) ?? null;
-    if (!chosen) return;
-    closeUnitAllocationDialog();
-    beginRedeem(unitAllocationDialogItem, chosen);
-  }, [
-    beginRedeem,
-    closeUnitAllocationDialog,
-    unitAllocationDialogItem,
-    unitAllocationSelection,
-  ]);
-
-  const handleBuyerVerificationSubmit = useCallback(
-    (details: { firstName: string; phoneLast4: string }) => {
-      const item = buyerVerificationDialogItem;
-      const allocation = buyerVerificationAllocation;
-      if (!item) return;
-
-      setBuyerVerificationDialogItem(null);
-      setBuyerVerificationAllocation(null);
-
-      beginRedeem(item, allocation, details);
-    },
-    [buyerVerificationDialogItem, buyerVerificationAllocation, beginRedeem],
-  );
-
-  const closeBuyerVerificationDialog = useCallback(() => {
-    setBuyerVerificationDialogItem(null);
-    setBuyerVerificationAllocation(null);
+  const handleSimpleFlowClose = useCallback(() => {
+    setSimpleRedeemItem(null);
+    setTermsAcceptedItemId(null);
   }, []);
 
   const handleRequestRedeem = useCallback(
@@ -1464,90 +1392,35 @@ const referralCards: ReactNode[] = [
         />
       ) : null}
 
-      {unitAllocationDialogItem ? (
-        <UnitAllocationDialog
-          item={unitAllocationDialogItem}
-          selectedId={unitAllocationSelection}
-          onSelect={(value) => setUnitAllocationSelection(value)}
-          onConfirm={confirmUnitAllocation}
-          onClose={closeUnitAllocationDialog}
-        />
-      ) : null}
-
-      {buyerVerificationDialogItem ? (
-        <BuyerVerificationDialog
-          item={buyerVerificationDialogItem}
-          unitAllocation={buyerVerificationAllocation}
-          onSubmit={handleBuyerVerificationSubmit}
-          onClose={closeBuyerVerificationDialog}
-        />
-      ) : null}
-
-      {redeemItem ? (
-        <RedeemDialog
-          item={redeemItem}
-          unitAllocation={selectedUnitAllocation}
-          availablePoints={metrics.totalPosted}
-          status={redeemStatus}
-          message={redeemMessage}
-          minAmount={minTopup}
-          pointsPerAed={pointsPerAed}
+      {tokenRedeemItem ? (
+        <TokenRedemptionFlow
+          key={tokenRedeemItem.id}
+          item={tokenRedeemItem}
           agentId={agentId}
           agentCode={agentCode}
+          availablePoints={metrics.totalPosted}
+          minTopup={minTopup}
+          pointsPerAed={pointsPerAed}
           baseQuery={baseQuery}
-          termsAccepted={hasAcceptedTerms(redeemItem)}
+          termsAccepted={hasAcceptedTerms(tokenRedeemItem)}
           onShowTerms={handleShowTerms}
-          preFilledDetails={preFilledBuyerDetails}
-          onSubmit={async ({ customerFirstName, customerPhoneLast4 }) => {
-            if (!redeemItem) return;
-            setRedeemStatus('submitting');
-            setRedeemMessage(null);
-            try {
-              const allocation = selectedUnitAllocation;
-              const rewardPoints =
-                typeof allocation?.points === 'number'
-                  ? allocation.points
-                  : typeof redeemItem.points === 'number'
-                    ? redeemItem.points
-                    : null;
-              const res = await fetch('/api/redeem', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                  agentId: agentId ?? null,
-                  agentCode: agentCode ?? null,
-                  rewardId: redeemItem.id,
-                  rewardName: redeemItem.name,
-                  rewardPoints,
-                  priceAed: redeemItem.priceAED ?? null,
-                  unitAllocationId: allocation?.id ?? null,
-                  unitAllocationLabel: allocation?.unitType ?? null,
-                  unitAllocationPoints: typeof allocation?.points === 'number' ? allocation.points : null,
-                  customerFirstName,
-                  customerPhoneLast4,
-                  requiresBuyerVerification: redeemItem.requiresBuyerVerification === true,
-                }),
-              });
-              if (!res.ok) {
-                const json = await res.json().catch(() => ({}));
-                throw new Error(json?.error || 'Redemption failed');
-              }
-              setRedeemStatus('success');
-              setRedeemMessage('Thanks! We have received your request and will process it shortly.');
-            } catch (err) {
-              const message = err instanceof Error ? err.message : 'Redemption failed';
-              setRedeemStatus('error');
-              setRedeemMessage(message);
-            }
-          }}
-          onClose={() => {
-            setRedeemItem(null);
-            setRedeemStatus('idle');
-            setRedeemMessage(null);
-            setSelectedUnitAllocation(null);
-            setTermsAcceptedItemId(null);
-            setPreFilledBuyerDetails(null);
-          }}
+          onClose={handleTokenFlowClose}
+        />
+      ) : null}
+
+      {simpleRedeemItem ? (
+        <SimpleRedemptionFlow
+          key={simpleRedeemItem.id}
+          item={simpleRedeemItem}
+          agentId={agentId}
+          agentCode={agentCode}
+          availablePoints={metrics.totalPosted}
+          minTopup={minTopup}
+          pointsPerAed={pointsPerAed}
+          baseQuery={baseQuery}
+          termsAccepted={hasAcceptedTerms(simpleRedeemItem)}
+          onShowTerms={handleShowTerms}
+          onClose={handleSimpleFlowClose}
         />
       ) : null}
     </div>
