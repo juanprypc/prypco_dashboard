@@ -287,7 +287,7 @@ export function DamacRedemptionFlow({
             <div className="mx-6 mt-4 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{flowError}</div>
           ) : null}
 
-          <div className="max-h-[80vh] overflow-y-auto overflow-x-hidden px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
+          <div className="max-h-[80vh] overflow-y-auto overflow-x-hidden bg-white px-4 pt-6 pb-24 sm:px-8 sm:pb-28 lg:px-10">
             {flowStatus === 'success' ? (
               <div className="flex min-h-[60vh] items-center justify-center">
                 <div className="w-full max-w-lg space-y-4 text-center">
@@ -318,16 +318,14 @@ export function DamacRedemptionFlow({
                 </div>
               </div>
             ) : !pendingSubmission ? (
-              <div className="overflow-hidden rounded-[32px] border border-[#d1b7fb]/80 bg-white/95 p-4 sm:p-6">
-                <DamacMapSelector
-                  catalogueId={item.id}
-                  selectedAllocationId={selectedAllocationId}
-                  onSelectAllocation={setSelectedAllocationId}
-                  onSelectionChange={setSelectionDetails}
-                  onRequestProceed={handleDamacProceed}
-                  hideOuterFrame
-                />
-              </div>
+              <DamacMapSelector
+                catalogueId={item.id}
+                selectedAllocationId={selectedAllocationId}
+                onSelectAllocation={setSelectedAllocationId}
+                onSelectionChange={setSelectionDetails}
+                onRequestProceed={handleDamacProceed}
+                hideOuterFrame
+              />
             ) : (
               <div className="flex min-h-[60vh] items-center justify-center">
                 <div className="w-full max-w-lg rounded-[28px] border border-[#d1b7fb]/70 bg-white px-5 py-5 text-[var(--color-outer-space)] shadow-[0_25px_70px_-50px_rgba(13,9,59,0.65)] sm:px-7">
