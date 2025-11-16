@@ -192,12 +192,14 @@ export function DamacRedemptionFlow({
             durationMinutes: 5,
           }),
         });
-
         const reservationData = await reservationRes.json();
 
         if (!reservationRes.ok || !reservationData.success) {
           setFlowError(reservationData.message || 'This unit is already reserved by another agent. Please select a different unit.');
           setFlowStatus('idle');
+          // Clear selection so LER form closes and error is visible
+          setSelectedAllocationId(null);
+          setSelectionDetails(null);
           return;
         }
 
@@ -210,9 +212,12 @@ export function DamacRedemptionFlow({
         const errMessage = error instanceof Error ? error.message : 'Failed to reserve unit';
         setFlowError(errMessage + '. Please try again.');
         setFlowStatus('idle');
+        // Clear selection so LER form closes and error is visible
+        setSelectedAllocationId(null);
+        setSelectionDetails(null);
       }
     },
-    [agentCode, agentId, availablePoints, item.unitAllocations, minTopup, pointsPerAed],
+    [agentCode, agentId, availablePoints, item.unitAllocations, minTopup, pointsPerAed, setSelectedAllocationId, setSelectionDetails],
   );
 
   const submitDamacRedemption = useCallback(async () => {
