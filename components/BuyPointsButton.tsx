@@ -15,11 +15,11 @@ type Props = {
 const quickMultipliers = [1, 2, 4];
 
 export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, pointsPerAed, className }: Props) {
-  const [amountAED, setAmountAED] = useState(minAmount);
+  const [amountAED, setAmountAED] = useState<number | ''>(minAmount);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const expectedPoints = useMemo(() => amountAED * pointsPerAed, [amountAED, pointsPerAed]);
+  const expectedPoints = useMemo(() => (amountAED === '' ? 0 : amountAED * pointsPerAed), [amountAED, pointsPerAed]);
 
   async function handleCheckout() {
     if (!agentId && !agentCode) {
@@ -29,10 +29,11 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
     setError(null);
     setBusy(true);
     try {
+      const finalAmount = amountAED === '' ? minAmount : amountAED;
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ agentId, agentCode, amountAED, baseQuery }),
+        body: JSON.stringify({ agentId, agentCode, amountAED: finalAmount, baseQuery }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to start checkout');
@@ -124,11 +125,11 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
               value={amountAED}
               onChange={(event) => {
                 const value = event.target.value;
-                if (value === '' || value === '0') {
-                  setAmountAED(0);
+                if (value === '') {
+                  setAmountAED('');
                 } else {
                   const next = Number(value);
-                  if (Number.isFinite(next)) {
+                  if (Number.isFinite(next) && next >= 0) {
                     setAmountAED(next);
                   }
                 }
