@@ -56,14 +56,15 @@ export async function GET() {
     results[1].sample = sampleData;
 
     // Test 3: Test create_reservation function
-    const testUnit = Array.isArray(sampleData) ? sampleData[0] : null;
-    if (testUnit && typeof testUnit === 'object' && 'id' in testUnit) {
-      results.push({ test: '3. Test create_reservation', status: 'running', unitId: testUnit.id });
+    const testUnit = Array.isArray(sampleData) && sampleData.length > 0 ? sampleData[0] : null;
+    if (testUnit && typeof testUnit === 'object' && testUnit !== null && 'id' in testUnit) {
+      const unitId = String((testUnit as { id: unknown }).id);
+      results.push({ test: '3. Test create_reservation', status: 'running', unitId });
 
       const { data: createData, error: createError } = await supabase.rpc(
         'create_reservation' as never,
         {
-          p_unit_id: testUnit.id,
+          p_unit_id: unitId,
           p_agent_id: `test_agent_${Date.now()}`,
           p_ler_code: 'LER_TEST',
           p_duration_minutes: 5,
@@ -74,18 +75,20 @@ export async function GET() {
         results[2].status = 'failed';
         results[2].error = createError.message;
       } else {
-        const createResult = Array.isArray(createData) ? createData[0] : null;
-        results[2].status = createResult && typeof createResult === 'object' && 'success' in createResult && createResult.success ? 'passed' : 'failed';
+        const createDataArray = createData as unknown[];
+        const createResult = Array.isArray(createDataArray) && createDataArray.length > 0 ? createDataArray[0] : null;
+        const isSuccess = createResult && typeof createResult === 'object' && createResult !== null && 'success' in createResult && (createResult as Record<string, unknown>).success === true;
+        results[2].status = isSuccess ? 'passed' : 'failed';
         results[2].result = createResult;
 
         // Test 4: Test release_reservation if creation succeeded
-        if (createResult && typeof createResult === 'object' && 'success' in createResult && createResult.success) {
-          results.push({ test: '4. Test release_reservation', status: 'running', unitId: testUnit.id as string });
+        if (isSuccess) {
+          results.push({ test: '4. Test release_reservation', status: 'running', unitId });
 
           const { data: releaseData, error: releaseError } = await supabase.rpc(
             'release_reservation' as never,
             {
-              p_unit_id: testUnit.id,
+              p_unit_id: unitId,
               p_agent_id: `test_agent_${Date.now()}`,
             } as never
           );
@@ -109,9 +112,10 @@ export async function GET() {
       results[results.length - 1].status = 'failed';
       results[results.length - 1].error = expireError.message;
     } else {
-      const expireResult = Array.isArray(expireData) ? expireData[0] : null;
-      const expiredCount = expireResult && typeof expireResult === 'object' && 'expired_count' in expireResult
-        ? (expireResult.expired_count as number)
+      const expireDataArray = expireData as unknown[];
+      const expireResult = Array.isArray(expireDataArray) && expireDataArray.length > 0 ? expireDataArray[0] : null;
+      const expiredCount = expireResult && typeof expireResult === 'object' && expireResult !== null && 'expired_count' in expireResult
+        ? ((expireResult as Record<string, unknown>).expired_count as number)
         : 0;
       results[results.length - 1].status = 'passed';
       results[results.length - 1].expiredCount = expiredCount;
