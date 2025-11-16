@@ -281,15 +281,32 @@ export async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitA
 
 /**
  * Fetch unit allocations with feature flag support
- * Uses Supabase if ENABLE_SUPABASE_UNIT_ALLOCATIONS=true, otherwise Airtable
+ * Prefers Supabase when credentials exist unless the flag is explicitly set to "false"
  */
 export async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
-  const useSupabase = process.env.ENABLE_SUPABASE_UNIT_ALLOCATIONS === 'true';
+  const envValue = process.env.ENABLE_SUPABASE_UNIT_ALLOCATIONS ?? 'true';
+  const supabaseConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const preferSupabase = envValue === 'true' || (!envValue && supabaseConfigured);
+  const forceAirtable = envValue === 'false';
 
-  if (useSupabase) {
-    return fetchUnitAllocationsFromSupabase();
+  console.log(
+    '🔍 ENABLE_SUPABASE_UNIT_ALLOCATIONS =',
+    envValue,
+    '| supabaseConfigured =',
+    supabaseConfigured,
+    '| preferSupabase =',
+    preferSupabase && !forceAirtable,
+  );
+
+  if (!forceAirtable && (preferSupabase || envValue === 'true')) {
+    try {
+      return await fetchUnitAllocationsFromSupabase();
+    } catch (error) {
+      console.error('❌ Supabase unit allocation fetch failed, falling back to Airtable:', error);
+    }
   }
 
+  console.log('⚠️ USING AIRTABLE for unit allocations');
   return fetchUnitAllocationsFromAirtable();
 }
 
