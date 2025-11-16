@@ -956,7 +956,7 @@ export function DamacMapSelector({
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/80">Input L.E.R number</p>
                           <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-[var(--color-outer-space)]/70">
                             <li>EOI must be paid fully in Damac360.</li>
-                            <li>Token must match the typology specification.</li>
+                            <li>Token must match the LER typology or be higher. Downgrades aren&apos;t allowed.</li>
                             <li>Each LER can be used for only one token.</li>
                           </ol>
                         </div>
@@ -1121,7 +1121,7 @@ export function DamacMapSelector({
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-outer-space)]/80">Input L.E.R number</p>
                     <ol className="mt-2 list-decimal space-y-1 pl-4 text-[11px] text-[var(--color-outer-space)]/70">
                       <li>EOI must be paid fully in Damac360.</li>
-                      <li>Token must match the typology specification.</li>
+                      <li>Token must match the LER typology or be higher. Downgrades aren&apos;t allowed.</li>
                       <li>Each LER can be used only once.</li>
                     </ol>
                   </div>

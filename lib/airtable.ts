@@ -83,6 +83,7 @@ export type CatalogueFields = {
     | 'last units'
     | 'sold out'
     | string;
+  released_status?: 'Available' | 'Not Released' | string;
   unit_allocation?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   image?: Array<{ url: string; filename?: string; thumbnails?: { large?: { url: string }; small?: { url: string } } }>;
   description?: string;
@@ -248,9 +249,16 @@ export async function fetchLoyaltyCatalogue(): Promise<CatalogueItemWithAllocati
 
   return records
     .filter((item) => {
+      // Check if active
       const active = item.fields?.is_active;
-      if (typeof active === 'boolean') return active;
-      return active === 'checked' || active === 'TRUE';
+      const isActive = typeof active === 'boolean' ? active : (active === 'checked' || active === 'TRUE');
+      if (!isActive) return false;
+
+      // Check released status - only show "Available" properties
+      const releasedStatus = item.fields?.released_status;
+      if (releasedStatus && releasedStatus !== 'Available') return false;
+
+      return true;
     })
     .map((item) => ({
       ...item,
