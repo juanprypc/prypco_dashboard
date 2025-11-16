@@ -119,15 +119,18 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
             Custom amount
             <input
               type="number"
-              min={minAmount}
+              min={0}
               step="1"
               value={amountAED}
               onChange={(event) => {
-                const next = Number(event.target.value);
-                if (Number.isFinite(next) && next >= minAmount) {
-                  setAmountAED(next);
-                } else if (next > 0 && next < minAmount) {
-                  setAmountAED(minAmount);
+                const value = event.target.value;
+                if (value === '' || value === '0') {
+                  setAmountAED(0);
+                } else {
+                  const next = Number(value);
+                  if (Number.isFinite(next)) {
+                    setAmountAED(next);
+                  }
                 }
               }}
               placeholder={`Enter amount (min ${formatNumber(minAmount)} AED)`}
