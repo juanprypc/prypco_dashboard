@@ -129,6 +129,11 @@ export type CatalogueUnitAllocation = {
   plotAreaSqft: number | null;
   saleableAreaSqft: number | null;
   releasedStatus: string | null;
+  // Reservation fields (from Supabase real-time system)
+  reservedBy?: string | null;
+  reservedAt?: string | null;
+  reservedLerCode?: string | null;
+  reservationExpiresAt?: string | null;
 };
 
 export type CatalogueItemWithAllocations = CatalogueItem & {
@@ -138,7 +143,71 @@ export type CatalogueItemWithAllocations = CatalogueItem & {
 export type CatalogueProjectStatus = 'active' | 'coming_soon' | 'last_units' | 'sold_out';
 
 
-async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
+/**
+ * Fetch unit allocations from Supabase (real-time data with reservation info)
+ */
+async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitAllocation[]> {
+  const { getSupabaseAdminClient } = await import('@/lib/supabaseClient');
+  const supabase = getSupabaseAdminClient();
+
+  const { data, error } = await supabase
+    .from('unit_allocations' as never)
+    .select('*')
+    .or('released_status.is.null,released_status.eq.Available') as unknown as {
+    data: Array<{
+      id: string;
+      catalogue_id: string | null;
+      unit_type: string | null;
+      max_stock: number | null;
+      points: number | null;
+      picture_url: string | null;
+      price_aed: number | null;
+      property_price: number | null;
+      damac_island_code: string | null;
+      br_type: string | null;
+      remaining_stock: number | null;
+      plot_area_sqft: number | null;
+      saleable_area_sqft: number | null;
+      released_status: string | null;
+      reserved_by: string | null;
+      reserved_at: string | null;
+      reserved_ler_code: string | null;
+      reservation_expires_at: string | null;
+    }> | null;
+    error: Error | null;
+  };
+
+  if (error) {
+    throw new Error(`Supabase unit allocations error: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    catalogueId: row.catalogue_id,
+    unitType: row.unit_type,
+    maxStock: row.max_stock,
+    points: row.points,
+    pictureUrl: row.picture_url,
+    priceAed: row.price_aed,
+    propertyPrice: row.property_price,
+    damacIslandcode: row.damac_island_code,
+    brType: row.br_type,
+    remainingStock: row.remaining_stock,
+    plotAreaSqft: row.plot_area_sqft,
+    saleableAreaSqft: row.saleable_area_sqft,
+    releasedStatus: row.released_status,
+    // Reservation fields from Supabase
+    reservedBy: row.reserved_by,
+    reservedAt: row.reserved_at,
+    reservedLerCode: row.reserved_ler_code,
+    reservationExpiresAt: row.reservation_expires_at,
+  }));
+}
+
+/**
+ * Fetch unit allocations from Airtable (legacy data source)
+ */
+async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitAllocation[]> {
   const apiKey = env('AIRTABLE_API_KEY');
   const baseId = env('AIRTABLE_BASE');
   const table = process.env.AIRTABLE_TABLE_UNIT_ALLOCATIONS || 'loyalty_unit_allocation';
@@ -203,8 +272,23 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
         plotAreaSqft: toMaybeNumber(fields['Plot Area (sqft)']) ?? null,
         saleableAreaSqft: toMaybeNumber(fields['Saleable Area (sqft)']) ?? null,
         releasedStatus: toMaybeString(fields.released_status) ?? null,
+        // No reservation fields from Airtable
       } satisfies CatalogueUnitAllocation;
     });
+}
+
+/**
+ * Fetch unit allocations with feature flag support
+ * Uses Supabase if ENABLE_SUPABASE_UNIT_ALLOCATIONS=true, otherwise Airtable
+ */
+async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
+  const useSupabase = process.env.ENABLE_SUPABASE_UNIT_ALLOCATIONS === 'true';
+
+  if (useSupabase) {
+    return fetchUnitAllocationsFromSupabase();
+  }
+
+  return fetchUnitAllocationsFromAirtable();
 }
 
 export async function fetchLoyaltyCatalogue(): Promise<CatalogueItemWithAllocations[]> {

@@ -55,6 +55,14 @@ function normaliseTopupAmount(value: number, minAmount: number): number {
   return multiples * minAmount;
 }
 
+function formatTimeRemaining(ms: number | null): string {
+  if (ms === null) return '';
+  const seconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
 export function DamacRedemptionFlow({
   item,
   agentId,
@@ -78,7 +86,41 @@ export function DamacRedemptionFlow({
   const [insufficientBalanceModal, setInsufficientBalanceModal] = useState<DamacInsufficientBalanceState | null>(null);
   const handledAutoRestoreRef = useRef<string | null>(null);
 
+  // Reservation system state
+  const [reservationExpiry, setReservationExpiry] = useState<Date | null>(null);
+  const [activeReservationId, setActiveReservationId] = useState<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+
+  /**
+   * Release reservation lock on a unit allocation
+   */
+  const releaseReservation = useCallback(
+    async (allocationId: string) => {
+      if (!agentId && !agentCode) return;
+
+      try {
+        await fetch('/api/reservations/release', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            unitAllocationId: allocationId,
+            agentId: agentId ?? agentCode ?? 'unknown',
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to release reservation:', error);
+        // Don't show error to user - this is cleanup, not critical
+      }
+    },
+    [agentId, agentCode],
+  );
+
   const closeFlow = useCallback(() => {
+    // Release any active reservation before closing
+    if (activeReservationId) {
+      releaseReservation(activeReservationId);
+    }
+
     setSelectedAllocationId(null);
     setSelectionDetails(null);
     setFlowStatus('idle');
@@ -86,11 +128,14 @@ export function DamacRedemptionFlow({
     setConfirmedLer(null);
     setPendingSubmission(null);
     setInsufficientBalanceModal(null);
+    setReservationExpiry(null);
+    setActiveReservationId(null);
+    setTimeRemaining(null);
     onClose();
-  }, [onClose]);
+  }, [onClose, activeReservationId, releaseReservation]);
 
   const handleDamacProceed = useCallback(
-    ({ allocation, lerCode }: { allocation: AllocationWithStatus; lerCode: string }) => {
+    async ({ allocation, lerCode }: { allocation: AllocationWithStatus; lerCode: string }) => {
       const matchingAllocation =
         item.unitAllocations.find((unit) => unit.id === allocation.id) ?? null;
       if (!matchingAllocation) {
@@ -132,8 +177,40 @@ export function DamacRedemptionFlow({
         return;
       }
 
+      // Create reservation lock (5-minute window)
+      setFlowStatus('submitting');
       setFlowError(null);
-      setPendingSubmission({ allocation, catalogueAllocation: matchingAllocation, lerCode });
+
+      try {
+        const reservationRes = await fetch('/api/reservations/create', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            unitAllocationId: allocation.id,
+            agentId: agentId ?? agentCode ?? 'unknown',
+            lerCode: lerCode,
+            durationMinutes: 5,
+          }),
+        });
+
+        const reservationData = await reservationRes.json();
+
+        if (!reservationRes.ok || !reservationData.success) {
+          setFlowError(reservationData.message || 'This unit is already reserved by another agent. Please select a different unit.');
+          setFlowStatus('idle');
+          return;
+        }
+
+        // Reservation successful - store expiry time and proceed to confirmation
+        setReservationExpiry(new Date(reservationData.expiresAt));
+        setActiveReservationId(allocation.id);
+        setPendingSubmission({ allocation, catalogueAllocation: matchingAllocation, lerCode });
+        setFlowStatus('idle');
+      } catch (error) {
+        const errMessage = error instanceof Error ? error.message : 'Failed to reserve unit';
+        setFlowError(errMessage + '. Please try again.');
+        setFlowStatus('idle');
+      }
     },
     [agentCode, agentId, availablePoints, item.unitAllocations, minTopup, pointsPerAed],
   );
@@ -208,8 +285,53 @@ export function DamacRedemptionFlow({
   }, []);
 
   const cancelPendingSubmission = useCallback(() => {
+    // Release reservation when user cancels
+    if (activeReservationId) {
+      releaseReservation(activeReservationId);
+      setActiveReservationId(null);
+      setReservationExpiry(null);
+      setTimeRemaining(null);
+    }
     setPendingSubmission(null);
-  }, []);
+  }, [activeReservationId, releaseReservation]);
+
+  // Countdown timer for reservation expiry
+  useEffect(() => {
+    if (!reservationExpiry) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const expiry = reservationExpiry.getTime();
+      const remaining = Math.max(0, expiry - now);
+
+      setTimeRemaining(remaining);
+
+      if (remaining === 0) {
+        // Reservation expired
+        setFlowError('Your reservation has expired. Please select the unit again.');
+        setPendingSubmission(null);
+        setReservationExpiry(null);
+        setActiveReservationId(null);
+        setTimeRemaining(null);
+      }
+    }, 100); // Update every 100ms for smooth countdown
+
+    return () => clearInterval(interval);
+  }, [reservationExpiry]);
+
+  // Cleanup reservation on unmount
+  useEffect(() => {
+    return () => {
+      if (activeReservationId) {
+        // Note: This cleanup might not always run (e.g., page refresh)
+        // The server-side cron job will handle expiry
+        releaseReservation(activeReservationId);
+      }
+    };
+  }, [activeReservationId, releaseReservation]);
 
   useEffect(() => {
     if (flowStatus === 'success') {
@@ -365,6 +487,19 @@ export function DamacRedemptionFlow({
                       <dd className="mt-1 text-base font-semibold">{pendingSubmission.lerCode}</dd>
                     </div>
                   </dl>
+
+                  {/* Reservation countdown timer */}
+                  {timeRemaining !== null && (
+                    <div className="mt-4 flex items-center justify-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm">
+                      <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className={timeRemaining < 60000 ? 'font-semibold text-amber-700' : 'text-amber-700'}>
+                        Reservation expires in {formatTimeRemaining(timeRemaining)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
                     <button
                       type="button"
