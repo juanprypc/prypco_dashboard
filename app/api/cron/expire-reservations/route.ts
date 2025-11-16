@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     }
 
     // The function returns the count of expired reservations
-    const expiredCount = Array.isArray(data) && data.length > 0 ? data[0].expired_count : 0;
+    const expiredCount = (data as { expired_count: number }[] | null)?.[0]?.expired_count ?? 0;
 
     console.log(`Expired ${expiredCount} reservation(s) at ${new Date().toISOString()}`);
 

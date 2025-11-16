@@ -58,7 +58,8 @@ export async function POST(req: NextRequest) {
     }
 
     // The function returns a single row with success, message, unit_id, expires_at
-    const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    type ReservationResult = { success: boolean; message: string; unit_id: string; expires_at: string | null };
+    const result = (data as ReservationResult[] | null)?.[0] ?? null;
 
     if (!result || !result.success) {
       return NextResponse.json(
