@@ -7,7 +7,7 @@ type TestResult = {
   test: string;
   status: string;
   error?: string;
-  count?: number;
+  count?: number | null;
   sample?: unknown;
   unitId?: string;
   result?: unknown;
