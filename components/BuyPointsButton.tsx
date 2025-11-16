@@ -26,10 +26,17 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
       setError('Agent is missing. Refresh and try again.');
       return;
     }
+
+    const finalAmount = amountAED === '' ? minAmount : amountAED;
+
+    if (finalAmount < minAmount) {
+      setError(`Minimum top-up amount is ${formatNumber(minAmount)} AED`);
+      return;
+    }
+
     setError(null);
     setBusy(true);
     try {
-      const finalAmount = amountAED === '' ? minAmount : amountAED;
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
