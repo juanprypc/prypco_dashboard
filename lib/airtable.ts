@@ -146,7 +146,8 @@ export type CatalogueProjectStatus = 'active' | 'coming_soon' | 'last_units' | '
 /**
  * Fetch unit allocations from Supabase (real-time data with reservation info)
  */
-async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitAllocation[]> {
+export async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitAllocation[]> {
+  console.log('🔵 FETCHING FROM SUPABASE - unit_allocations table');
   const { getSupabaseAdminClient } = await import('@/lib/supabaseClient');
   const supabase = getSupabaseAdminClient();
 
@@ -180,6 +181,7 @@ async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitAllocati
   if (error) {
     throw new Error(`Supabase unit allocations error: ${error.message}`);
   }
+  console.log(`🟢 SUPABASE returned ${(data ?? []).length} unit allocations`);
 
   return (data ?? []).map((row) => ({
     id: row.id,
@@ -207,7 +209,7 @@ async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitAllocati
 /**
  * Fetch unit allocations from Airtable (legacy data source)
  */
-async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitAllocation[]> {
+export async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitAllocation[]> {
   const apiKey = env('AIRTABLE_API_KEY');
   const baseId = env('AIRTABLE_BASE');
   const table = process.env.AIRTABLE_TABLE_UNIT_ALLOCATIONS || 'loyalty_unit_allocation';
@@ -281,7 +283,7 @@ async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitAllocati
  * Fetch unit allocations with feature flag support
  * Uses Supabase if ENABLE_SUPABASE_UNIT_ALLOCATIONS=true, otherwise Airtable
  */
-async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
+export async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
   const useSupabase = process.env.ENABLE_SUPABASE_UNIT_ALLOCATIONS === 'true';
 
   if (useSupabase) {
@@ -289,6 +291,58 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
   }
 
   return fetchUnitAllocationsFromAirtable();
+}
+
+/**
+ * Fetch loyalty catalogue base (items only, no unit allocations)
+ * Used by API route to cache catalogue structure separately from real-time allocations
+ */
+export async function fetchLoyaltyCatalogueBase(): Promise<CatalogueItem[]> {
+  const apiKey = env('AIRTABLE_API_KEY');
+  const baseId = env('AIRTABLE_BASE');
+  const table = process.env.AIRTABLE_TABLE_CATALOGUE || 'loyalty_catalogue';
+
+  const urlBase = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent(table)}`;
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+  } as const;
+
+  const records: CatalogueItem[] = [];
+  let offset: string | undefined;
+  let guard = 0;
+
+  do {
+    const params = new URLSearchParams();
+    params.set('pageSize', '100');
+    params.set('sort[0][field]', 'display_rank');
+    params.set('sort[0][direction]', 'asc');
+    if (offset) params.set('offset', offset);
+
+    const res = await scheduleAirtableRequest(() =>
+      fetch(`${urlBase}?${params.toString()}`, {
+        headers,
+        cache: 'no-store',
+      }),
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Airtable catalogue error ${res.status}: ${text}`);
+    }
+    const json = (await res.json()) as {
+      records: CatalogueItem[];
+      offset?: string;
+    };
+    records.push(...json.records);
+    offset = json.offset;
+    guard++;
+  } while (offset && guard < 20);
+
+  return records.filter((item) => {
+    // Check if active
+    const active = item.fields?.is_active;
+    const isActive = typeof active === 'boolean' ? active : (active === 'checked' || active === 'TRUE');
+    return isActive;
+  });
 }
 
 export async function fetchLoyaltyCatalogue(): Promise<CatalogueItemWithAllocations[]> {
