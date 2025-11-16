@@ -160,24 +160,8 @@ export function DamacRedemptionFlow({
         return;
       }
 
-      if (availablePoints < requiredPoints) {
-        setFlowError(null);
-        const shortfall = requiredPoints - availablePoints;
-        const denominator = pointsPerAed > 0 ? pointsPerAed : 1;
-        const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator), minTopup);
-        setInsufficientBalanceModal({
-          requiredPoints,
-          availablePoints,
-          shortfall,
-          suggestedAed,
-          allocation,
-          catalogueAllocation: matchingAllocation,
-          lerCode,
-        });
-        return;
-      }
-
-      // Create reservation lock (5-minute window)
+      // Create reservation lock FIRST (5-minute window)
+      // This ensures the unit is reserved before checking balance
       setFlowStatus('submitting');
       setFlowError(null);
 
@@ -203,9 +187,30 @@ export function DamacRedemptionFlow({
           return;
         }
 
-        // Reservation successful - store expiry time and proceed to confirmation
+        // Reservation successful - store expiry time
         setReservationExpiry(new Date(reservationData.expiresAt));
         setActiveReservationId(allocation.id);
+
+        // NOW check if user has enough points
+        if (availablePoints < requiredPoints) {
+          setFlowError(null);
+          const shortfall = requiredPoints - availablePoints;
+          const denominator = pointsPerAed > 0 ? pointsPerAed : 1;
+          const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator), minTopup);
+          setInsufficientBalanceModal({
+            requiredPoints,
+            availablePoints,
+            shortfall,
+            suggestedAed,
+            allocation,
+            catalogueAllocation: matchingAllocation,
+            lerCode,
+          });
+          setFlowStatus('idle');
+          return;
+        }
+
+        // Has enough points - proceed to confirmation
         setPendingSubmission({ allocation, catalogueAllocation: matchingAllocation, lerCode });
         setFlowStatus('idle');
       } catch (error) {
