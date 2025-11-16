@@ -4,10 +4,10 @@ import { getKvClient } from '@/lib/kvClient';
 import {
   CATALOGUE_CACHE_KEY,
   DEFAULT_CATALOGUE_TTL_SECONDS,
-  catalogueCacheHasExpiringAsset,
   getSafeCatalogueCacheTtl,
   type CatalogueCachePayload,
 } from '@/lib/catalogueCache';
+import type { CatalogueItem } from '@/lib/airtable';
 
 const kv = getKvClient();
 
@@ -18,16 +18,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const forceFresh = searchParams.get('fresh') === '1';
     const ttlSeconds = getSafeCatalogueCacheTtl(DEFAULT_CATALOGUE_TTL_SECONDS);
-    let bypassedStaleCache = false;
-    let catalogueBase;
+    let catalogueBase: CatalogueItem[] | undefined;
 
     // Fetch catalogue structure from cache (or Airtable if miss)
     if (!forceFresh) {
-      const cached = await kv.get<{ items: unknown[]; fetchedAt: string }>(CATALOGUE_CACHE_KEY);
-      if (cached && !catalogueCacheHasExpiringAsset(cached)) {
+      const cached = await kv.get<{ items: CatalogueItem[]; fetchedAt: string }>(CATALOGUE_CACHE_KEY);
+      if (cached?.items) {
         catalogueBase = cached.items;
-      } else if (cached) {
-        bypassedStaleCache = true;
       }
     }
 
@@ -38,7 +35,7 @@ export async function GET(req: Request) {
 
     // ALWAYS fetch fresh unit allocations from Supabase (no caching for real-time data)
     const allocations = await fetchUnitAllocations();
-    
+
     // Group allocations by catalogue ID
     const allocationsByCatalogue = new Map<string, typeof allocations>();
     for (const allocation of allocations) {
@@ -49,7 +46,7 @@ export async function GET(req: Request) {
     }
 
     // Merge catalogue with fresh allocations
-    const items = (catalogueBase as Array<{ id: string }>).map((item) => ({
+    const items = catalogueBase.map((item) => ({
       ...item,
       unitAllocations: allocationsByCatalogue.get(item.id) ?? [],
     }));
@@ -59,7 +56,7 @@ export async function GET(req: Request) {
     return new Response(JSON.stringify(payload), {
       headers: {
         'content-type': 'application/json',
-        'x-cache': forceFresh || bypassedStaleCache ? 'refresh' : 'partial',
+        'x-cache': catalogueBase ? 'partial' : 'miss',
         'x-allocations': 'fresh',
       },
     });
