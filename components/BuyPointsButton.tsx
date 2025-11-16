@@ -14,14 +14,8 @@ type Props = {
 
 const quickMultipliers = [1, 2, 4];
 
-function normaliseAmount(value: number, min: number) {
-  if (!Number.isFinite(value) || value <= 0) return min;
-  const multiples = Math.max(1, Math.ceil(value / min));
-  return multiples * min;
-}
-
 export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, pointsPerAed, className }: Props) {
-  const [amountAED, setAmountAED] = useState(() => normaliseAmount(minAmount, minAmount));
+  const [amountAED, setAmountAED] = useState(minAmount);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -126,18 +120,22 @@ export function BuyPointsButton({ agentId, agentCode, baseQuery, minAmount, poin
             <input
               type="number"
               min={minAmount}
-              step={minAmount}
+              step="1"
               value={amountAED}
               onChange={(event) => {
                 const next = Number(event.target.value);
-                setAmountAED(normaliseAmount(next, minAmount));
+                if (Number.isFinite(next) && next >= minAmount) {
+                  setAmountAED(next);
+                } else if (next > 0 && next < minAmount) {
+                  setAmountAED(minAmount);
+                }
               }}
-              placeholder={`Enter amount (steps of ${formatNumber(minAmount)} AED)`}
+              placeholder={`Enter amount (min ${formatNumber(minAmount)} AED)`}
               className="w-full rounded-[14px] border-2 border-[#d1b7fb] bg-white px-4 py-3 text-base text-[var(--color-outer-space)] transition focus:border-[var(--color-electric-purple)] focus:outline-none focus:ring-2 focus:ring-[var(--color-electric-purple)]/20 sm:rounded-[18px] sm:px-4 sm:py-3"
             />
           </label>
           <p className="mt-1.5 text-[10px] text-[var(--color-outer-space)]/50 sm:text-xs">
-            Amount will be rounded to {formatNumber(minAmount)} AED increments
+            Minimum amount: {formatNumber(minAmount)} AED
           </p>
         </div>
 

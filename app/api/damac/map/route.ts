@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchUnitAllocations } from '@/lib/airtable';
-import type { CatalogueUnitAllocation } from '@/lib/airtable';
 
 type AllocationWithAvailability = {
   id: string;

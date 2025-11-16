@@ -36,11 +36,10 @@ export async function POST(request: Request) {
     const pointsPerAed = Number(process.env.POINTS_PER_AED || 2);
 
     const requestedAmount = typeof body.amountAED === 'number' && !Number.isNaN(body.amountAED) ? body.amountAED : minTopup;
-    const multiples = Math.max(1, Math.ceil(requestedAmount / minTopup));
-    const normalizedAmount = multiples * minTopup;
-    const points = Math.floor(normalizedAmount * pointsPerAed);
+    const amountAED = requestedAmount < minTopup ? minTopup : requestedAmount;
+    const points = Math.floor(amountAED * pointsPerAed);
 
-    if (normalizedAmount > STRIPE_MAX_AED) {
+    if (amountAED > STRIPE_MAX_AED) {
       return Response.json(
         {
           error: `Amount exceeds Stripe limit of AED ${STRIPE_MAX_AED.toLocaleString()}. Please top up in smaller steps.`,
@@ -77,7 +76,7 @@ export async function POST(request: Request) {
           price_data: {
             currency: 'aed',
             product_data: { name: `Prypco Points — ${points.toLocaleString()} pts` },
-            unit_amount: normalizedAmount * 100,
+            unit_amount: amountAED * 100,
           },
           quantity: 1,
         },
@@ -85,7 +84,7 @@ export async function POST(request: Request) {
       metadata: {
         ...(agentId ? { agentId } : {}),
         ...(agentCode ? { agentCode } : {}),
-        amountAED: String(normalizedAmount),
+        amountAED: String(amountAED),
         pointsPerAED: String(pointsPerAed),
         expectedPoints: String(points),
       },
