@@ -111,6 +111,18 @@ export function DamacMapSelector({
     zoomRef.current = zoom;
   }, [zoom]);
 
+  // Reset LER form state when selection is cleared from parent
+  useEffect(() => {
+    if (selectedAllocationId === null) {
+      setShowLerForm(false);
+      setLerDigits('');
+      setLerWarningVisible(false);
+      setLerVerifyStatus('idle');
+      setLerVerifyError(null);
+      setLerVerifiedCode(null);
+    }
+  }, [selectedAllocationId]);
+
   useEffect(() => {
     const update = () => setIsTouchDevice(detectTouchEnvironment());
     update();
