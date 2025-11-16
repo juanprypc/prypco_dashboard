@@ -42,12 +42,12 @@ export async function POST(req: NextRequest) {
 
     // Call Supabase function to create reservation
     const supabase = getSupabaseAdminClient();
-    const { data, error } = await supabase.rpc('create_reservation', {
+    const { data, error } = await supabase.rpc('create_reservation' as never, {
       p_unit_id: unitAllocationId,
       p_agent_id: agentId,
       p_ler_code: lerCode,
       p_duration_minutes: durationMinutes,
-    });
+    } as never);
 
     if (error) {
       console.error('Reservation creation error:', error);

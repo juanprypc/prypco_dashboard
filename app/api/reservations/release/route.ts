@@ -33,10 +33,10 @@ export async function POST(req: NextRequest) {
 
     // Call Supabase function to release reservation
     const supabase = getSupabaseAdminClient();
-    const { data, error } = await supabase.rpc('release_reservation', {
+    const { data, error } = await supabase.rpc('release_reservation' as never, {
       p_unit_id: unitAllocationId,
       p_agent_id: agentId,
-    });
+    } as never);
 
     if (error) {
       console.error('Reservation release error:', error);

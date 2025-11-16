@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     // Call Supabase function to expire reservations
     const supabase = getSupabaseAdminClient();
-    const { data, error } = await supabase.rpc('expire_reservations');
+    const { data, error } = await supabase.rpc('expire_reservations' as never);
 
     if (error) {
       console.error('Expire reservations error:', error);
