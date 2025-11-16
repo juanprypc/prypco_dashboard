@@ -101,8 +101,8 @@ export async function POST(req: NextRequest) {
     // Upsert to Supabase
     const supabase = getSupabaseAdminClient();
     const { data, error } = await supabase
-      .from('unit_allocations')
-      .upsert(supabasePayload, {
+      .from('unit_allocations' as never)
+      .upsert(supabasePayload as never, {
         onConflict: 'id',
       })
       .select();
