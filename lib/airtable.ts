@@ -111,6 +111,7 @@ export type UnitAllocationFields = {
   remaining_stock?: number;
   'Plot Area (sqft)'?: number;
   'Saleable Area (sqft)'?: number;
+  released_status?: 'Available' | 'Not Released' | string;
 };
 
 export type CatalogueUnitAllocation = {
@@ -127,6 +128,7 @@ export type CatalogueUnitAllocation = {
   remainingStock: number | null;
   plotAreaSqft: number | null;
   saleableAreaSqft: number | null;
+  releasedStatus: string | null;
 };
 
 export type CatalogueItemWithAllocations = CatalogueItem & {
@@ -174,28 +176,35 @@ async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
     guard++;
   } while (offset && guard < 20);
 
-  return records.map((record) => {
-    const fields = record.fields || {};
-    const catalogueIds = toStringArray(fields.Catalogue);
-    const pictureAttachment = Array.isArray(fields.Picture) && fields.Picture.length > 0 ? fields.Picture[0] : null;
-    const pictureUrl = pictureAttachment?.thumbnails?.large?.url || pictureAttachment?.url || null;
+  return records
+    .filter((record) => {
+      // Only show allocations with released_status = 'Available'
+      const releasedStatus = record.fields?.released_status;
+      return !releasedStatus || releasedStatus === 'Available';
+    })
+    .map((record) => {
+      const fields = record.fields || {};
+      const catalogueIds = toStringArray(fields.Catalogue);
+      const pictureAttachment = Array.isArray(fields.Picture) && fields.Picture.length > 0 ? fields.Picture[0] : null;
+      const pictureUrl = pictureAttachment?.thumbnails?.large?.url || pictureAttachment?.url || null;
 
-    return {
-      id: record.id,
-      catalogueId: catalogueIds[0] ?? null,
-      unitType: toMaybeString(fields.unit_type) ?? null,
-      maxStock: typeof fields.max_stock === 'number' ? fields.max_stock : null,
-      points: typeof fields.Points === 'number' ? fields.Points : null,
-      pictureUrl,
-      priceAed: typeof fields.price_aed === 'number' ? fields.price_aed : null,
-      propertyPrice: typeof fields.property_price === 'number' ? fields.property_price : null,
-      damacIslandcode: toMaybeString(fields.damacIslandcode) ?? null,
-      brType: toMaybeString(fields['BR Type']) ?? null,
-      remainingStock: toMaybeNumber(fields.remaining_stock) ?? null,
-      plotAreaSqft: toMaybeNumber(fields['Plot Area (sqft)']) ?? null,
-      saleableAreaSqft: toMaybeNumber(fields['Saleable Area (sqft)']) ?? null,
-    } satisfies CatalogueUnitAllocation;
-  });
+      return {
+        id: record.id,
+        catalogueId: catalogueIds[0] ?? null,
+        unitType: toMaybeString(fields.unit_type) ?? null,
+        maxStock: typeof fields.max_stock === 'number' ? fields.max_stock : null,
+        points: typeof fields.Points === 'number' ? fields.Points : null,
+        pictureUrl,
+        priceAed: typeof fields.price_aed === 'number' ? fields.price_aed : null,
+        propertyPrice: typeof fields.property_price === 'number' ? fields.property_price : null,
+        damacIslandcode: toMaybeString(fields.damacIslandcode) ?? null,
+        brType: toMaybeString(fields['BR Type']) ?? null,
+        remainingStock: toMaybeNumber(fields.remaining_stock) ?? null,
+        plotAreaSqft: toMaybeNumber(fields['Plot Area (sqft)']) ?? null,
+        saleableAreaSqft: toMaybeNumber(fields['Saleable Area (sqft)']) ?? null,
+        releasedStatus: toMaybeString(fields.released_status) ?? null,
+      } satisfies CatalogueUnitAllocation;
+    });
 }
 
 export async function fetchLoyaltyCatalogue(): Promise<CatalogueItemWithAllocations[]> {
@@ -252,13 +261,7 @@ export async function fetchLoyaltyCatalogue(): Promise<CatalogueItemWithAllocati
       // Check if active
       const active = item.fields?.is_active;
       const isActive = typeof active === 'boolean' ? active : (active === 'checked' || active === 'TRUE');
-      if (!isActive) return false;
-
-      // Check released status - only show "Available" properties
-      const releasedStatus = item.fields?.released_status;
-      if (releasedStatus && releasedStatus !== 'Available') return false;
-
-      return true;
+      return isActive;
     })
     .map((item) => ({
       ...item,
