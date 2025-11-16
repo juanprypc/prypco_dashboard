@@ -562,6 +562,8 @@ export function DamacRedemptionFlow({
           isSubmitting={flowStatus === 'submitting'}
           onBuyPoints={handleBuyPointsForDamac}
           onGoBack={closeInsufficientBalanceModal}
+          timeRemaining={timeRemaining}
+          formatTimeRemaining={formatTimeRemaining}
         />
       ) : null}
     </>

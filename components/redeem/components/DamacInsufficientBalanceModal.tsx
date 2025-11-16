@@ -10,6 +10,8 @@ type DamacInsufficientBalanceModalProps = {
   isSubmitting: boolean;
   onBuyPoints: () => void;
   onGoBack: () => void;
+  timeRemaining: number | null;
+  formatTimeRemaining: (ms: number | null) => string;
 };
 
 export function DamacInsufficientBalanceModal({
@@ -22,6 +24,8 @@ export function DamacInsufficientBalanceModal({
   isSubmitting,
   onBuyPoints,
   onGoBack,
+  timeRemaining,
+  formatTimeRemaining,
 }: DamacInsufficientBalanceModalProps) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
@@ -40,6 +44,18 @@ export function DamacInsufficientBalanceModal({
           <p className="mt-3 text-sm leading-relaxed text-[var(--color-outer-space)]/70">
             You don&apos;t have enough points for this unit. Buy more points to continue with your redemption.
           </p>
+
+          {/* Reservation countdown timer */}
+          {timeRemaining !== null && (
+            <div className="mt-4 flex items-center justify-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm">
+              <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className={timeRemaining < 60000 ? 'font-semibold text-amber-700' : 'text-amber-700'}>
+                Reservation expires in {formatTimeRemaining(timeRemaining)}
+              </span>
+            </div>
+          )}
 
           <div className="mt-5 space-y-2 rounded-[16px] border border-[#d1b7fb]/50 bg-[#f8f5ff] px-4 py-3.5 text-left">
             <div className="flex items-center justify-between text-sm">
