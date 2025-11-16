@@ -179,7 +179,7 @@ export function DamacRedemptionFlow({
         const reservationData = await reservationRes.json();
 
         if (!reservationRes.ok || !reservationData.success) {
-          setFlowError(reservationData.message || 'This unit is already reserved by another agent. Please select a different unit.');
+          setFlowError(reservationData.message || 'Another agent is currently selecting this unit. Please choose a different one.');
           setFlowStatus('idle');
           // Clear selection so LER form closes and error is visible
           setSelectedAllocationId(null);
@@ -291,8 +291,18 @@ export function DamacRedemptionFlow({
   }, [insufficientBalanceModal, item.id, startStripeCheckout]);
 
   const closeInsufficientBalanceModal = useCallback(() => {
+    // Release reservation when user goes back
+    if (activeReservationId) {
+      releaseReservation(activeReservationId);
+      setActiveReservationId(null);
+      setReservationExpiry(null);
+      setTimeRemaining(null);
+    }
     setInsufficientBalanceModal(null);
-  }, []);
+    // Clear selection so user can select another unit
+    setSelectedAllocationId(null);
+    setSelectionDetails(null);
+  }, [activeReservationId, releaseReservation]);
 
   const cancelPendingSubmission = useCallback(() => {
     // Release reservation when user cancels
