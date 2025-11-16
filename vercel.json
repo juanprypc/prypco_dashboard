@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/warm-catalogue",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/expire-reservations",
+      "schedule": "* * * * *"
     }
   ]
 }
