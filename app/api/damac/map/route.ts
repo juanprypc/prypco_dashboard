@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchUnitAllocations } from '@/lib/airtable';
 import type { CatalogueUnitAllocation } from '@/lib/airtable';
 
 type AllocationWithAvailability = {
@@ -14,22 +15,13 @@ type AllocationWithAvailability = {
   brType: string | null;
 };
 
-async function fetchUnitAllocationsInternal(): Promise<CatalogueUnitAllocation[]> {
-  const {fetchLoyaltyCatalogue} = await import('@/lib/airtable');
-  const catalogues = await fetchLoyaltyCatalogue();
-  const allAllocations: CatalogueUnitAllocation[] = [];
-  for (const catalogue of catalogues) {
-    allAllocations.push(...catalogue.unitAllocations);
-  }
-  return allAllocations;
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const catalogueId = searchParams.get('catalogueId');
 
-    const allocations = await fetchUnitAllocationsInternal();
+    // Fetch fresh allocations directly from Supabase (no caching)
+    const allocations = await fetchUnitAllocations();
 
     let filtered = allocations;
     if (catalogueId) {
@@ -56,7 +48,9 @@ export async function GET(request: NextRequest) {
       { allocations: response },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+          // NO caching - always fetch fresh from Supabase
+          'Cache-Control': 'no-store, must-revalidate',
+          'x-data-source': 'supabase-realtime',
         },
       }
     );
