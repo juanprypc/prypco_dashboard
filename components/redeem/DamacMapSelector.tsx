@@ -723,8 +723,6 @@ export function DamacMapSelector({
             filteredAllocations.map((allocation) => {
               const disabled = allocation.availability !== 'available';
               const selected = allocation.id === selectedAllocationId;
-              const priceValue = allocation.propertyPrice ?? allocation.priceAed;
-              const compactPrice = formatPriceAedCompact(priceValue);
               return (
                 <button
                   key={allocation.id}
@@ -764,12 +762,6 @@ export function DamacMapSelector({
                         <>
                           <span>•</span>
                           <span>{allocation.brType}</span>
-                        </>
-                      )}
-                      {compactPrice && (
-                        <>
-                          <span>•</span>
-                          <span>{compactPrice}</span>
                         </>
                       )}
                     </div>
