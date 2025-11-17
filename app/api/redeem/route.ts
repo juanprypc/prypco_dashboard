@@ -64,8 +64,8 @@ async function finalizeReservation(unitAllocationId: string, agentKey: string, c
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabase
-    .from('unit_allocations')
-    .update(updatePayload)
+    .from('unit_allocations' as never)
+    .update(updatePayload as never)
     .eq('id', unitAllocationId)
     .eq('reserved_by', agentKey);
 
