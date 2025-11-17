@@ -240,7 +240,7 @@ export function DamacRedemptionFlow({
         setSelectionDetails(null);
       }
     },
-    [agentCode, agentId, availablePoints, item.unitAllocations, minTopup, pointsPerAed, setSelectedAllocationId, setSelectionDetails],
+    [agentCode, agentId, availablePoints, item.unitAllocations, pointsPerAed, setSelectedAllocationId, setSelectionDetails],
   );
 
   const submitDamacRedemption = useCallback(async () => {

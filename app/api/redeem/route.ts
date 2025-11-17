@@ -12,13 +12,18 @@ type ReservationCheck = {
 
 type UnitAllocationReservationRow = {
   reserved_by: string | null;
+  reserved_at: string | null;
+  reserved_ler_code: string | null;
   reservation_expires_at: string | null;
   remaining_stock: number | null;
+  released_status: string | null;
+  synced_at: string | null;
+  updated_at: string | null;
 };
 
 async function verifyActiveReservation(unitAllocationId: string, agentKey: string): Promise<ReservationCheck> {
   const { data, error } = await supabase
-    .from('unit_allocations')
+    .from<UnitAllocationReservationRow>('unit_allocations')
     .select('reserved_by,reservation_expires_at,remaining_stock')
     .eq('id', unitAllocationId)
     .maybeSingle();
@@ -28,17 +33,16 @@ async function verifyActiveReservation(unitAllocationId: string, agentKey: strin
     return { ok: false, remainingStock: 0 };
   }
 
-  const row = data as UnitAllocationReservationRow;
-  const expiresAt = row.reservation_expires_at ? Date.parse(row.reservation_expires_at) : null;
+  const expiresAt = data.reservation_expires_at ? Date.parse(data.reservation_expires_at) : null;
   const stillReserved =
-    row.reserved_by === agentKey &&
+    data.reserved_by === agentKey &&
     (expiresAt === null || (Number.isFinite(expiresAt) && expiresAt > Date.now()));
 
   if (!stillReserved) {
     return { ok: false, remainingStock: 0 };
   }
 
-  const remainingStock = typeof row.remaining_stock === 'number' ? row.remaining_stock : 0;
+  const remainingStock = typeof data.remaining_stock === 'number' ? data.remaining_stock : 0;
   if (remainingStock <= 0) {
     return { ok: false, remainingStock: 0 };
   }
@@ -48,18 +52,19 @@ async function verifyActiveReservation(unitAllocationId: string, agentKey: strin
 
 async function finalizeReservation(unitAllocationId: string, agentKey: string, currentStock: number) {
   const nextStock = Math.max(0, currentStock - 1);
+  const updatePayload: Partial<UnitAllocationReservationRow> = {
+    reserved_by: null,
+    reserved_at: null,
+    reserved_ler_code: null,
+    reservation_expires_at: null,
+    remaining_stock: nextStock,
+    released_status: nextStock === 0 ? 'Not Released' : 'Available',
+    synced_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
   const { error } = await supabase
-    .from('unit_allocations')
-    .update({
-      reserved_by: null,
-      reserved_at: null,
-      reserved_ler_code: null,
-      reservation_expires_at: null,
-      remaining_stock: nextStock,
-      released_status: nextStock === 0 ? 'Not Released' : 'Available',
-      synced_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .from<UnitAllocationReservationRow>('unit_allocations')
+    .update(updatePayload)
     .eq('id', unitAllocationId)
     .eq('reserved_by', agentKey);
 

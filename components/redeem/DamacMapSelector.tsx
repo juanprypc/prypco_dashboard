@@ -867,6 +867,7 @@ export function DamacMapSelector({
                   height: scaledHeight,
                 }}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   ref={imageRef}
                   src={MAP_IMAGE}
