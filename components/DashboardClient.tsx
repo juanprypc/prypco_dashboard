@@ -909,7 +909,7 @@ function DashboardContent({
         setDamacAutoRestore(null);
       }
     }
-  }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue]);
+  }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue, topupStatus]);
 
 const referralCards: ReactNode[] = [
     <ReferralCard
