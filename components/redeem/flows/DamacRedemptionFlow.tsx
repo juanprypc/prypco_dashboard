@@ -51,7 +51,7 @@ type DamacRedemptionFlowProps = {
 
 function normaliseTopupAmount(value: number, minAmount: number): number {
   // For redemption shortfall, charge EXACT amount needed (no minimum enforcement)
-  if (!Number.isFinite(value) || value <= 0) return 1;
+  if (!Number.isFinite(value) || value <= 0) return 2; // Stripe minimum for AED
   return Math.ceil(value);
 }
 
@@ -382,25 +382,31 @@ export function DamacRedemptionFlow({
     const allocation = item.unitAllocations.find((unit) => unit.id === autoRestore.allocationId);
     if (!allocation) return;
 
+    const requiredPoints = allocation.points ?? null;
+    if (requiredPoints && requiredPoints > availablePoints) {
+      // Wait for ledger refresh after Stripe success before re-running the flow.
+      return;
+    }
+
     const allocationWithStatus: AllocationWithStatus = {
       id: allocation.id,
       points: allocation.points ?? undefined,
       unitType: allocation.unitType ?? undefined,
       priceAed: allocation.priceAed ?? undefined,
       propertyPrice: allocation.propertyPrice ?? undefined,
+      plotAreaSqft: allocation.plotAreaSqft ?? undefined,
+      saleableAreaSqft: allocation.saleableAreaSqft ?? undefined,
+      damacIslandcode: allocation.damacIslandcode ?? undefined,
+      brType: allocation.brType ?? undefined,
       availability: 'available',
     };
 
     handledAutoRestoreRef.current = key;
     setSelectedAllocationId(allocation.id);
     setSelectionDetails(allocationWithStatus);
-    setPendingSubmission({
-      allocation: allocationWithStatus,
-      catalogueAllocation: allocation,
-      lerCode: autoRestore.lerCode,
-    });
+    void handleDamacProceed({ allocation: allocationWithStatus, lerCode: autoRestore.lerCode });
     onAutoRestoreConsumed?.();
-  }, [autoRestore, item.unitAllocations, onAutoRestoreConsumed]);
+  }, [autoRestore, availablePoints, handleDamacProceed, item.unitAllocations, onAutoRestoreConsumed]);
 
   return (
     <>

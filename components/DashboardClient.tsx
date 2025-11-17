@@ -589,15 +589,13 @@ function DashboardContent({
     }
     if (topupStatus === 'success') {
       if (process.env.NODE_ENV !== 'production') {
-        console.log('[topup] scheduling fresh loyalty fetch');
+        console.log('[topup] forcing fresh loyalty fetch after Stripe success');
       }
       if (topupRefreshTimerRef.current) {
         clearTimeout(topupRefreshTimerRef.current);
-      }
-      topupRefreshTimerRef.current = setTimeout(() => {
-        setForceFreshLoyalty(true);
         topupRefreshTimerRef.current = null;
-      }, 12000);
+      }
+      setForceFreshLoyalty(true);
     }
   }, [topupStatus, closeTopup]);
 

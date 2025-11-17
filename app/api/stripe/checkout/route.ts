@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     // In redemption context, allow ANY amount (no minimum)
     // In regular top-up context, enforce MIN_TOPUP_AED
     const isRedemptionContext = !!(body.rewardId || body.allocationId || body.lerCode);
-    const effectiveMinimum = isRedemptionContext ? 1 : minTopup; // 1 AED minimum to avoid $0 transactions
+    const effectiveMinimum = isRedemptionContext ? 2 : minTopup; // 2 AED minimum (Stripe requirement for AED)
 
     const requestedAmount = typeof body.amountAED === "number" && !Number.isNaN(body.amountAED) ? body.amountAED : effectiveMinimum;
     const amountAED = requestedAmount < effectiveMinimum ? effectiveMinimum : requestedAmount;
