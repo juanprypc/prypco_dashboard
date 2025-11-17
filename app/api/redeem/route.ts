@@ -23,7 +23,7 @@ type UnitAllocationReservationRow = {
 
 async function verifyActiveReservation(unitAllocationId: string, agentKey: string): Promise<ReservationCheck> {
   const { data, error } = await supabase
-    .from<UnitAllocationReservationRow>('unit_allocations')
+    .from('unit_allocations')
     .select('reserved_by,reservation_expires_at,remaining_stock')
     .eq('id', unitAllocationId)
     .maybeSingle();
@@ -33,16 +33,17 @@ async function verifyActiveReservation(unitAllocationId: string, agentKey: strin
     return { ok: false, remainingStock: 0 };
   }
 
-  const expiresAt = data.reservation_expires_at ? Date.parse(data.reservation_expires_at) : null;
+  const row = data as UnitAllocationReservationRow;
+  const expiresAt = row.reservation_expires_at ? Date.parse(row.reservation_expires_at) : null;
   const stillReserved =
-    data.reserved_by === agentKey &&
+    row.reserved_by === agentKey &&
     (expiresAt === null || (Number.isFinite(expiresAt) && expiresAt > Date.now()));
 
   if (!stillReserved) {
     return { ok: false, remainingStock: 0 };
   }
 
-  const remainingStock = typeof data.remaining_stock === 'number' ? data.remaining_stock : 0;
+  const remainingStock = typeof row.remaining_stock === 'number' ? row.remaining_stock : 0;
   if (remainingStock <= 0) {
     return { ok: false, remainingStock: 0 };
   }
@@ -63,7 +64,7 @@ async function finalizeReservation(unitAllocationId: string, agentKey: string, c
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabase
-    .from<UnitAllocationReservationRow>('unit_allocations')
+    .from('unit_allocations')
     .update(updatePayload)
     .eq('id', unitAllocationId)
     .eq('reserved_by', agentKey);

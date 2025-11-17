@@ -1370,7 +1370,6 @@ const referralCards: ReactNode[] = [
           agentId={agentId}
           agentCode={agentCode}
           availablePoints={metrics.totalPosted}
-          minTopup={minTopup}
           pointsPerAed={pointsPerAed}
           formatAedFull={formatAedFull}
           startStripeCheckout={startStripeCheckout}

@@ -39,7 +39,6 @@ type DamacRedemptionFlowProps = {
   agentId?: string;
   agentCode?: string;
   availablePoints: number;
-  minTopup: number;
   pointsPerAed: number;
   formatAedFull: (value?: number | null) => string;
   startStripeCheckout: StripeCheckoutFn;
@@ -68,7 +67,6 @@ export function DamacRedemptionFlow({
   agentId,
   agentCode,
   availablePoints,
-  minTopup,
   pointsPerAed,
   formatAedFull,
   startStripeCheckout,
