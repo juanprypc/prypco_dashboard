@@ -35,8 +35,14 @@ export async function POST(request: Request) {
     const minTopup = Number(process.env.MIN_TOPUP_AED || 500);
     const pointsPerAed = Number(process.env.POINTS_PER_AED || 2);
 
-    const requestedAmount = typeof body.amountAED === 'number' && !Number.isNaN(body.amountAED) ? body.amountAED : minTopup;
-    const amountAED = requestedAmount < minTopup ? minTopup : requestedAmount;
+    // Check if this is a redemption context (has rewardId or allocationId)
+    // In redemption context, allow ANY amount (no minimum)
+    // In regular top-up context, enforce MIN_TOPUP_AED
+    const isRedemptionContext = !!(body.rewardId || body.allocationId || body.lerCode);
+    const effectiveMinimum = isRedemptionContext ? 1 : minTopup; // 1 AED minimum to avoid $0 transactions
+
+    const requestedAmount = typeof body.amountAED === "number" && !Number.isNaN(body.amountAED) ? body.amountAED : effectiveMinimum;
+    const amountAED = requestedAmount < effectiveMinimum ? effectiveMinimum : requestedAmount;
     const points = Math.floor(amountAED * pointsPerAed);
 
     if (amountAED > STRIPE_MAX_AED) {

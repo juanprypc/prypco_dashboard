@@ -50,9 +50,9 @@ type DamacRedemptionFlowProps = {
 };
 
 function normaliseTopupAmount(value: number, minAmount: number): number {
-  if (!Number.isFinite(value) || value <= 0) return minAmount;
-  const multiples = Math.max(1, Math.ceil(value / minAmount));
-  return multiples * minAmount;
+  // For redemption shortfall, charge EXACT amount needed (no minimum enforcement)
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  return Math.ceil(value);
 }
 
 function formatTimeRemaining(ms: number | null): string {
