@@ -892,13 +892,14 @@ function DashboardContent({
     return () => clearTimeout(timer);
   }, [waitlistMessage]);
 
-  // Auto-restore DAMAC flow after Stripe payment
+  // Auto-restore redemption flow after Stripe payment
   useEffect(() => {
     if (!autoOpenRewardId || !catalogue) return;
     const item = catalogue.find((i) => i.id === autoOpenRewardId);
     if (!item) return;
 
-    if (item.category === 'token' && item.id.includes('damac')) {
+    // Handle DAMAC island redemption flow
+    if (item.damacIslandCampaign) {
       setDamacRedeemItem(item);
       if (autoSelectAllocationId && autoVerifiedLerCode) {
         setDamacAutoRestore({
@@ -908,8 +909,18 @@ function DashboardContent({
       } else {
         setDamacAutoRestore(null);
       }
+      return;
     }
-  }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue, topupStatus]);
+
+    // Handle regular token items with unit allocations
+    if (item.unitAllocations && item.unitAllocations.length > 0) {
+      setTokenRedeemItem(item);
+      return;
+    }
+
+    // Handle simple redemption items
+    setSimpleRedeemItem(item);
+  }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue]);
 
 const referralCards: ReactNode[] = [
     <ReferralCard
