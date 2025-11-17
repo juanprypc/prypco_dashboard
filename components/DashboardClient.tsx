@@ -894,12 +894,28 @@ function DashboardContent({
 
   // Auto-restore redemption flow after Stripe payment
   useEffect(() => {
+    console.log('[AUTO-RESTORE] Effect triggered', {
+      autoOpenRewardId,
+      autoSelectAllocationId,
+      autoVerifiedLerCode,
+      hasCatalogue: !!catalogue,
+      catalogueLength: catalogue?.length
+    });
+
     if (!autoOpenRewardId || !catalogue) return;
     const item = catalogue.find((i) => i.id === autoOpenRewardId);
+
+    console.log('[AUTO-RESTORE] Found item:', item?.name, {
+      damacIslandCampaign: item?.damacIslandCampaign,
+      hasAllocations: (item?.unitAllocations?.length ?? 0) > 0,
+      allocationsCount: item?.unitAllocations?.length
+    });
+
     if (!item) return;
 
     // Handle DAMAC island redemption flow
     if (item.damacIslandCampaign) {
+      console.log('[AUTO-RESTORE] Opening DAMAC flow');
       setDamacRedeemItem(item);
       if (autoSelectAllocationId && autoVerifiedLerCode) {
         setDamacAutoRestore({
@@ -914,11 +930,13 @@ function DashboardContent({
 
     // Handle regular token items with unit allocations
     if (item.unitAllocations && item.unitAllocations.length > 0) {
+      console.log('[AUTO-RESTORE] Opening token flow');
       setTokenRedeemItem(item);
       return;
     }
 
     // Handle simple redemption items
+    console.log('[AUTO-RESTORE] Opening simple flow');
     setSimpleRedeemItem(item);
   }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue]);
 
