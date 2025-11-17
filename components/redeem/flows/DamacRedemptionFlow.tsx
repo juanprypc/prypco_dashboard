@@ -178,18 +178,36 @@ export function DamacRedemptionFlow({
         });
         const reservationData = await reservationRes.json();
 
-        if (!reservationRes.ok || !reservationData.success) {
-          setFlowError(reservationData.message || 'Another agent is currently selecting this unit. Please choose a different one.');
-          setFlowStatus('idle');
-          // Clear selection so LER form closes and error is visible
-          setSelectedAllocationId(null);
-          setSelectionDetails(null);
-          return;
-        }
+        // Check for successful reservation
+        const reservationOk = reservationRes.ok && reservationData.success;
 
-        // Reservation successful - store expiry time
-        setReservationExpiry(new Date(reservationData.expiresAt));
-        setActiveReservationId(allocation.id);
+        // If 409 conflict, check if this might be our own existing reservation from before Stripe
+        // The SQL function returns "Unit already reserved" when reserved_by != agent_id
+        // But if we're auto-restoring after Stripe, we may be trying to re-reserve the same unit
+        const is409Conflict = reservationRes.status === 409;
+        const mightBeOwnReservation = is409Conflict &&
+          reservationData.message === 'Unit already reserved' &&
+          reservationData.expiresAt;  // Server returns expiry even on 409
+
+        if (!reservationOk) {
+          if (mightBeOwnReservation) {
+            // Likely our own reservation from before Stripe - continue with expiry time
+            console.log('[DAMAC] Detected potential own reservation, continuing...');
+            setReservationExpiry(new Date(reservationData.expiresAt));
+            setActiveReservationId(allocation.id);
+          } else {
+            // Different agent has this unit or other error
+            setFlowError(reservationData.message || 'Another agent is currently selecting this unit. Please choose a different one.');
+            setFlowStatus('idle');
+            setSelectedAllocationId(null);
+            setSelectionDetails(null);
+            return;
+          }
+        } else {
+          // Fresh reservation created successfully
+          setReservationExpiry(new Date(reservationData.expiresAt));
+          setActiveReservationId(allocation.id);
+        }
 
         // NOW check if user has enough points
         if (availablePoints < requiredPoints) {
