@@ -53,7 +53,7 @@ async function verifyActiveReservation(unitAllocationId: string, agentKey: strin
 
 async function finalizeReservation(unitAllocationId: string, agentKey: string, currentStock: number) {
   const nextStock = Math.max(0, currentStock - 1);
-  const updatePayload: Partial<UnitAllocationReservationRow> = {
+  const updatePayload: Record<string, unknown> = {
     reserved_by: null,
     reserved_at: null,
     reserved_ler_code: null,
