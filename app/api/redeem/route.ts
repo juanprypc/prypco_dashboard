@@ -1,7 +1,65 @@
-import { Sentry } from '@/lib/sentry';
 import { NextResponse } from 'next/server';
+import { Sentry } from '@/lib/sentry';
+import { getSupabaseAdminClient } from '@/lib/supabaseClient';
 
 const webhookUrl = process.env.AIRTABLE_REDEEM_WEBHOOK;
+const supabase = getSupabaseAdminClient();
+
+type ReservationCheck = {
+  ok: boolean;
+  remainingStock: number;
+};
+
+async function verifyActiveReservation(unitAllocationId: string, agentKey: string): Promise<ReservationCheck> {
+  const { data, error } = await supabase
+    .from('unit_allocations')
+    .select('reserved_by,reservation_expires_at,remaining_stock')
+    .eq('id', unitAllocationId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) {
+    return { ok: false, remainingStock: 0 };
+  }
+
+  const expiresAt = data.reservation_expires_at ? Date.parse(data.reservation_expires_at) : null;
+  const stillReserved =
+    data.reserved_by === agentKey &&
+    (expiresAt === null || (Number.isFinite(expiresAt) && expiresAt > Date.now()));
+
+  if (!stillReserved) {
+    return { ok: false, remainingStock: 0 };
+  }
+
+  const remainingStock = typeof data.remaining_stock === 'number' ? data.remaining_stock : 0;
+  if (remainingStock <= 0) {
+    return { ok: false, remainingStock: 0 };
+  }
+
+  return { ok: true, remainingStock };
+}
+
+async function finalizeReservation(unitAllocationId: string, agentKey: string, currentStock: number) {
+  const nextStock = Math.max(0, currentStock - 1);
+  const { error } = await supabase
+    .from('unit_allocations')
+    .update({
+      reserved_by: null,
+      reserved_at: null,
+      reserved_ler_code: null,
+      reservation_expires_at: null,
+      remaining_stock: nextStock,
+      released_status: nextStock === 0 ? 'Not Released' : 'Available',
+      synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', unitAllocationId)
+    .eq('reserved_by', agentKey);
+
+  if (error) {
+    throw error;
+  }
+}
 
 export async function POST(request: Request) {
   if (!webhookUrl) {
@@ -57,6 +115,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Buyer phone last four digits are invalid' }, { status: 400 });
     }
 
+    const reservationKey = (body.agentId?.trim() || body.agentCode?.trim() || '') || null;
+    let reservationContext: ReservationCheck | null = null;
+    if (unitAllocationId && reservationKey) {
+      reservationContext = await verifyActiveReservation(unitAllocationId, reservationKey);
+      if (!reservationContext.ok) {
+        return NextResponse.json(
+          { error: 'This unit is no longer reserved. Please pick another allocation.' },
+          { status: 409 },
+        );
+      }
+    }
+
     const payload = {
       agentId: body.agentId ?? null,
       agentCode: body.agentCode ?? null,
@@ -90,6 +160,14 @@ export async function POST(request: Request) {
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || `Webhook responded with ${res.status}`);
+    }
+
+    if (unitAllocationId && reservationKey && reservationContext) {
+      try {
+        await finalizeReservation(unitAllocationId, reservationKey, reservationContext.remainingStock);
+      } catch (error) {
+        console.error('Failed to finalize reservation in Supabase', error);
+      }
     }
 
     return NextResponse.json({ ok: true });

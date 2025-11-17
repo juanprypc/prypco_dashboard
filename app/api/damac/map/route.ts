@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch fresh allocations directly from Supabase (no caching)
     const allocations = await fetchUnitAllocations();
+    const now = Date.now();
 
     let filtered = allocations;
     if (catalogueId) {
@@ -28,7 +29,12 @@ export async function GET(request: NextRequest) {
     }
 
     const response: AllocationWithAvailability[] = filtered.map((allocation) => {
-      const isAvailable = allocation.remainingStock !== null && allocation.remainingStock > 0;
+      const remainingStock = typeof allocation.remainingStock === 'number' ? allocation.remainingStock : 0;
+      const reservationExpiresAt = allocation.reservationExpiresAt ? Date.parse(allocation.reservationExpiresAt) : null;
+      const reservationActive =
+        Boolean(allocation.reservedBy) &&
+        (reservationExpiresAt === null || (Number.isFinite(reservationExpiresAt) && reservationExpiresAt > now));
+      const isAvailable = remainingStock > 0 && !reservationActive;
       return {
         id: allocation.id,
         points: allocation.points,

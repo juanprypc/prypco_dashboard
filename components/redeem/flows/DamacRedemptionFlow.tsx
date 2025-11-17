@@ -281,6 +281,9 @@ export function DamacRedemptionFlow({
       }
       setConfirmedLer(lerCode);
       setPendingSubmission(null);
+      setActiveReservationId(null);
+      setReservationExpiry(null);
+      setTimeRemaining(null);
       setFlowStatus('success');
     } catch (error) {
       const errMessage = error instanceof Error ? error.message : 'Unable to submit redemption';
