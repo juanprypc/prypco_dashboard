@@ -13,6 +13,10 @@ export type CatalogueUnitAllocation = {
   pictureUrl: string | null;
   priceAed: number | null;
   propertyPrice?: number | null;
+  plotAreaSqft?: number | null;
+  saleableAreaSqft?: number | null;
+  damacIslandcode?: string | null;
+  brType?: string | null;
 };
 
 export type CatalogueDisplayItem = {
