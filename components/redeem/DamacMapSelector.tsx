@@ -47,16 +47,6 @@ const VIEWER_STORAGE_KEY = 'damac-agent-viewer-count';
 
 type Point = { x: number; y: number };
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-const formatPriceAedCompact = (value?: number | null) => {
-  if (value == null) return null;
-  if (value >= 1000) {
-    const thousands = value / 1000;
-    const formatted = Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1);
-    return `${formatted}k AED`;
-  }
-  return `${value} AED`;
-};
-
 const formatPriceAedFull = (value?: number | null) => {
   if (value == null) return null;
   return `AED ${value.toLocaleString()}`;

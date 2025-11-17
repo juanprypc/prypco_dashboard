@@ -49,7 +49,7 @@ type DamacRedemptionFlowProps = {
   onSuccess?: () => void;
 };
 
-function normaliseTopupAmount(value: number, minAmount: number): number {
+function normaliseTopupAmount(value: number): number {
   // For redemption shortfall, charge EXACT amount needed (no minimum enforcement)
   if (!Number.isFinite(value) || value <= 0) return 2; // Stripe minimum for AED
   return Math.ceil(value);
@@ -214,7 +214,7 @@ export function DamacRedemptionFlow({
           setFlowError(null);
           const shortfall = requiredPoints - availablePoints;
           const denominator = pointsPerAed > 0 ? pointsPerAed : 1;
-          const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator), minTopup);
+          const suggestedAed = normaliseTopupAmount(Math.ceil(shortfall / denominator));
           setInsufficientBalanceModal({
             requiredPoints,
             availablePoints,

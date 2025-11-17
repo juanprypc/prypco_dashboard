@@ -10,6 +10,12 @@ type ReservationCheck = {
   remainingStock: number;
 };
 
+type UnitAllocationReservationRow = {
+  reserved_by: string | null;
+  reservation_expires_at: string | null;
+  remaining_stock: number | null;
+};
+
 async function verifyActiveReservation(unitAllocationId: string, agentKey: string): Promise<ReservationCheck> {
   const { data, error } = await supabase
     .from('unit_allocations')
@@ -22,16 +28,17 @@ async function verifyActiveReservation(unitAllocationId: string, agentKey: strin
     return { ok: false, remainingStock: 0 };
   }
 
-  const expiresAt = data.reservation_expires_at ? Date.parse(data.reservation_expires_at) : null;
+  const row = data as UnitAllocationReservationRow;
+  const expiresAt = row.reservation_expires_at ? Date.parse(row.reservation_expires_at) : null;
   const stillReserved =
-    data.reserved_by === agentKey &&
+    row.reserved_by === agentKey &&
     (expiresAt === null || (Number.isFinite(expiresAt) && expiresAt > Date.now()));
 
   if (!stillReserved) {
     return { ok: false, remainingStock: 0 };
   }
 
-  const remainingStock = typeof data.remaining_stock === 'number' ? data.remaining_stock : 0;
+  const remainingStock = typeof row.remaining_stock === 'number' ? row.remaining_stock : 0;
   if (remainingStock <= 0) {
     return { ok: false, remainingStock: 0 };
   }
