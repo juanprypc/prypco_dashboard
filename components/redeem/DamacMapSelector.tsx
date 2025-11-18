@@ -34,13 +34,14 @@ const DEFAULT_BASE_WIDTH = 800;
 const DEFAULT_ASPECT_RATIO = 560 / 800;
 const DEFAULT_CONTAINER_HEIGHT = 500;
 const PROTOTYPE_LEGEND = [
+  { code: 'DSTW', color: '#4f46e5', br: '' },
   { code: 'DS-V45.', color: '#5360d6', br: '6BR' },
   { code: 'DSTH-E ', color: '#f02020', br: '5BR' },
   { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
   { code: 'DSTH-M1', color: '#00c2d7', br: '4BR' },
 ] as const;
 const UNIT_TYPE_FILTER_OPTIONS = ['all', '4 BR', '5 BR', '6 BR'] as const;
-const BR_TYPE_FILTER_OPTIONS = ['all', 'DS-V45', 'DSTH-E', 'DSTH-M2', 'DSTH-M1'] as const;
+const BR_TYPE_FILTER_OPTIONS = ['all', 'DSTW', 'DS-V45', 'DSTH-E', 'DSTH-M2', 'DSTH-M1'] as const;
 const MIN_AGENT_VIEWERS = 28;
 const MAX_AGENT_VIEWERS = 64;
 const VIEWER_STORAGE_KEY = 'damac-agent-viewer-count';
