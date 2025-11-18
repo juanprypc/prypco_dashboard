@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const catalogueId = searchParams.get('catalogueId');
 
     // Fetch fresh allocations directly from Supabase (no caching)
-    const allocations = await fetchUnitAllocations();
+    const allocations = await fetchUnitAllocations(false);  // Get ALL units for map
     const now = Date.now();
 
     let filtered = allocations;
