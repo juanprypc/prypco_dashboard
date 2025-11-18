@@ -185,7 +185,7 @@ export async function fetchUnitAllocationsFromSupabase(onlyWithStock = true): Pr
     query = query.gt('remaining_stock', 0);
   }
 
-  const { data, error } = query as unknown as {
+  const { data, error } = await query as unknown as {
     data: Array<{
       id: string;
       catalogue_id: string | null;
