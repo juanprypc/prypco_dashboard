@@ -25,7 +25,7 @@ type DamacMapSelectorProps = {
   hideOuterFrame?: boolean;
 };
 
-const MAP_IMAGE = '/images/bahamas-version1.jpg';
+const MAP_IMAGE = '/images/bahamas_map_2.jpeg';
 const MAP_IMAGE_ORIGINAL = '/images/bahamas-cluster-map.jpg';
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 6;
