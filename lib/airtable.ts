@@ -52,6 +52,28 @@ function toMaybeNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+const TRUE_STRINGS = new Set(['true', 'checked', '1', 'yes']);
+
+function toBooleanFlag(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return TRUE_STRINGS.has(normalized);
+  }
+  return false;
+}
+
+function isPreviewEnv(): boolean {
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv && vercelEnv.toUpperCase() === 'PREVIEW') {
+    return true;
+  }
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+  return false;
+}
+
 export type PublicLoyaltyRow = {
   id: string;
   createdTime: string;
@@ -88,6 +110,7 @@ export type CatalogueFields = {
   image?: Array<{ url: string; filename?: string; thumbnails?: { large?: { url: string }; small?: { url: string } } }>;
   description?: string;
   is_active?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
+  staging_active?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   requiresBuyerVerification?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   damacIslandCampaign?: 'checked' | 'unchecked' | 'TRUE' | 'FALSE' | boolean;
   'T&C'?: string;
@@ -362,10 +385,16 @@ export async function fetchLoyaltyCatalogueBase(): Promise<CatalogueItem[]> {
   } while (offset && guard < 20);
 
   return records.filter((item) => {
-    // Check if active
-    const active = item.fields?.is_active;
-    const isActive = typeof active === 'boolean' ? active : (active === 'checked' || active === 'TRUE');
-    return isActive;
+    const isActive = toBooleanFlag(item.fields?.is_active);
+    const stagingActive = toBooleanFlag(item.fields?.staging_active);
+    
+    // Production: only show items with is_active=true
+    if (!isPreviewEnv()) {
+      return isActive;
+    }
+    
+    // Preview/Staging: show items with is_active=true OR staging_active=true
+    return isActive || stagingActive;
   });
 }
 

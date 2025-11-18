@@ -9,9 +9,9 @@ function toPositiveInt(value: string | number | undefined, fallback: number): nu
   if (!Number.isFinite(num) || num <= 0) return fallback;
   return Math.floor(num);
 }
-
-export const CATALOGUE_CACHE_KEY = 'catalogue:latest';
+const CACHE_ENV = process.env.VERCEL_ENV?.toUpperCase() === 'PREVIEW' ? 'preview' : 'production';
 export const DEFAULT_CATALOGUE_TTL_SECONDS = toPositiveInt(process.env.CATALOGUE_CACHE_TTL, 3600);
+export const CATALOGUE_CACHE_KEY = `catalogue:latest:${CACHE_ENV}`;
 export const AIRTABLE_SIGNED_URL_LIFETIME_SECONDS = toPositiveInt(
   process.env.AIRTABLE_SIGNED_URL_LIFETIME,
   3 * 60 * 60,
