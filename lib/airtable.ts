@@ -179,7 +179,8 @@ export async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitA
   const { data, error } = await supabase
     .from('unit_allocations' as never)
     .select('*')
-    .or('released_status.is.null,released_status.eq.Available') as unknown as {
+    .or('released_status.is.null,released_status.eq.Available')
+    .gt('remaining_stock', 0) as unknown as {
     data: Array<{
       id: string;
       catalogue_id: string | null;
