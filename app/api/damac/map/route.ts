@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
     const catalogueId = searchParams.get('catalogueId');
 
     // Fetch fresh allocations directly from Supabase (no caching)
-    const allocations = await fetchUnitAllocations();
+    // Fetch ALL allocations (including sold out) - map shows them as "booked"
+    const allocations = await fetchUnitAllocations(false);
     const now = Date.now();
 
     let filtered = allocations;
