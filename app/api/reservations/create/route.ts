@@ -57,8 +57,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // The function returns a single row with success, message, unit_id, expires_at
-    type ReservationResult = { success: boolean; message: string; unit_id: string; expires_at: string | null };
+    // The function returns a single row with success, message, unit_id, expires_at, reserved_by_agent
+    type ReservationResult = { 
+      success: boolean; 
+      message: string; 
+      unit_id: string; 
+      expires_at: string | null;
+      reserved_by_agent: string | null;
+    };
     const result = (data as ReservationResult[] | null)?.[0] ?? null;
 
     if (!result || !result.success) {
@@ -67,6 +73,7 @@ export async function POST(req: NextRequest) {
           success: false,
           message: result?.message || 'Reservation failed',
           expiresAt: result?.expires_at || null,
+          reservedBy: result?.reserved_by_agent || null,
         },
         { status: 409 } // Conflict
       );
@@ -77,6 +84,7 @@ export async function POST(req: NextRequest) {
       message: result.message,
       unitId: result.unit_id,
       expiresAt: result.expires_at,
+      reservedBy: result.reserved_by_agent,
     });
   } catch (error) {
     console.error('Reservation API error:', error);

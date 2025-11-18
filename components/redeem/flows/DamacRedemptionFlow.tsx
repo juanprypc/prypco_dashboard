@@ -179,19 +179,18 @@ export function DamacRedemptionFlow({
         // Check for successful reservation
         const reservationOk = reservationRes.ok && reservationData.success;
 
-        // If 409 conflict, check if this might be our own existing reservation from before Stripe
-        // The SQL function returns "Unit already reserved" when reserved_by != agent_id
-        // But if we're auto-restoring after Stripe, we may be trying to re-reserve the same unit
+        // If 409 conflict, check if this is OUR OWN reservation (from before Stripe auto-restore)
+        // The SQL function now returns reservedBy so we can verify it's actually this agent
         const is409Conflict = reservationRes.status === 409;
-        const mightBeOwnReservation = is409Conflict &&
+        const currentAgentId = agentId ?? agentCode ?? 'unknown';
+        const isOwnReservation = is409Conflict &&
           reservationData.message === 'Unit already reserved' &&
-          reservationData.expiresAt;  // Server returns expiry even on 409
+          reservationData.reservedBy === currentAgentId;  // FIXED: Check if WE own it
 
         if (!reservationOk) {
-          if (mightBeOwnReservation) {
-            // Likely our own reservation from before Stripe - continue with expiry time
-            console.log('[DAMAC] Detected potential own reservation, continuing...');
-            setReservationExpiry(new Date(reservationData.expiresAt));
+          if (isOwnReservation) {
+            // This is our own reservation from before Stripe - continue with expiry time
+            console.log('[DAMAC] Detected own reservation from auto-restore, continuing...');
             setActiveReservationId(allocation.id);
           } else {
             // Different agent has this unit or other error
