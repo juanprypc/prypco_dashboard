@@ -40,7 +40,7 @@ const PROTOTYPE_LEGEND = [
   { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
   { code: 'DSTH-M1', color: '#00c2d7', br: '4BR' },
 ] as const;
-const UNIT_TYPE_FILTER_OPTIONS = ['all', '4 BR', '5 BR', '6 BR'] as const;
+const UNIT_TYPE_FILTER_OPTIONS = ['all', 'Twin Villa', '4 BR', '5 BR', '6 BR'] as const;
 const BR_TYPE_FILTER_OPTIONS = ['all', 'DSTW', 'DS-V45', 'DSTH-E', 'DSTH-M2', 'DSTH-M1'] as const;
 const MIN_AGENT_VIEWERS = 28;
 const MAX_AGENT_VIEWERS = 64;
@@ -296,6 +296,11 @@ export function DamacMapSelector({
         brTypeValue === brTypeFilter.toLowerCase();
 
       return matchesSearch && matchesUnitType && matchesPrototype;
+    }).sort((a, b) => {
+      // Sort available units first
+      if (a.availability === 'available' && b.availability !== 'available') return -1;
+      if (a.availability !== 'available' && b.availability === 'available') return 1;
+      return 0;
     });
   }, [allocations, searchTerm, unitTypeFilter, brTypeFilter]);
   const handleLerDigitsChange = (value: string) => {
