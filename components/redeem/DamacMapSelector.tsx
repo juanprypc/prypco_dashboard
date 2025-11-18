@@ -34,7 +34,7 @@ const DEFAULT_BASE_WIDTH = 800;
 const DEFAULT_ASPECT_RATIO = 560 / 800;
 const DEFAULT_CONTAINER_HEIGHT = 500;
 const PROTOTYPE_LEGEND = [
-  { code: 'DSTW', color: '#4f46e5', br: '' },
+  { code: 'DSTW', color: '#4f46e5', br: 'Twin Villa' },
   { code: 'DS-V45.', color: '#5360d6', br: '6BR' },
   { code: 'DSTH-E ', color: '#f02020', br: '5BR' },
   { code: 'DSTH-M2', color: '#f2b552', br: '5BR' },
