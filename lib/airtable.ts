@@ -112,6 +112,7 @@ export type UnitAllocationFields = {
   'Plot Area (sqft)'?: number;
   'Saleable Area (sqft)'?: number;
   released_status?: 'Available' | 'Not Released' | string;
+  'Unit Status'?: string;
 };
 
 export type CatalogueUnitAllocation = {
@@ -129,6 +130,7 @@ export type CatalogueUnitAllocation = {
   plotAreaSqft: number | null;
   saleableAreaSqft: number | null;
   releasedStatus: string | null;
+  unitStatus?: string | null;
   // Reservation fields (from Supabase real-time system)
   reservedBy?: string | null;
   reservedAt?: string | null;
@@ -208,8 +210,9 @@ export async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitA
 
 /**
  * Fetch unit allocations from Airtable (legacy data source)
+ * @param onlyAvailable - If true (default), only return available units. If false, return ALL units including sold/unavailable.
  */
-export async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitAllocation[]> {
+export async function fetchUnitAllocationsFromAirtable(onlyAvailable = true): Promise<CatalogueUnitAllocation[]> {
   const apiKey = env('AIRTABLE_API_KEY');
   const baseId = env('AIRTABLE_BASE');
   const table = process.env.AIRTABLE_TABLE_UNIT_ALLOCATIONS || 'loyalty_unit_allocation';
@@ -249,6 +252,9 @@ export async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitA
 
   return records
     .filter((record) => {
+      // Skip filtering if admin wants all units
+      if (!onlyAvailable) return true;
+
       // Only show allocations with released_status = 'Available'
       const releasedStatus = record.fields?.released_status;
       return !releasedStatus || releasedStatus === 'Available';
@@ -274,6 +280,7 @@ export async function fetchUnitAllocationsFromAirtable(): Promise<CatalogueUnitA
         plotAreaSqft: toMaybeNumber(fields['Plot Area (sqft)']) ?? null,
         saleableAreaSqft: toMaybeNumber(fields['Saleable Area (sqft)']) ?? null,
         releasedStatus: toMaybeString(fields.released_status) ?? null,
+        unitStatus: toMaybeString(fields['Unit Status']) ?? null,
         // No reservation fields from Airtable
       } satisfies CatalogueUnitAllocation;
     });
