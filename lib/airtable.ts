@@ -171,23 +171,16 @@ export type CatalogueProjectStatus = 'active' | 'coming_soon' | 'last_units' | '
 /**
  * Fetch unit allocations from Supabase (real-time data with reservation info)
  */
-export async function fetchUnitAllocationsFromSupabase(onlyWithStock = true): Promise<CatalogueUnitAllocation[]> {
-  console.log('🔵 FETCHING FROM SUPABASE - unit_allocations table (onlyWithStock:', onlyWithStock, ')');
+export async function fetchUnitAllocationsFromSupabase(): Promise<CatalogueUnitAllocation[]> {
+  console.log('🔵 FETCHING FROM SUPABASE - unit_allocations table');
   const { getSupabaseAdminClient } = await import('@/lib/supabaseClient');
   const supabase = getSupabaseAdminClient();
 
-  let query = supabase
+  const { data, error } = await supabase
     .from('unit_allocations' as never)
     .select('*')
-    .or('released_status.is.null,released_status.eq.Available');
-  
-  // Only filter by stock if requested (for catalogue count)
-  // Map selector needs ALL units to show sold-out ones as disabled
-  if (onlyWithStock) {
-    query = query.gt('remaining_stock', 0);
-  }
-
-  const { data, error } = query as unknown as {
+    .or('released_status.is.null,released_status.eq.Available')
+    .gt('remaining_stock', 0) as unknown as {
     data: Array<{
       id: string;
       catalogue_id: string | null;
@@ -321,7 +314,7 @@ export async function fetchUnitAllocationsFromAirtable(onlyAvailable = true): Pr
  * Fetch unit allocations with feature flag support
  * Prefers Supabase when credentials exist unless the flag is explicitly set to "false"
  */
-export async function fetchUnitAllocations(onlyWithStock = true): Promise<CatalogueUnitAllocation[]> {
+export async function fetchUnitAllocations(): Promise<CatalogueUnitAllocation[]> {
   const envValue = process.env.ENABLE_SUPABASE_UNIT_ALLOCATIONS ?? 'true';
   const supabaseConfigured = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
   const preferSupabase = envValue === 'true' || (!envValue && supabaseConfigured);
@@ -338,7 +331,7 @@ export async function fetchUnitAllocations(onlyWithStock = true): Promise<Catalo
 
   if (!forceAirtable && (preferSupabase || envValue === 'true')) {
     try {
-      return await fetchUnitAllocationsFromSupabase(onlyWithStock);
+      return await fetchUnitAllocationsFromSupabase();
     } catch (error) {
       console.error('❌ Supabase unit allocation fetch failed, falling back to Airtable:', error);
     }
