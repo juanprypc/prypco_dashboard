@@ -167,13 +167,13 @@ export async function POST(request: Request) {
 
     if (requiredPoints > 0) {
       const { data: balanceData, error: balanceError } = await supabase
-        .rpc('check_and_reserve_balance', {
+        .rpc('check_and_reserve_balance' as never, {
           p_agent_id: body.agentId ?? null,
           p_agent_code: body.agentCode ?? null,
           p_required_points: requiredPoints,
           p_unit_allocation_id: unitAllocationId,
           p_ler_code: damacLerReference
-        });
+        } as never);
 
       if (balanceError) {
         console.error('Balance check error:', balanceError);
@@ -232,14 +232,14 @@ export async function POST(request: Request) {
       const text = await res.text();
       // Cancel the pending redemption since webhook failed
       if (pendingRedemptionId) {
-        await supabase.rpc('cancel_pending_redemption', { p_pending_id: pendingRedemptionId });
+        await supabase.rpc('cancel_pending_redemption' as never, { p_pending_id: pendingRedemptionId } as never);
       }
       throw new Error(text || 'Webhook responded with ' + res.status);
     }
 
     // Finalize the pending redemption (remove the hold)
     if (pendingRedemptionId) {
-      await supabase.rpc('finalize_pending_redemption', { p_pending_id: pendingRedemptionId });
+      await supabase.rpc('finalize_pending_redemption' as never, { p_pending_id: pendingRedemptionId } as never);
     }
 
     if (unitAllocationId && reservationKey && reservationContext) {
@@ -255,7 +255,7 @@ export async function POST(request: Request) {
     // Cancel pending redemption on any error
     if (pendingRedemptionId) {
       try {
-        await supabase.rpc('cancel_pending_redemption', { p_pending_id: pendingRedemptionId });
+        await supabase.rpc('cancel_pending_redemption' as never, { p_pending_id: pendingRedemptionId } as never);
       } catch (cancelError) {
         console.error('Failed to cancel pending redemption:', cancelError);
       }
