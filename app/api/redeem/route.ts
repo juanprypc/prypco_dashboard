@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Sentry } from '@/lib/sentry';
 import { getSupabaseAdminClient } from '@/lib/supabaseClient';
-import { getAgentBalance } from '@/lib/supabaseLoyalty';
+import { fetchDamacRedemptionByCode } from '@/lib/damac';
 
 const webhookUrl = process.env.AIRTABLE_REDEEM_WEBHOOK;
 const supabase = getSupabaseAdminClient();
@@ -20,6 +20,14 @@ type UnitAllocationReservationRow = {
   released_status: string | null;
   synced_at: string | null;
   updated_at: string | null;
+};
+
+type BalanceCheckResult = {
+  success: boolean;
+  message: string;
+  pending_id: string | null;
+  available_balance: number;
+  required_points: number;
 };
 
 async function verifyActiveReservation(unitAllocationId: string, agentKey: string): Promise<ReservationCheck> {
@@ -79,6 +87,8 @@ export async function POST(request: Request) {
   if (!webhookUrl) {
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
   }
+
+  let pendingRedemptionId: string | null = null;
 
   try {
     const body = (await request.json()) as {
@@ -141,21 +151,51 @@ export async function POST(request: Request) {
       }
     }
 
+    // Check LER uniqueness to prevent race condition where same LER books multiple units
+    if (damacLerReference) {
+      const existingRedemption = await fetchDamacRedemptionByCode(damacLerReference);
+      if (existingRedemption) {
+        return NextResponse.json(
+          { error: 'This LER code has already been used for another redemption' },
+          { status: 409 },
+        );
+      }
+    }
 
-    // Server-side balance check to prevent concurrent bookings exceeding balance
+    // Atomic balance check - reserves points to prevent concurrent overbooking
     const requiredPoints = typeof body.rewardPoints === 'number' ? body.rewardPoints : 0;
+
     if (requiredPoints > 0) {
-      const agentBalance = await getAgentBalance(body.agentId ?? undefined, body.agentCode ?? undefined);
-      if (agentBalance < requiredPoints) {
+      const { data: balanceData, error: balanceError } = await supabase
+        .rpc('check_and_reserve_balance', {
+          p_agent_id: body.agentId ?? null,
+          p_agent_code: body.agentCode ?? null,
+          p_required_points: requiredPoints,
+          p_unit_allocation_id: unitAllocationId,
+          p_ler_code: damacLerReference
+        });
+
+      if (balanceError) {
+        console.error('Balance check error:', balanceError);
+        return NextResponse.json(
+          { error: 'Failed to check balance' },
+          { status: 500 },
+        );
+      }
+
+      const balanceResult = (balanceData as BalanceCheckResult[] | null)?.[0];
+      if (!balanceResult?.success) {
         return NextResponse.json(
           {
-            error: `Insufficient balance. You need ${requiredPoints.toLocaleString()} points but only have ${agentBalance.toLocaleString()} points.`,
+            error: 'Insufficient balance. You need ' + requiredPoints.toLocaleString() + ' points but only have ' + (balanceResult?.available_balance ?? 0).toLocaleString() + ' points.',
             required: requiredPoints,
-            available: agentBalance,
+            available: balanceResult?.available_balance ?? 0,
           },
           { status: 400 },
         );
       }
+
+      pendingRedemptionId = balanceResult.pending_id;
     }
 
     const payload = {
@@ -190,7 +230,16 @@ export async function POST(request: Request) {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(text || `Webhook responded with ${res.status}`);
+      // Cancel the pending redemption since webhook failed
+      if (pendingRedemptionId) {
+        await supabase.rpc('cancel_pending_redemption', { p_pending_id: pendingRedemptionId });
+      }
+      throw new Error(text || 'Webhook responded with ' + res.status);
+    }
+
+    // Finalize the pending redemption (remove the hold)
+    if (pendingRedemptionId) {
+      await supabase.rpc('finalize_pending_redemption', { p_pending_id: pendingRedemptionId });
     }
 
     if (unitAllocationId && reservationKey && reservationContext) {
@@ -203,6 +252,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    // Cancel pending redemption on any error
+    if (pendingRedemptionId) {
+      try {
+        await supabase.rpc('cancel_pending_redemption', { p_pending_id: pendingRedemptionId });
+      } catch (cancelError) {
+        console.error('Failed to cancel pending redemption:', cancelError);
+      }
+    }
+
     Sentry.captureException(error);
     const message = error instanceof Error ? error.message : 'Failed to submit redemption';
     return NextResponse.json({ error: message }, { status: 500 });
