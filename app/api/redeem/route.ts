@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Sentry } from '@/lib/sentry';
 import { getSupabaseAdminClient } from '@/lib/supabaseClient';
+import { getAgentBalance } from '@/lib/supabaseLoyalty';
 
 const webhookUrl = process.env.AIRTABLE_REDEEM_WEBHOOK;
 const supabase = getSupabaseAdminClient();
@@ -136,6 +137,23 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { error: 'This unit is no longer reserved. Please pick another allocation.' },
           { status: 409 },
+        );
+      }
+    }
+
+
+    // Server-side balance check to prevent concurrent bookings exceeding balance
+    const requiredPoints = typeof body.rewardPoints === 'number' ? body.rewardPoints : 0;
+    if (requiredPoints > 0) {
+      const agentBalance = await getAgentBalance(body.agentId ?? undefined, body.agentCode ?? undefined);
+      if (agentBalance < requiredPoints) {
+        return NextResponse.json(
+          {
+            error: `Insufficient balance. You need ${requiredPoints.toLocaleString()} points but only have ${agentBalance.toLocaleString()} points.`,
+            required: requiredPoints,
+            available: agentBalance,
+          },
+          { status: 400 },
         );
       }
     }

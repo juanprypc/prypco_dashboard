@@ -223,3 +223,12 @@ function isNotExpired(row: SupabaseLoyaltyPointRow): boolean {
   if (Number.isNaN(expiresAt)) return true;
   return expiresAt >= Date.now();
 }
+
+/**
+ * Get the current total balance for an agent
+ * Returns the sum of all non-expired posted points
+ */
+export async function getAgentBalance(agentId?: string, agentCode?: string): Promise<number> {
+  const rows = await fetchLoyaltyPointRows({ agentId, agentCode, includeExpired: false });
+  return rows.reduce((sum, row) => sum + (row.points ?? 0), 0);
+}
