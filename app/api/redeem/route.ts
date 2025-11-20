@@ -90,7 +90,7 @@ async function verifyActiveReservation(unitAllocationId: string, agentKey: strin
   return { ok: true, remainingStock };
 }
 
-async function finalizeReservation(unitAllocationId: string, agentKey: string, currentStock: number) {
+async function finalizeReservation(unitAllocationId: string, agentKey: string) {
   // Atomic decrement + clear reservation in Supabase to avoid stale stock races
   const { data, error } = await supabase.rpc('finalize_reservation_atomic' as never, {
     p_unit_id: unitAllocationId,
@@ -101,7 +101,8 @@ async function finalizeReservation(unitAllocationId: string, agentKey: string, c
     throw error;
   }
 
-  const result = Array.isArray(data) && data.length > 0 ? (data[0] as { success: boolean }) : null;
+  const resultArray = Array.isArray(data) ? (data as Array<{ success?: boolean }>) : null;
+  const result = resultArray && resultArray.length > 0 ? resultArray[0] : null;
   if (!result || result.success !== true) {
     throw new Error('Unable to finalize reservation');
   }
@@ -273,7 +274,7 @@ export async function POST(request: Request) {
 
     if (unitAllocationId && reservationKey && reservationContext) {
       try {
-        await finalizeReservation(unitAllocationId, reservationKey, reservationContext.remainingStock);
+        await finalizeReservation(unitAllocationId, reservationKey);
       } catch (error) {
         console.error('Failed to finalize reservation in Supabase', error);
       }
