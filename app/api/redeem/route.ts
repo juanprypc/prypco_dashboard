@@ -30,6 +30,36 @@ type BalanceCheckResult = {
   required_points: number;
 };
 
+async function hasLerConflict(lerCode: string) {
+  const nowIso = new Date().toISOString();
+
+  const { data: pendingRows, error: pendingError } = await supabase
+    .from('pending_redemptions' as never)
+    .select('id')
+    .eq('ler_code', lerCode)
+    .gt('expires_at', nowIso)
+    .limit(1);
+
+  if (pendingError) throw pendingError;
+  if (pendingRows && pendingRows.length > 0) {
+    return { conflict: true, message: 'This LER is already being processed. Try a different LER.' };
+  }
+
+  const { data: reservationRows, error: reservationError } = await supabase
+    .from('unit_allocations' as never)
+    .select('id,reservation_expires_at')
+    .eq('reserved_ler_code', lerCode)
+    .gt('reservation_expires_at', nowIso)
+    .limit(1);
+
+  if (reservationError) throw reservationError;
+  if (reservationRows && reservationRows.length > 0) {
+    return { conflict: true, message: 'This LER is already reserved on another unit.' };
+  }
+
+  return { conflict: false, message: null };
+}
+
 async function verifyActiveReservation(unitAllocationId: string, agentKey: string): Promise<ReservationCheck> {
   const { data, error } = await supabase
     .from('unit_allocations')
@@ -160,20 +190,25 @@ export async function POST(request: Request) {
           { status: 409 },
         );
       }
+
+      const { conflict, message } = await hasLerConflict(damacLerReference);
+      if (conflict) {
+        return NextResponse.json({ error: message }, { status: 409 });
+      }
     }
 
     // Atomic balance check - reserves points to prevent concurrent overbooking
     const requiredPoints = typeof body.rewardPoints === 'number' ? body.rewardPoints : 0;
 
     if (requiredPoints > 0) {
-      const { data: balanceData, error: balanceError } = await supabase
-        .rpc('check_and_reserve_balance' as never, {
-          p_agent_id: body.agentId ?? null,
-          p_agent_code: body.agentCode ?? null,
-          p_required_points: requiredPoints,
-          p_unit_allocation_id: unitAllocationId,
-          p_ler_code: damacLerReference
-        } as never);
+        const { data: balanceData, error: balanceError } = await supabase
+          .rpc('check_and_reserve_balance' as never, {
+            p_agent_id: body.agentId ?? null,
+            p_agent_code: body.agentCode ?? null,
+            p_required_points: requiredPoints,
+            p_unit_allocation_id: unitAllocationId,
+            p_ler_code: damacLerReference
+          } as never);
 
       if (balanceError) {
         console.error('Balance check error:', balanceError);
