@@ -30,7 +30,7 @@ type BalanceCheckResult = {
   required_points: number;
 };
 
-async function hasLerConflict(lerCode: string) {
+async function hasLerConflict(lerCode: string, unitAllocationId?: string | null) {
   const nowIso = new Date().toISOString();
 
   const { data: pendingRows, error: pendingError } = await supabase
@@ -49,11 +49,13 @@ async function hasLerConflict(lerCode: string) {
     .from('unit_allocations' as never)
     .select('id,reservation_expires_at')
     .eq('reserved_ler_code', lerCode)
-    .gt('reservation_expires_at', nowIso)
-    .limit(1);
+    .gt('reservation_expires_at', nowIso);
 
   if (reservationError) throw reservationError;
-  if (reservationRows && reservationRows.length > 0) {
+  const conflictingReservation = (reservationRows ?? []).find(
+    (row: { id?: string | null }) => row.id && row.id !== unitAllocationId,
+  );
+  if (conflictingReservation) {
     return { conflict: true, message: 'This LER is already reserved on another unit.' };
   }
 
@@ -186,7 +188,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const { conflict, message } = await hasLerConflict(damacLerReference);
+      const { conflict, message } = await hasLerConflict(damacLerReference, unitAllocationId);
       if (conflict) {
         return NextResponse.json({ error: message }, { status: 409 });
       }
