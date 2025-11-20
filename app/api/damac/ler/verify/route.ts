@@ -21,6 +21,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
     const input = typeof body?.ler === 'string' ? body.ler : '';
+    const unitId = typeof body?.unitAllocationId === 'string' ? body.unitAllocationId.trim() : null;
+    const agentId = typeof body?.agentId === 'string' ? body.agentId.trim() : null;
+    const agentCode = typeof body?.agentCode === 'string' ? body.agentCode.trim() : null;
     const normalized = normalizeLer(input);
     if (!normalized) {
       const payload: VerifyResponse = { ok: false, reason: 'invalid_input', message: 'Invalid LER number.' };
@@ -42,7 +45,19 @@ export async function POST(req: NextRequest) {
       throw new Error(`Failed to check pending redemptions: ${pendingError.message}`);
     }
 
-    if (pendingRows && pendingRows.length > 0) {
+    const pendingHit =
+      pendingRows &&
+      pendingRows.find(
+        row =>
+          !(
+            row.unit_allocation_id &&
+            unitId &&
+            row.unit_allocation_id === unitId &&
+            ((agentId && row.agent_id === agentId) || (agentCode && row.agent_code && row.agent_code.toLowerCase() === agentCode.toLowerCase()))
+          ),
+      );
+
+    if (pendingHit) {
       const payload: VerifyResponse & { ler: string } = {
         ok: false,
         reason: 'already_used',
@@ -55,16 +70,26 @@ export async function POST(req: NextRequest) {
 
     const { data: reservationRows, error: reservationError } = await supabase
       .from('unit_allocations' as never)
-      .select('id,reservation_expires_at')
+      .select('id,reservation_expires_at,reserved_by')
       .eq('reserved_ler_code', normalized)
-      .gt('reservation_expires_at', nowIso)
-      .limit(1);
+      .gt('reservation_expires_at', nowIso);
 
     if (reservationError) {
       throw new Error(`Failed to check active reservations: ${reservationError.message}`);
     }
 
-    if (reservationRows && reservationRows.length > 0) {
+    const reservationHit =
+      reservationRows &&
+      reservationRows.find(
+        row =>
+          !(
+            unitId &&
+            row.id === unitId &&
+            ((agentId && row.reserved_by === agentId) || !agentId)
+          ),
+      );
+
+    if (reservationHit) {
       const payload: VerifyResponse & { ler: string } = {
         ok: false,
         reason: 'already_used',
