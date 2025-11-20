@@ -77,6 +77,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(payload, { status: 409 });
     }
 
+    type ReservationRow = { id: string | null; reservation_expires_at: string | null; reserved_by: string | null };
+
     const { data: reservationRows, error: reservationError } = await supabase
       .from('unit_allocations' as never)
       .select('id,reservation_expires_at,reserved_by')
@@ -87,16 +89,15 @@ export async function POST(req: NextRequest) {
       throw new Error(`Failed to check active reservations: ${reservationError.message}`);
     }
 
-    const reservationHit =
-      reservationRows &&
-      reservationRows.find(
-        row =>
-          !(
-            unitId &&
-            row.id === unitId &&
-            ((agentId && row.reserved_by === agentId) || !agentId)
-          ),
-      );
+    const reservationList = (reservationRows ?? []) as ReservationRow[];
+    const reservationHit = reservationList.find(
+      (row: ReservationRow) =>
+        !(
+          unitId &&
+          row.id === unitId &&
+          ((agentId && row.reserved_by === agentId) || !agentId)
+        ),
+    );
 
     if (reservationHit) {
       const payload: VerifyResponse & { ler: string } = {
