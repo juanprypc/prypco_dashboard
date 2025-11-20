@@ -12,6 +12,7 @@ type AllocationWithAvailability = {
   availability: 'available' | 'booked';
   damacIslandcode: string | null;
   brType: string | null;
+  cluster: string | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -40,14 +41,15 @@ export async function GET(request: NextRequest) {
         points: allocation.points,
         unitType: allocation.unitType,
         priceAed: allocation.priceAed ?? null,
-        propertyPrice: allocation.propertyPrice ?? null,
-        plotAreaSqft: allocation.plotAreaSqft ?? null,
-        saleableAreaSqft: allocation.saleableAreaSqft ?? null,
-        availability: isAvailable ? 'available' : 'booked',
-        damacIslandcode: allocation.damacIslandcode,
-        brType: allocation.brType,
-      };
-    });
+      propertyPrice: allocation.propertyPrice ?? null,
+      plotAreaSqft: allocation.plotAreaSqft ?? null,
+      saleableAreaSqft: allocation.saleableAreaSqft ?? null,
+      availability: isAvailable ? 'available' : 'booked',
+      damacIslandcode: allocation.damacIslandcode,
+      brType: allocation.brType,
+      cluster: (allocation as { cluster?: string | null }).cluster ?? null,
+    };
+  });
 
     return NextResponse.json(
       { allocations: response },

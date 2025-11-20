@@ -14,6 +14,7 @@ export type AllocationWithStatus = {
   availability: 'available' | 'booked';
   damacIslandcode?: string;
   brType?: string;
+  cluster?: string | null;
 };
 
 type DamacMapSelectorProps = {
@@ -754,6 +755,12 @@ export function DamacMapSelector({
                           <span>{allocation.unitType}</span>
                         </>
                       )}
+                      {allocation.cluster ? (
+                        <>
+                          <span>•</span>
+                          <span>{allocation.cluster}</span>
+                        </>
+                      ) : null}
                       {allocation.brType && (
                         <>
                           <span>•</span>
@@ -923,6 +930,14 @@ export function DamacMapSelector({
                           </p>
                         </div>
                       )}
+                      {selectedAllocation.cluster && (
+                        <div>
+                          <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Cluster</p>
+                          <p className="mt-1 text-base font-semibold text-[var(--color-outer-space)]">
+                            {selectedAllocation.cluster}
+                          </p>
+                        </div>
+                      )}
                       {selectedAllocation.brType && (
                         <div>
                           <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>
@@ -1074,6 +1089,12 @@ export function DamacMapSelector({
                   <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Points</p>
                   <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedAllocation.points?.toLocaleString() ?? '—'}</p>
                 </div>
+                {selectedAllocation.cluster && (
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Cluster</p>
+                    <p className="mt-1.5 text-lg font-semibold text-[var(--color-outer-space)]">{selectedAllocation.cluster}</p>
+                  </div>
+                )}
                 {selectedAllocation.brType && (
                   <div>
                     <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-outer-space)]/50">Bedrooms</p>

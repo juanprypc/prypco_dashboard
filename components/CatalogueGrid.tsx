@@ -17,6 +17,7 @@ export type CatalogueUnitAllocation = {
   saleableAreaSqft?: number | null;
   damacIslandcode?: string | null;
   brType?: string | null;
+  cluster?: string | null;
 };
 
 export type CatalogueDisplayItem = {

@@ -149,6 +149,7 @@ export type CatalogueUnitAllocation = {
   propertyPrice: number | null;
   damacIslandcode: string | null;
   brType: string | null;
+  cluster: string | null;
   remainingStock: number | null;
   plotAreaSqft: number | null;
   saleableAreaSqft: number | null;
@@ -197,6 +198,7 @@ export async function fetchUnitAllocationsFromSupabase(onlyWithStock = true): Pr
       property_price: number | null;
       damac_island_code: string | null;
       br_type: string | null;
+      cluster: string | null;
       remaining_stock: number | null;
       plot_area_sqft: number | null;
       saleable_area_sqft: number | null;
@@ -225,6 +227,7 @@ export async function fetchUnitAllocationsFromSupabase(onlyWithStock = true): Pr
     propertyPrice: row.property_price,
     damacIslandcode: row.damac_island_code,
     brType: row.br_type,
+    cluster: row.cluster,
     remainingStock: row.remaining_stock,
     plotAreaSqft: row.plot_area_sqft,
     saleableAreaSqft: row.saleable_area_sqft,
@@ -293,6 +296,7 @@ export async function fetchUnitAllocationsFromAirtable(onlyAvailable = true): Pr
       const catalogueIds = toStringArray(fields.Catalogue);
       const pictureAttachment = Array.isArray(fields.Picture) && fields.Picture.length > 0 ? fields.Picture[0] : null;
       const pictureUrl = pictureAttachment?.thumbnails?.large?.url || pictureAttachment?.url || null;
+      const cluster = toMaybeString((fields as Record<string, unknown>).cluster ?? (fields as Record<string, unknown>).Cluster) ?? null;
 
       return {
         id: record.id,
@@ -305,6 +309,7 @@ export async function fetchUnitAllocationsFromAirtable(onlyAvailable = true): Pr
         propertyPrice: typeof fields.property_price === 'number' ? fields.property_price : null,
         damacIslandcode: toMaybeString(fields.damacIslandcode) ?? null,
         brType: toMaybeString(fields['BR Type']) ?? null,
+        cluster,
         remainingStock: toMaybeNumber(fields.remaining_stock) ?? null,
         plotAreaSqft: toMaybeNumber(fields['Plot Area (sqft)']) ?? null,
         saleableAreaSqft: toMaybeNumber(fields['Saleable Area (sqft)']) ?? null,

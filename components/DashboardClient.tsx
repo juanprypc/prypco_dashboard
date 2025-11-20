@@ -201,6 +201,9 @@ function buildCatalogue(items: CatalogueResponse['items']): CatalogueDisplayItem
           priceAed: typeof allocation.priceAed === 'number' ? allocation.priceAed : null,
           propertyPrice:
             typeof allocation.propertyPrice === 'number' ? allocation.propertyPrice : undefined,
+          cluster: typeof (allocation as { cluster?: string }).cluster === 'string'
+            ? (allocation as { cluster?: string }).cluster || null
+            : null,
         });
       }
     }
