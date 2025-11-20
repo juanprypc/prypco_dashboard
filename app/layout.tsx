@@ -3,6 +3,7 @@ import "./globals.css";
 import { aeonik } from "./fonts";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { FloatingWhatsAppCta } from "@/components/FloatingWhatsAppCta";
 
 export const metadata: Metadata = {
   title: "Prypco Collect",
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${aeonik.variable} antialiased`} suppressHydrationWarning>
         {children}
+        <FloatingWhatsAppCta />
         <Analytics />
         <SpeedInsights />
       </body>
