@@ -52,17 +52,19 @@ export async function POST(req: NextRequest) {
       throw new Error(`Failed to check pending redemptions: ${pendingError.message}`);
     }
 
-    const pendingHit =
-      (pendingRows as PendingRow[] | null) &&
-      pendingRows.find(
-        row =>
-          !(
-            row.unit_allocation_id &&
-            unitId &&
-            row.unit_allocation_id === unitId &&
-            ((agentId && row.agent_id === agentId) || (agentCode && row.agent_code && row.agent_code.toLowerCase() === agentCode.toLowerCase()))
-          ),
-      );
+    const pendingList = (pendingRows ?? []) as PendingRow[];
+    const pendingHit = pendingList.find(
+      (row: PendingRow) =>
+        !(
+          row.unit_allocation_id &&
+          unitId &&
+          row.unit_allocation_id === unitId &&
+          ((agentId && row.agent_id === agentId) ||
+            (agentCode &&
+              row.agent_code &&
+              row.agent_code.toLowerCase() === agentCode.toLowerCase()))
+        ),
+    );
 
     if (pendingHit) {
       const payload: VerifyResponse & { ler: string } = {
