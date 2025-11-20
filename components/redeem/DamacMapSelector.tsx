@@ -27,7 +27,7 @@ type DamacMapSelectorProps = {
 };
 
 const MAP_IMAGE = '/images/bahamas_map_2.jpeg';
-const MAP_IMAGE_ORIGINAL = '/images/bahamas-cluster-map.jpg';
+const MAP_IMAGE_ORIGINAL = '/images/bahamas_map_2.jpeg';
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 6;
 const DOUBLE_TAP_DELAY = 300;
