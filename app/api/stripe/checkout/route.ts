@@ -62,6 +62,8 @@ export async function POST(request: Request) {
     if (body.rewardId && !baseParams.has('reward')) baseParams.set('reward', body.rewardId);
     if (body.allocationId && !baseParams.has('allocation')) baseParams.set('allocation', body.allocationId);
     if (body.lerCode && !baseParams.has('ler')) baseParams.set('ler', body.lerCode);
+    // Ensure we land back on the catalogue/flow when coming from a reward context
+    if (body.rewardId && !baseParams.has('view')) baseParams.set('view', 'catalogue');
 
     const successParams = new URLSearchParams(baseParams);
     successParams.set('topup', 'success');
