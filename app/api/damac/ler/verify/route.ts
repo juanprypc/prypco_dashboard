@@ -34,19 +34,26 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdminClient();
     const nowIso = new Date().toISOString();
 
+    type PendingRow = {
+      id: string;
+      unit_allocation_id: string | null;
+      agent_id: string | null;
+      agent_code: string | null;
+    };
+
     const { data: pendingRows, error: pendingError } = await supabase
       .from('pending_redemptions' as never)
-      .select('id')
+      .select('id,unit_allocation_id,agent_id,agent_code')
       .eq('ler_code', normalized)
       .gt('expires_at', nowIso)
-      .limit(1);
+      .limit(5);
 
     if (pendingError) {
       throw new Error(`Failed to check pending redemptions: ${pendingError.message}`);
     }
 
     const pendingHit =
-      pendingRows &&
+      (pendingRows as PendingRow[] | null) &&
       pendingRows.find(
         row =>
           !(
