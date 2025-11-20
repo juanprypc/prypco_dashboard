@@ -941,7 +941,7 @@ function DashboardContent({
     // Handle simple redemption items
     console.log('[AUTO-RESTORE] Opening simple flow');
     setSimpleRedeemItem(item);
-  }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue]);
+  }, [autoOpenRewardId, autoSelectAllocationId, autoVerifiedLerCode, catalogue, metrics.totalPosted]);
 
 const referralCards: ReactNode[] = [
     <ReferralCard

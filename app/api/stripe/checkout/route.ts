@@ -70,9 +70,16 @@ export async function POST(request: Request) {
     const cancelParams = new URLSearchParams(baseParams);
     cancelParams.set('topup', 'cancel');
 
-    const buildUrl = (params: URLSearchParams) => {
+    const successBase = appUrl;
+    // Route cancellations to production community host when we have an agentCode context
+    const cancelBase =
+      agentCode && typeof agentCode === 'string'
+        ? 'https://prypco.community'
+        : appUrl;
+
+    const buildUrl = (params: URLSearchParams, base: string) => {
       const qs = params.toString();
-      return qs ? `${appUrl}/dashboard?${qs}` : `${appUrl}/dashboard`;
+      return qs ? `${base}/dashboard?${qs}` : `${base}/dashboard`;
     };
 
     const session = await stripe.checkout.sessions.create({
@@ -96,8 +103,8 @@ export async function POST(request: Request) {
         pointsPerAED: String(pointsPerAed),
         expectedPoints: String(points),
       },
-      success_url: buildUrl(successParams),
-      cancel_url: buildUrl(cancelParams),
+      success_url: buildUrl(successParams, successBase),
+      cancel_url: buildUrl(cancelParams, cancelBase),
     });
 
     if (!session.url) {
