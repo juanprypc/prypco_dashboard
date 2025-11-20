@@ -269,6 +269,7 @@ function DashboardContent({
   const [agentReferralWhatsappLinkState, setAgentReferralWhatsappLinkState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryDelay, setRetryDelay] = useState<number | null>(null);
+  const [pendingBalanceRefresh, setPendingBalanceRefresh] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -599,6 +600,9 @@ function DashboardContent({
         topupRefreshTimerRef.current = null;
       }
       setForceFreshLoyalty(true);
+      // Kick off an additional balance refresh a bit later to catch Stripe->Airtable->Supabase lag
+      setPendingBalanceRefresh(Date.now());
+      setTimeout(() => setForceFreshLoyalty(true), 20000); // 20s later
     }
   }, [topupStatus, closeTopup]);
 
@@ -689,6 +693,7 @@ function DashboardContent({
       try {
         const params = new URLSearchParams(identifierParams);
         if (forceFreshLoyalty) params.set('fresh', '1');
+        if (pendingBalanceRefresh) params.set('fresh', '1');
         const loyaltyUrl = `/api/loyalty?${params.toString()}`;
 
         // Load both loyalty and catalogue APIs in parallel for faster page load
@@ -723,6 +728,7 @@ function DashboardContent({
         setLastUpdated(new Date());
         setLoading(false);
         if (forceFreshLoyalty) setForceFreshLoyalty(false);
+        if (pendingBalanceRefresh) setPendingBalanceRefresh(null);
       } catch (err) {
         if (cancelled) return;
         const retryable = typeof err === 'object' && err !== null && 'retryable' in err;
@@ -745,7 +751,7 @@ function DashboardContent({
       cancelled = true;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
-  }, [identifierParams, forceFreshLoyalty, loadCatalogue]);
+  }, [identifierParams, forceFreshLoyalty, pendingBalanceRefresh, loadCatalogue]);
 
   // Ensure catalogue is loaded when switching to catalogue view
   // Uses prefetched data if available for instant rendering
