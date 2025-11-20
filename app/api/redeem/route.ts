@@ -91,25 +91,19 @@ async function verifyActiveReservation(unitAllocationId: string, agentKey: strin
 }
 
 async function finalizeReservation(unitAllocationId: string, agentKey: string, currentStock: number) {
-  const nextStock = Math.max(0, currentStock - 1);
-  const updatePayload: Record<string, unknown> = {
-    reserved_by: null,
-    reserved_at: null,
-    reserved_ler_code: null,
-    reservation_expires_at: null,
-    remaining_stock: nextStock,
-    released_status: nextStock === 0 ? 'Not Released' : 'Available',
-    synced_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  const { error } = await supabase
-    .from('unit_allocations' as never)
-    .update(updatePayload as never)
-    .eq('id', unitAllocationId)
-    .eq('reserved_by', agentKey);
+  // Atomic decrement + clear reservation in Supabase to avoid stale stock races
+  const { data, error } = await supabase.rpc('finalize_reservation_atomic' as never, {
+    p_unit_id: unitAllocationId,
+    p_reserved_by: agentKey,
+  } as never);
 
   if (error) {
     throw error;
+  }
+
+  const result = Array.isArray(data) && data.length > 0 ? (data[0] as { success: boolean }) : null;
+  if (!result || result.success !== true) {
+    throw new Error('Unable to finalize reservation');
   }
 }
 
