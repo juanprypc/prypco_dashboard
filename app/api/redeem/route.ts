@@ -171,6 +171,11 @@ export async function POST(request: Request) {
     if (unitAllocationId && reservationKey) {
       reservationContext = await verifyActiveReservation(unitAllocationId, reservationKey);
       if (!reservationContext.ok) {
+        console.warn('Redeem 409: reservation not active', {
+          unitAllocationId,
+          agent: reservationKey,
+          reservationContext,
+        });
         return NextResponse.json(
           { error: 'This unit is no longer reserved. Please pick another allocation.' },
           { status: 409 },
@@ -182,15 +187,20 @@ export async function POST(request: Request) {
     if (damacLerReference) {
       const existingRedemption = await fetchDamacRedemptionByCode(damacLerReference);
       if (existingRedemption) {
-        return NextResponse.json(
-          { error: 'This LER code has already been used for another redemption' },
-          { status: 409 },
-        );
+        const payload = {
+          error: 'This LER code has already been used for another redemption',
+          ler: damacLerReference,
+          unitAllocationId,
+        };
+        console.warn('Redeem 409: LER already used', payload);
+        return NextResponse.json(payload, { status: 409 });
       }
 
       const { conflict, message } = await hasLerConflict(damacLerReference, unitAllocationId);
       if (conflict) {
-        return NextResponse.json({ error: message }, { status: 409 });
+        const payload = { error: message, ler: damacLerReference, unitAllocationId };
+        console.warn('Redeem 409: LER conflict', payload);
+        return NextResponse.json(payload, { status: 409 });
       }
     }
 

@@ -43,11 +43,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (pendingRows && pendingRows.length > 0) {
-      const payload: VerifyResponse = {
+      const payload: VerifyResponse & { ler: string } = {
         ok: false,
         reason: 'already_used',
         message: 'This LER is already being processed. Try a different LER.',
+        ler: normalized,
       };
+      console.warn('LER verify 409: pending hold', payload);
       return NextResponse.json(payload, { status: 409 });
     }
 
@@ -63,21 +65,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (reservationRows && reservationRows.length > 0) {
-      const payload: VerifyResponse = {
+      const payload: VerifyResponse & { ler: string } = {
         ok: false,
         reason: 'already_used',
         message: 'This LER is already reserved on another unit.',
+        ler: normalized,
       };
+      console.warn('LER verify 409: active reservation', payload);
       return NextResponse.json(payload, { status: 409 });
     }
 
     const record = await fetchDamacRedemptionByCode(normalized);
     if (record) {
-      const payload: VerifyResponse = {
+      const payload: VerifyResponse & { ler: string } = {
         ok: false,
         reason: 'already_used',
         message: 'This LER has already been used on a previous redemption.',
+        ler: normalized,
       };
+      console.warn('LER verify 409: already redeemed', payload);
       return NextResponse.json(payload, { status: 409 });
     }
 

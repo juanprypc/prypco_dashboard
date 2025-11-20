@@ -68,15 +68,20 @@ export async function POST(req: NextRequest) {
     const result = (data as ReservationResult[] | null)?.[0] ?? null;
 
     if (!result || !result.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: result?.message || 'Reservation failed',
-          expiresAt: result?.expires_at || null,
-          reservedBy: result?.reserved_by_agent || null,
-        },
-        { status: 409 } // Conflict
-      );
+      // Emit a fuller payload so we can debug 409s in Vercel logs
+      const debugPayload = {
+        success: false,
+        message: result?.message || 'Reservation failed',
+        unitId: result?.unit_id ?? unitAllocationId ?? null,
+        expiresAt: result?.expires_at || null,
+        reservedBy: result?.reserved_by_agent || null,
+        // echo inputs to help trace
+        input: { unitAllocationId, agentId, lerCode, durationMinutes },
+      };
+
+      console.warn('Reservation conflict', debugPayload);
+
+      return NextResponse.json(debugPayload, { status: 409 }); // Conflict
     }
 
     return NextResponse.json({
