@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   try {
     await Promise.all(Array.from(keys).map((key) => kv.del(key)));
     return NextResponse.json({ ok: true, cleared: Array.from(keys) });
-  } catch (error) {
+  } catch (_err) {
     return NextResponse.json({ error: 'Failed to invalidate cache' }, { status: 500 });
   }
 }

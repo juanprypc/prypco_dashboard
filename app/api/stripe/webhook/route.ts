@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase
     .from('loyalty_points')
-    .upsert(upsertPayload, { onConflict: 'external_ref' });
+    .upsert([upsertPayload], { onConflict: 'external_ref' });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
