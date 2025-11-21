@@ -24,6 +24,8 @@ type DamacMapSelectorProps = {
   onSelectionChange?: (allocation: AllocationWithStatus | null) => void;
   onRequestProceed?: (payload: { allocation: AllocationWithStatus; lerCode: string }) => void;
   hideOuterFrame?: boolean;
+  agentId?: string | null;
+  agentCode?: string | null;
 };
 
 const MAP_IMAGE = '/images/bahamas_map_2.jpeg';
@@ -83,6 +85,8 @@ export function DamacMapSelector({
   onSelectionChange,
   onRequestProceed,
   hideOuterFrame = false,
+  agentId,
+  agentCode,
 }: DamacMapSelectorProps) {
   const [allocations, setAllocations] = useState<AllocationWithStatus[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -330,7 +334,12 @@ export function DamacMapSelector({
       const res = await fetch('/api/damac/ler/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ler: verifiedCode }),
+        body: JSON.stringify({
+          ler: verifiedCode,
+          unitAllocationId: selectedAllocation?.id ?? selectedAllocationId ?? null,
+          agentId: agentId ?? null,
+          agentCode: agentCode ?? null,
+        }),
       });
       const json = await res.json();
       if (!res.ok || !json?.ok) {

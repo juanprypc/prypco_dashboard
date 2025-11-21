@@ -490,6 +490,8 @@ export function DamacRedemptionFlow({
                 onSelectAllocation={setSelectedAllocationId}
                 onSelectionChange={setSelectionDetails}
                 onRequestProceed={handleDamacProceed}
+                agentId={agentId ?? null}
+                agentCode={agentCode ?? null}
                 hideOuterFrame
               />
             ) : (
