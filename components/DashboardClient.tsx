@@ -1150,7 +1150,7 @@ const referralCards: ReactNode[] = [
             </div>
           </div>
 
-          <div className="mt-2 grid grid-cols-3 gap-x-3 justify-items-start sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
+          <div className="mt-1 grid grid-cols-3 gap-x-3 justify-items-start sm:grid-cols-6 sm:gap-3 xl:grid-cols-12">
             <div className="col-span-1 sm:col-span-2 xl:col-span-4 w-full max-w-[200px] sm:max-w-none">
               <button
                 ref={topupTriggerRef}
