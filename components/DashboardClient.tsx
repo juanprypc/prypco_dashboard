@@ -1135,41 +1135,33 @@ const referralCards: ReactNode[] = [
 
           <div className="grid grid-cols-3 gap-x-3 gap-y-6 justify-items-stretch text-left sm:grid-cols-6 sm:gap-4 sm:text-center xl:grid-cols-12">
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
-              <div className="relative">
-                <KpiCard
-                  title="Collected points"
-                  value={metrics.totalPosted}
-                  unit="points"
-                  animate
-                  headerAccessory={
-                    <button
-                      ref={topupTriggerRef}
-                      type="button"
-                      onClick={toggleTopup}
-                      aria-expanded={topupMounted && topupVisible}
-                      className="hidden items-center gap-1 rounded-full border border-transparent px-3 py-1 text-sm font-semibold text-[var(--color-outer-space)] transition hover:border-[var(--color-outer-space)]/30 hover:bg-white/70 sm:inline-flex"
-                    >
-                      <span className="text-lg leading-none">+</span>
-                      <span>Top up</span>
-                    </button>
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={toggleTopup}
-                  aria-expanded={topupMounted && topupVisible}
-                  className="absolute bottom-2 right-2 inline-flex items-center gap-[2px] text-[8px] font-semibold text-[var(--color-outer-space)] sm:hidden"
-                >
-                  <span className="text-[10px] leading-none">+</span>
-                  <span>Top up</span>
-                </button>
-              </div>
+              <KpiCard
+                title="Collected points"
+                value={metrics.totalPosted}
+                unit="points"
+                animate
+              />
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
               <KpiCard title="Due to expire in 30 days" value={metrics.expiringSoon} unit="points" animate />
             </div>
             <div className="col-span-1 w-full sm:col-span-2 xl:col-span-4">
               <KpiCard title={`Collected in ${currentMonthName}`} value={metrics.currentMonth} unit="points" animate />
+            </div>
+          </div>
+
+          <div className="mt-2 grid grid-cols-3 gap-x-3 justify-items-stretch sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
+            <div className="col-span-3 sm:col-span-2 xl:col-span-4 w-full">
+              <button
+                ref={topupTriggerRef}
+                type="button"
+                onClick={toggleTopup}
+                aria-expanded={topupMounted && topupVisible}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-outer-space)] px-5 py-3 text-base font-semibold text-white shadow-[0_10px_30px_-12px_rgba(13,9,59,0.45)] transition hover:bg-[#150f4c]"
+              >
+                <span className="text-lg leading-none">+</span>
+                <span>Top up Account</span>
+              </button>
             </div>
           </div>
 
