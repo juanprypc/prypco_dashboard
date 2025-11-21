@@ -1151,16 +1151,16 @@ const referralCards: ReactNode[] = [
           </div>
 
           <div className="mt-2 grid grid-cols-3 gap-x-3 justify-items-start sm:grid-cols-6 sm:gap-4 xl:grid-cols-12">
-            <div className="col-span-1 sm:col-span-2 xl:col-span-4 w-full max-w-[230px] sm:max-w-none">
+            <div className="col-span-1 sm:col-span-2 xl:col-span-4 w-full max-w-[200px] sm:max-w-none">
               <button
                 ref={topupTriggerRef}
                 type="button"
                 onClick={toggleTopup}
                 aria-expanded={topupMounted && topupVisible}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-[var(--color-outer-space)] px-4 py-3 text-base font-semibold text-white shadow-[0_10px_30px_-12px_rgba(13,9,59,0.45)] transition hover:bg-[#150f4c]"
+                className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-white/20 bg-[var(--color-outer-space)] px-3 py-2.5 text-sm font-semibold text-white shadow-[0_10px_30px_-12px_rgba(13,9,59,0.45)] transition hover:bg-[#150f4c]"
               >
                 <span className="text-lg leading-none">+</span>
-                <span>Top up Account</span>
+                <span>Top up</span>
               </button>
             </div>
           </div>
