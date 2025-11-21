@@ -79,7 +79,9 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase
     .from('loyalty_points')
-    .upsert([upsertPayload], { onConflict: 'external_ref' });
+    // cast to satisfy TS until DB types are wired in
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .upsert([upsertPayload] as any, { onConflict: 'external_ref' });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
